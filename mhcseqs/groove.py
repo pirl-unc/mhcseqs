@@ -1,0 +1,822 @@
+"""Binding groove extraction from MHC protein sequences.
+
+Extracts the peptide-binding groove from MHC chains.  The groove has two
+structural halves (groove1, groove2):
+
+  Class I  – a single alpha chain contributes both halves:
+               groove1  (α1 domain, ~90 aa)
+               groove2  (α2 domain, ~93 aa)
+
+  Class II – two separate chains each contribute one half:
+               alpha chain →  groove1  (α1 domain, ~83 aa)
+               beta  chain →  groove2  (β1 domain, ~93 aa)
+
+Note: "α2" means something different in each class.
+  Class I  α2  =  C-terminal groove half (peptide-binding)
+  Class II α2  =  Ig-fold support domain (NOT part of the groove)
+
+
+Domain architecture and Cys-pair anchors
+=========================================
+
+CLASS I alpha chain:
+
+  raw pos:  0       SP   ms        ms+90  C1  C1+10     C2+20
+            |--------|    |          |     |    |          |
+            [ signal ]    [-- groove1 --]--[--- groove2 ---]--[-- α3 Ig --]
+            [ peptide]    [     α1      ]  [      α2       ]  [  support  ]
+                          |<-- 90 aa -->|  | C1.......C2   |  | C1....C2  |
+                                           |<--- 93 aa --->|
+                                        c1-10           c2+20
+
+  The α2 Cys pair (C100–C163 in mature protein) is INSIDE the groove.
+  groove1 = seq[mature_start : c1 - 10]      (α1 domain)
+  groove2 = seq[c1 - 10     : c2 + 20]       (α2 domain, wraps around the Cys pair)
+  mature_start is inferred as:  raw_c1_pos - 100
+
+CLASS II alpha chain:
+
+  raw pos:  0       SP   ms           ms+83  C1         C2
+            |--------|    |              |    |          |
+            [ signal ]    [-- groove1 ---]----[-- α2 Ig -----]
+            [ peptide]    [     α1       ]    [   support    ]
+                          |<-- 83 aa --->|    | C1......C2   |
+                                       c1-23
+
+  The Cys pair (C106–C162 in mature) is in the Ig SUPPORT domain.
+  groove1 = seq[mature_start : c1 - 23]      (α1 groove domain)
+  mature_start is inferred as:  raw_c1_pos - 106
+
+CLASS II beta chain:
+
+  raw pos:  0       SP   ms  C1b       C2b      C1i         C2i
+            |--------|    |   |          |        |           |
+            [ signal ]    [------- groove2 ------]--[- β2 Ig -----]
+            [ peptide]    [         β1           ]  [  support    ]
+                          |    C1b......C2b      |  | C1i....C2i  |
+                          |<------- 93 aa ------>|
+                                               c1i-23
+
+  β2 Ig Cys pair (C116–C172 in mature) anchors the groove boundary.
+  β1 also has its own Cys pair (C14–C78) INSIDE the groove.
+  groove2 = seq[mature_start : β2_c1 - 23]   (β1 groove domain)
+  mature_start is inferred as:  raw_β2_c1_pos - 116
+  Fallback: if no β2 pair, use β1 pair:  groove2 = seq[ms : β1_c2 + 15]
+
+
+Partial / SP-stripped sequences
+================================
+
+Sequences may be deposited without the signal peptide or with N-terminal
+truncations.  The parser handles this gracefully because the Cys-pair
+anchor positions are within the mature protein:
+
+  - Full with SP:     mature_start = raw_c1 - 100 → correct SP boundary
+  - SP stripped:      mature_start = raw_c1 - 100 = 0 → groove starts at pos 0
+  - N-term truncated: mature_start = 0, groove1 is shorter by the missing residues
+
+groove2 is always correct (anchored by the Cys pair which is present in the
+sequence).  groove1 may lose N-terminal residues proportional to the
+truncation, but the rest of the groove is correctly parsed.
+
+
+Mature-position constants are calibrated against UniProt signal-peptide
+annotations for canonical human alleles (see individual constant comments).
+In practice these positions are universally conserved across all species in
+IMGT/HLA and IPD-MHC — zero exceptions found among 25,832 verifiable entries
+for class I, and 100% match for class II Ig-domain Cys positions.
+
+Ported from presto/data/groove.py.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Optional, Sequence
+
+from .alleles import infer_gene, normalize_mhc_class
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+# Ig-fold Cys-Cys pair separation range
+IG_SEP_MIN = 48
+IG_SEP_MAX = 72
+
+# Dominant Cys-Cys separations per domain (used for pair selection)
+CLASS_I_ALPHA2_DOMINANT_SEP = 63
+CLASS_II_ALPHA_IG_DOMINANT_SEP = 56
+CLASS_II_BETA1_DOMINANT_SEP = 64
+CLASS_II_BETA2_DOMINANT_SEP = 56
+
+# Minimum sequence length to attempt groove parsing
+MIN_GROOVE_SOURCE_LEN = 70
+
+# Class I constants – validated against UniProt (P01892 HLA-A*02:01)
+CLASS_I_ALPHA2_CYS1_MATURE_POS = 100  # α2 Ig-fold Cys1 at mature pos 100
+CLASS_I_ALPHA3_CYS1_MATURE_POS = 202  # α3 Ig-fold Cys1 at mature pos 202
+CLASS_I_ALPHA2_CYS1_OFFSET = 10
+CLASS_I_ALPHA2_END_AFTER_CYS2 = 20
+CLASS_I_ALPHA2_CYS1_RAW_MIN = 60
+CLASS_I_ALPHA2_CYS1_RAW_MAX = 180
+CLASS_I_ALPHA3_CYS1_RAW_MIN = 180
+
+# Class II alpha constants – validated against UniProt (P01903 HLA-DRA*01:01)
+CLASS_II_ALPHA_IG_CYS1_MATURE_POS = 106  # α2 Ig-fold Cys1 at mature pos 106
+CLASS_II_ALPHA_GROOVE_END_BEFORE_IG_CYS = 23
+CLASS_II_ALPHA_CYS1_RAW_PRIMARY_MIN = 100
+CLASS_II_ALPHA_CYS1_RAW_MIN = 40  # lowered from 80 to catch DMA (Cys1 ~49)
+CLASS_II_ALPHA_CYS1_RAW_MAX = 160
+
+# Class II beta constants – validated against UniProt (P01911 HLA-DRB1*01:01)
+CLASS_II_BETA1_CYS1_MATURE_POS = 14  # β1 Ig-fold Cys1 at mature pos 14
+CLASS_II_BETA2_CYS1_MATURE_POS = 116  # β2 Ig-fold Cys1 at mature pos 116
+CLASS_II_BETA1_CYS1_RAW_MIN = 2  # lowered from 20 to catch SP-stripped entries
+CLASS_II_BETA1_CYS1_RAW_MAX = 95
+CLASS_II_BETA2_CYS1_RAW_MIN = 100
+CLASS_II_BETA2_CYS1_RAW_MAX = 180
+CLASS_II_BETA_GROOVE_END_BEFORE_BETA2_CYS = 23
+CLASS_II_BETA1_ONLY_END_AFTER_CYS2 = 15
+
+# Default groove lengths (used only in fallback paths)
+DEFAULT_CLASS_I_GROOVE1_LEN = 90  # α1 groove half
+DEFAULT_CLASS_I_GROOVE2_LEN = 93  # α2 groove half
+DEFAULT_CLASS_II_GROOVE1_LEN = 83  # α1 groove half (class II alpha chain)
+DEFAULT_CLASS_II_GROOVE2_LEN = 93  # β1 groove half (class II beta chain)
+
+# Ig domain extraction: residues after Cys2 to include in Ig domain
+IG_DOMAIN_END_AFTER_CYS2 = 20
+
+# Fragment fallback thresholds
+CLASS_II_ALPHA_FRAGMENT_MAX_LEN = 110
+CLASS_II_BETA_FRAGMENT_MAX_LEN = 120
+
+# Genes whose MHC-like fold does not form a peptide-binding groove.
+# These are excluded from groove extraction in the pipeline.
+NON_GROOVE_GENES = frozenset({"MICA", "MICB", "MIC1", "MIC2", "HFE"})
+
+# Gene prefix patterns for class II chain inference
+CLASS_II_ALPHA_GENE_PREFIXES = ("DRA", "DQA", "DPA", "DMA", "DOA")
+CLASS_II_BETA_GENE_PREFIXES = ("DRB", "DQB", "DPB", "DMB", "DOB")
+
+
+# ---------------------------------------------------------------------------
+# Result dataclass
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class GrooveResult:
+    """Result of parsing one MHC chain into groove halves.
+
+    The peptide-binding groove has two structural halves:
+      groove1  (N-terminal):  α1 in class I, α1 in class II alpha
+      groove2  (C-terminal):  α2 in class I, β1 in class II beta
+
+    Class I alpha provides both halves; class II alpha and beta each provide one.
+    """
+
+    allele: str = ""
+    gene: str = ""
+    mhc_class: str = ""
+    chain: str = ""  # "alpha" or "beta"
+    seq_len: int = 0
+    mature_start: int = 0
+    groove_seq: str = ""  # concatenation of groove halves
+    groove1: str = ""  # α1 (class I & II alpha), empty (class II beta)
+    groove2: str = ""  # α2 (class I), β1 (class II beta), empty (class II alpha)
+    groove1_len: int = 0
+    groove2_len: int = 0
+    ig_domain: str = ""  # Ig support domain: α3 (class I), α2 (class II α), β2 (class II β)
+    ig_domain_len: int = 0
+    tail: str = ""  # everything after Ig domain (TM + cytoplasmic)
+    tail_len: int = 0
+    status: str = "ok"
+    anchor_type: str = ""
+    anchor_cys1: Optional[int] = None
+    anchor_cys2: Optional[int] = None
+    secondary_cys1: Optional[int] = None
+    secondary_cys2: Optional[int] = None
+    flags: tuple[str, ...] = field(default_factory=tuple)
+
+    @property
+    def ok(self) -> bool:
+        return self.status in {
+            "ok",
+            "alpha3_fallback",
+            "beta1_only_fallback",
+            "fragment_fallback",
+        }
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _clean_seq(sequence: Optional[str]) -> str:
+    return "".join(ch for ch in str(sequence or "").strip().upper() if not ch.isspace())
+
+
+def _infer_mature_start(cys1_raw: int, mature_pos: int) -> int:
+    return max(0, int(cys1_raw) - int(mature_pos))
+
+
+def _flags_to_tuple(flags: Sequence[str]) -> tuple[str, ...]:
+    return tuple(str(flag) for flag in flags if flag)
+
+
+def _slice_or_empty(seq: str, start: int, end: int) -> str:
+    lo = max(0, int(start))
+    hi = max(lo, min(len(seq), int(end)))
+    return seq[lo:hi]
+
+
+# ---------------------------------------------------------------------------
+# Cysteine pair detection
+# ---------------------------------------------------------------------------
+
+
+def find_cys_pairs(
+    seq: str,
+    min_sep: int = IG_SEP_MIN,
+    max_sep: int = IG_SEP_MAX,
+) -> list[tuple[int, int, int]]:
+    """Find all Cys-Cys pairs with plausible Ig-fold separation.
+
+    Returns list of (cys1_pos, cys2_pos, separation) tuples.
+    """
+    cleaned = _clean_seq(seq)
+    cys_positions = [idx for idx, aa in enumerate(cleaned) if aa == "C"]
+    pairs: list[tuple[int, int, int]] = []
+    for i, c1 in enumerate(cys_positions):
+        for c2 in cys_positions[i + 1 :]:
+            sep = c2 - c1
+            if sep < min_sep:
+                continue
+            if sep > max_sep:
+                break
+            pairs.append((c1, c2, sep))
+    return pairs
+
+
+# ---------------------------------------------------------------------------
+# Class II chain inference
+# ---------------------------------------------------------------------------
+
+
+def _class_ii_chain_from_name(
+    *,
+    gene: str,
+    allele: str,
+) -> Optional[str]:
+    gene_token = str(gene or "").strip().upper()
+    if not gene_token and allele:
+        try:
+            gene_token = infer_gene(allele)
+        except Exception:
+            gene_token = ""
+        gene_token = str(gene_token or "").strip().upper()
+
+    if not gene_token:
+        return None
+    if gene_token.startswith(CLASS_II_ALPHA_GENE_PREFIXES):
+        return "alpha"
+    if gene_token.startswith(CLASS_II_BETA_GENE_PREFIXES):
+        return "beta"
+    if gene_token.endswith("A"):
+        return "alpha"
+    if gene_token.endswith("B"):
+        return "beta"
+    return None
+
+
+def _class_ii_fragment_result(
+    *,
+    seq: str,
+    allele: str,
+    gene: str,
+    chain: str,
+) -> GrooveResult:
+    cleaned = _clean_seq(seq)
+    if chain == "alpha":
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="alpha",
+            seq_len=len(cleaned),
+            mature_start=0,
+            groove_seq=cleaned,
+            groove1=cleaned,
+            groove2="",
+            groove1_len=len(cleaned),
+            groove2_len=0,
+            status="fragment_fallback",
+            anchor_type="raw_fragment",
+            flags=("fragment_fallback",),
+        )
+    return GrooveResult(
+        allele=allele,
+        gene=gene,
+        mhc_class="II",
+        chain="beta",
+        seq_len=len(cleaned),
+        mature_start=0,
+        groove_seq=cleaned,
+        groove1="",
+        groove2=cleaned,
+        groove1_len=0,
+        groove2_len=len(cleaned),
+        status="fragment_fallback",
+        anchor_type="raw_fragment",
+        flags=("fragment_fallback",),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Class I groove parser
+# ---------------------------------------------------------------------------
+
+
+def parse_class_i(
+    seq: str,
+    *,
+    allele: str = "",
+    gene: str = "",
+) -> GrooveResult:
+    """Parse a class-I alpha chain into alpha1/alpha2 groove halves.
+
+    Primary strategy: locate the alpha2-domain Cys pair (raw pos ~60-180),
+    infer signal peptide length from it, then slice alpha1 and alpha2 domains.
+
+    Fallback: if no alpha2 pair, use the alpha3 Cys pair (raw pos ≥180) with
+    fixed-width groove boundaries.
+    """
+    cleaned = _clean_seq(seq)
+    flags: list[str] = []
+    if len(cleaned) < MIN_GROOVE_SOURCE_LEN:
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="I",
+            chain="alpha",
+            seq_len=len(cleaned),
+            status="too_short",
+        )
+
+    pairs = find_cys_pairs(cleaned)
+    if not pairs:
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="I",
+            chain="alpha",
+            seq_len=len(cleaned),
+            status="no_cys_pairs",
+        )
+
+    # Try alpha2 Cys pair first.
+    # Prefer the pair whose separation is closest to the dominant value (63).
+    # This avoids picking polymorphic Cys mutations (e.g. Y→C at pos N-2
+    # creating a CxC motif) and intra-domain disulfides in non-classical
+    # genes (e.g. HLA-G's α1 C42–C100 pair at sep=59).
+    alpha2_candidates = [
+        pair for pair in pairs if CLASS_I_ALPHA2_CYS1_RAW_MIN <= pair[0] <= CLASS_I_ALPHA2_CYS1_RAW_MAX
+    ]
+    alpha2_pair = (
+        min(alpha2_candidates, key=lambda p: (abs(p[2] - CLASS_I_ALPHA2_DOMINANT_SEP), -p[0]))
+        if alpha2_candidates
+        else None
+    )
+
+    if alpha2_pair is None:
+        # Fallback to alpha3 Cys pair
+        alpha3_pair = next(
+            (pair for pair in pairs if pair[0] >= CLASS_I_ALPHA3_CYS1_RAW_MIN),
+            None,
+        )
+        if alpha3_pair is None:
+            return GrooveResult(
+                allele=allele,
+                gene=gene,
+                mhc_class="I",
+                chain="alpha",
+                seq_len=len(cleaned),
+                status="no_alpha2_pair",
+            )
+
+        c1, c2, _ = alpha3_pair
+        mature_start = _infer_mature_start(c1, CLASS_I_ALPHA3_CYS1_MATURE_POS)
+        alpha1_end = mature_start + DEFAULT_CLASS_I_GROOVE1_LEN
+        alpha2_end = min(len(cleaned), c1 - 20)
+        half_1 = _slice_or_empty(cleaned, mature_start, alpha1_end)
+        half_2 = _slice_or_empty(cleaned, alpha1_end, alpha2_end)
+        if not half_1 or not half_2:
+            return GrooveResult(
+                allele=allele,
+                gene=gene,
+                mhc_class="I",
+                chain="alpha",
+                seq_len=len(cleaned),
+                mature_start=mature_start,
+                status="alpha3_fallback_bad_boundaries",
+                anchor_type="alpha3_cys",
+                anchor_cys1=c1,
+                anchor_cys2=c2,
+            )
+        flags.append("alpha3_fallback")
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="I",
+            chain="alpha",
+            seq_len=len(cleaned),
+            mature_start=mature_start,
+            groove_seq=half_1 + half_2,
+            groove1=half_1,
+            groove2=half_2,
+            groove1_len=len(half_1),
+            groove2_len=len(half_2),
+            status="alpha3_fallback",
+            anchor_type="alpha3_cys",
+            anchor_cys1=c1,
+            anchor_cys2=c2,
+            flags=_flags_to_tuple(flags),
+        )
+
+    # Primary alpha2 strategy
+    c1, c2, _ = alpha2_pair
+    mature_start = _infer_mature_start(c1, CLASS_I_ALPHA2_CYS1_MATURE_POS)
+    if mature_start > 40:
+        flags.append(f"long_sp({mature_start})")
+
+    alpha2_start = max(mature_start, c1 - CLASS_I_ALPHA2_CYS1_OFFSET)
+    alpha2_end = min(len(cleaned), c2 + CLASS_I_ALPHA2_END_AFTER_CYS2)
+    half_1 = _slice_or_empty(cleaned, mature_start, alpha2_start)
+    half_2 = _slice_or_empty(cleaned, alpha2_start, alpha2_end)
+    secondary = next(
+        (pair for pair in pairs if pair[0] > c2 + 10),
+        None,
+    )
+
+    # Extract Ig domain (α3) and tail if α3 Cys pair is available
+    if secondary:
+        s_c1, s_c2, _ = secondary
+        ig_end = min(len(cleaned), s_c2 + IG_DOMAIN_END_AFTER_CYS2)
+        ig = _slice_or_empty(cleaned, alpha2_end, ig_end)
+        t = cleaned[ig_end:]
+    else:
+        ig = ""
+        t = cleaned[alpha2_end:]
+
+    if len(half_1) < 50:
+        flags.append(f"alpha1_short({len(half_1)})")
+    if len(half_2) < 60:
+        flags.append(f"alpha2_short({len(half_2)})")
+    if not half_1 or not half_2:
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="I",
+            chain="alpha",
+            seq_len=len(cleaned),
+            mature_start=mature_start,
+            status="invalid_boundaries",
+            anchor_type="alpha2_cys",
+            anchor_cys1=c1,
+            anchor_cys2=c2,
+        )
+    return GrooveResult(
+        allele=allele,
+        gene=gene,
+        mhc_class="I",
+        chain="alpha",
+        seq_len=len(cleaned),
+        mature_start=mature_start,
+        groove_seq=half_1 + half_2,
+        groove1=half_1,
+        groove2=half_2,
+        groove1_len=len(half_1),
+        groove2_len=len(half_2),
+        ig_domain=ig,
+        ig_domain_len=len(ig),
+        tail=t,
+        tail_len=len(t),
+        status="ok",
+        anchor_type="alpha2_cys",
+        anchor_cys1=c1,
+        anchor_cys2=c2,
+        secondary_cys1=(secondary[0] if secondary else None),
+        secondary_cys2=(secondary[1] if secondary else None),
+        flags=_flags_to_tuple(flags),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Class II alpha groove parser
+# ---------------------------------------------------------------------------
+
+
+def parse_class_ii_alpha(
+    seq: str,
+    *,
+    allele: str = "",
+    gene: str = "",
+) -> GrooveResult:
+    """Parse a class-II alpha chain into the alpha1 groove half.
+
+    Locates the alpha2-domain Ig-fold Cys pair to infer the boundary between
+    the alpha1 groove domain and the alpha2 Ig domain.
+    """
+    cleaned = _clean_seq(seq)
+    flags: list[str] = []
+    if len(cleaned) < MIN_GROOVE_SOURCE_LEN:
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="alpha",
+            seq_len=len(cleaned),
+            status="too_short",
+        )
+
+    pairs = find_cys_pairs(cleaned)
+
+    primary = [pair for pair in pairs if CLASS_II_ALPHA_CYS1_RAW_PRIMARY_MIN <= pair[0] <= CLASS_II_ALPHA_CYS1_RAW_MAX]
+    candidates = primary or [
+        pair for pair in pairs if CLASS_II_ALPHA_CYS1_RAW_MIN <= pair[0] <= CLASS_II_ALPHA_CYS1_RAW_MAX
+    ]
+    if not candidates:
+        # Fragment fallback: short sequences are likely just the groove domain
+        if len(cleaned) <= CLASS_II_ALPHA_FRAGMENT_MAX_LEN:
+            return _class_ii_fragment_result(
+                seq=cleaned,
+                allele=allele,
+                gene=gene,
+                chain="alpha",
+            )
+        status = "no_cys_pairs" if not pairs else "no_anchor_pair"
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="alpha",
+            seq_len=len(cleaned),
+            status=status,
+        )
+
+    c1, c2, _ = min(candidates, key=lambda item: (abs(item[2] - 56), -item[0]))
+    mature_start = _infer_mature_start(c1, CLASS_II_ALPHA_IG_CYS1_MATURE_POS)
+    groove_end = max(mature_start, c1 - CLASS_II_ALPHA_GROOVE_END_BEFORE_IG_CYS)
+    half_1 = _slice_or_empty(cleaned, mature_start, groove_end)
+
+    # Extract Ig domain (α2) and tail
+    ig_end = min(len(cleaned), c2 + IG_DOMAIN_END_AFTER_CYS2)
+    ig = _slice_or_empty(cleaned, groove_end, ig_end)
+    t = cleaned[ig_end:]
+
+    if len(half_1) < 60:
+        flags.append(f"alpha1_short({len(half_1)})")
+    if not half_1:
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="alpha",
+            seq_len=len(cleaned),
+            mature_start=mature_start,
+            status="invalid_boundaries",
+            anchor_type="alpha2_cys",
+            anchor_cys1=c1,
+            anchor_cys2=c2,
+        )
+    return GrooveResult(
+        allele=allele,
+        gene=gene,
+        mhc_class="II",
+        chain="alpha",
+        seq_len=len(cleaned),
+        mature_start=mature_start,
+        groove_seq=half_1,
+        groove1=half_1,
+        groove2="",
+        groove1_len=len(half_1),
+        groove2_len=0,
+        ig_domain=ig,
+        ig_domain_len=len(ig),
+        tail=t,
+        tail_len=len(t),
+        status="ok",
+        anchor_type="alpha2_cys",
+        anchor_cys1=c1,
+        anchor_cys2=c2,
+        flags=_flags_to_tuple(flags),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Class II beta groove parser
+# ---------------------------------------------------------------------------
+
+
+def parse_class_ii_beta(
+    seq: str,
+    *,
+    allele: str = "",
+    gene: str = "",
+) -> GrooveResult:
+    """Parse a class-II beta chain into the beta1 groove half.
+
+    Primary strategy: locate the beta2 Ig-fold Cys pair to infer where the
+    beta1 groove domain ends. Fallback: use the beta1 Cys pair directly.
+    """
+    cleaned = _clean_seq(seq)
+    flags: list[str] = []
+    if len(cleaned) < MIN_GROOVE_SOURCE_LEN:
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="beta",
+            seq_len=len(cleaned),
+            status="too_short",
+        )
+
+    pairs = find_cys_pairs(cleaned)
+    if not pairs:
+        if len(cleaned) <= CLASS_II_BETA_FRAGMENT_MAX_LEN:
+            return _class_ii_fragment_result(
+                seq=cleaned,
+                allele=allele,
+                gene=gene,
+                chain="beta",
+            )
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="beta",
+            seq_len=len(cleaned),
+            status="no_cys_pairs",
+        )
+
+    beta1_candidates = [pair for pair in pairs if CLASS_II_BETA1_CYS1_RAW_MIN <= pair[0] <= CLASS_II_BETA1_CYS1_RAW_MAX]
+    beta2_candidates = [pair for pair in pairs if CLASS_II_BETA2_CYS1_RAW_MIN <= pair[0] <= CLASS_II_BETA2_CYS1_RAW_MAX]
+
+    beta1_pair = min(beta1_candidates, key=lambda item: (abs(item[2] - 64), item[0])) if beta1_candidates else None
+    downstream_beta2 = [pair for pair in beta2_candidates if beta1_pair is None or pair[0] > beta1_pair[1] + 10]
+    beta2_pair = min(downstream_beta2, key=lambda item: (abs(item[2] - 56), item[0])) if downstream_beta2 else None
+
+    if beta1_pair is None and beta2_pair is None:
+        if len(cleaned) <= CLASS_II_BETA_FRAGMENT_MAX_LEN:
+            return _class_ii_fragment_result(
+                seq=cleaned,
+                allele=allele,
+                gene=gene,
+                chain="beta",
+            )
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="beta",
+            seq_len=len(cleaned),
+            status="no_anchor_pair",
+        )
+
+    if beta2_pair is not None:
+        c1, c2, _ = beta2_pair
+        mature_start = _infer_mature_start(c1, CLASS_II_BETA2_CYS1_MATURE_POS)
+        groove_end = max(mature_start, c1 - CLASS_II_BETA_GROOVE_END_BEFORE_BETA2_CYS)
+        status = "ok"
+        anchor_type = "beta2_cys"
+        anchor_pair = beta2_pair
+        # Extract Ig domain (β2) and tail
+        ig_end = min(len(cleaned), c2 + IG_DOMAIN_END_AFTER_CYS2)
+        ig = _slice_or_empty(cleaned, groove_end, ig_end)
+        t = cleaned[ig_end:]
+    else:
+        c1, c2, _ = beta1_pair  # type: ignore[misc]
+        mature_start = _infer_mature_start(c1, CLASS_II_BETA1_CYS1_MATURE_POS)
+        groove_end = min(len(cleaned), c2 + CLASS_II_BETA1_ONLY_END_AFTER_CYS2)
+        status = "beta1_only_fallback"
+        anchor_type = "beta1_cys"
+        anchor_pair = beta1_pair
+        flags.append("beta1_only_fallback")
+        # No β2 pair → cannot define Ig domain boundaries
+        ig = ""
+        t = cleaned[groove_end:]
+
+    half_2 = _slice_or_empty(cleaned, mature_start, groove_end)
+    if len(half_2) < 70:
+        flags.append(f"beta1_short({len(half_2)})")
+    if not half_2:
+        return GrooveResult(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="beta",
+            seq_len=len(cleaned),
+            mature_start=mature_start,
+            status="invalid_boundaries",
+            anchor_type=anchor_type,
+            anchor_cys1=(anchor_pair[0] if anchor_pair else None),
+            anchor_cys2=(anchor_pair[1] if anchor_pair else None),
+        )
+    return GrooveResult(
+        allele=allele,
+        gene=gene,
+        mhc_class="II",
+        chain="beta",
+        seq_len=len(cleaned),
+        mature_start=mature_start,
+        groove_seq=half_2,
+        groove1="",
+        groove2=half_2,
+        groove1_len=0,
+        groove2_len=len(half_2),
+        ig_domain=ig,
+        ig_domain_len=len(ig),
+        tail=t,
+        tail_len=len(t),
+        status=status,
+        anchor_type=anchor_type,
+        anchor_cys1=(anchor_pair[0] if anchor_pair else None),
+        anchor_cys2=(anchor_pair[1] if anchor_pair else None),
+        secondary_cys1=(beta1_pair[0] if beta1_pair and beta2_pair is not None else None),
+        secondary_cys2=(beta1_pair[1] if beta1_pair and beta2_pair is not None else None),
+        flags=_flags_to_tuple(flags),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
+
+def extract_groove(
+    seq: str,
+    *,
+    mhc_class: str,
+    chain: Optional[str] = None,
+    allele: str = "",
+    gene: str = "",
+) -> GrooveResult:
+    """Dispatch groove parsing by class and chain."""
+    nc = normalize_mhc_class(mhc_class)
+    if nc == "I":
+        return parse_class_i(seq, allele=allele, gene=gene)
+    if nc != "II":
+        raise ValueError(f"Unsupported MHC class: {mhc_class!r}")
+
+    chain_token = str(chain or "").strip().lower()
+    if chain_token in {"a", "alpha", "mhc_a"}:
+        return parse_class_ii_alpha(seq, allele=allele, gene=gene)
+    if chain_token in {"b", "beta", "mhc_b"}:
+        return parse_class_ii_beta(seq, allele=allele, gene=gene)
+
+    if chain_token:
+        raise ValueError(f"Unsupported class-II chain token: {chain!r}")
+
+    # Infer chain from gene name
+    name_chain = _class_ii_chain_from_name(gene=gene, allele=allele)
+    if name_chain == "alpha":
+        return parse_class_ii_alpha(seq, allele=allele, gene=gene)
+    if name_chain == "beta":
+        return parse_class_ii_beta(seq, allele=allele, gene=gene)
+
+    # Last resort: try both parsers
+    alpha = parse_class_ii_alpha(seq, allele=allele, gene=gene)
+    beta = parse_class_ii_beta(seq, allele=allele, gene=gene)
+    if alpha.ok and not beta.ok:
+        return alpha
+    if beta.ok and not alpha.ok:
+        return beta
+
+    if alpha.ok and beta.ok:
+        status = "ambiguous_chain"
+    else:
+        status = "chain_inference_failed"
+    return GrooveResult(
+        allele=allele,
+        gene=gene,
+        mhc_class="II",
+        chain="",
+        seq_len=len(_clean_seq(seq)),
+        status=status,
+        anchor_type="chain_inference",
+        flags=_flags_to_tuple(
+            (
+                f"alpha_status={alpha.status}",
+                f"beta_status={beta.status}",
+            )
+        ),
+    )
+
+
+def is_class_ii_alpha_gene(gene: str) -> bool:
+    """Whether a gene name corresponds to a class II alpha chain."""
+    token = str(gene or "").strip().upper()
+    return token.startswith(("DRA", "DQA", "DPA", "DMA", "DOA")) or token.endswith("A")

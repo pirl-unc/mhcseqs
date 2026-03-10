@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mhcseqs — MHC sequence curation and groove extraction</title>
+<style>
+  :root { --bg: #fff; --fg: #1a1a1a; --accent: #2563eb; --code-bg: #f5f5f5; --border: #e5e5e5; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1a1a1a; --fg: #e5e5e5; --accent: #60a5fa; --code-bg: #2a2a2a; --border: #404040; }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 2rem 1rem;
+         background: var(--bg); color: var(--fg); }
+  h1, h2, h3 { margin-top: 2rem; }
+  h1 { border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+  h2 { border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  a { color: var(--accent); }
+  code { background: var(--code-bg); padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; }
+  pre { background: var(--code-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+  th { background: var(--code-bg); }
+  td:nth-child(n+2) { text-align: right; }
+  .note { background: var(--code-bg); border-left: 4px solid var(--accent); padding: 0.75rem 1rem; margin: 1rem 0; }
+  nav { margin-bottom: 2rem; }
+  nav a { margin-right: 1.5rem; text-decoration: none; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<h1>mhcseqs</h1>
+<p>Self-contained pipeline for downloading, curating, and extracting binding grooves from MHC protein sequences.</p>
+
+<nav>
+  <a href="#install">Install</a>
+  <a href="#cli">CLI</a>
+  <a href="#api">Python API</a>
+  <a href="#output">Output</a>
+  <a href="#algorithm">Algorithm</a>
+  <a href="#species">Species</a>
+  <a href="#modules">Modules</a>
+</nav>
+
+<h2 id="install">Installation</h2>
+<pre><code>pip install mhcseqs</code></pre>
+<p>For development:</p>
+<pre><code>git clone https://github.com/openvax/mhcseqs.git
+cd mhcseqs
+./develop.sh    # pip install -e ".[dev]"
+./test.sh       # pytest
+./lint.sh       # ruff</code></pre>
+<p>Requirements: Python 3.10+, <a href="https://github.com/openvax/mhcgnomes">mhcgnomes</a> (installed automatically).</p>
+
+<h2 id="cli">CLI Reference</h2>
+<h3><code>mhcseqs build</code></h3>
+<p>Downloads FASTA sources (IMGT/HLA + IPD-MHC), parses alleles, selects two-field representatives, extracts binding grooves, and runs validation.</p>
+<pre><code>mhcseqs build [--output-dir DIR] [--data-dir DIR]</code></pre>
+<table>
+  <tr><th>Option</th><th style="text-align:left">Description</th></tr>
+  <tr><td style="text-align:left"><code>--output-dir</code></td><td style="text-align:left">Directory for output CSVs (default: repo root)</td></tr>
+  <tr><td style="text-align:left"><code>--data-dir</code></td><td style="text-align:left">Directory for downloaded FASTA files (default: <code>data/fasta/</code>)</td></tr>
+</table>
+<p>Produces five files:</p>
+<table>
+  <tr><th style="text-align:left">File</th><th style="text-align:left">Description</th></tr>
+  <tr><td style="text-align:left"><code>mhc-seqs-raw.csv</code></td><td style="text-align:left">Every parsed protein entry from both databases</td></tr>
+  <tr><td style="text-align:left"><code>mhc-full-seqs.csv</code></td><td style="text-align:left">One representative mature protein per two-field allele group</td></tr>
+  <tr><td style="text-align:left"><code>mhc-binding-grooves.csv</code></td><td style="text-align:left">Structural decomposition: groove + Ig domain + tail</td></tr>
+  <tr><td style="text-align:left"><code>mhc-merge-report.txt</code></td><td style="text-align:left">Details on allele group merging decisions</td></tr>
+  <tr><td style="text-align:left"><code>mhc-validation-report.txt</code></td><td style="text-align:left">Sanity check results</td></tr>
+</table>
+
+<h3><code>mhcseqs lookup</code></h3>
+<p>Query built CSVs by allele name.</p>
+<pre><code>mhcseqs lookup "HLA-A*02:01"
+mhcseqs lookup "Mamu-A1*001:01"</code></pre>
+
+<h3><code>mhcseqs --version</code></h3>
+<p>Print the installed version.</p>
+
+<h2 id="api">Python API</h2>
+
+<h3>Full build</h3>
+<pre><code>import mhcseqs
+
+# Build all CSVs (downloads data if needed)
+paths = mhcseqs.build(output_dir="output")
+# paths = {"raw": "...", "full_seqs": "...", "grooves": "...", ...}
+
+# Load as DataFrames (requires pandas)
+import pandas as pd
+df = pd.read_csv(paths["grooves"])</code></pre>
+
+<h3>Convenience loaders</h3>
+<pre><code># Returns list[dict], no pandas needed
+rows = mhcseqs.load_grooves()
+rows = mhcseqs.load_full_seqs()
+rows = mhcseqs.load_raw()</code></pre>
+
+<h3>Single-sequence groove extraction</h3>
+<pre><code>result = mhcseqs.extract_groove(
+    sequence,
+    mhc_class="I",
+    allele="HLA-A*02:01",
+    gene="A",
+)
+print(result.groove1)      # α1 domain (~90 aa)
+print(result.groove2)      # α2 domain (~93 aa)
+print(result.ig_domain)    # α3 Ig-fold (~95 aa)
+print(result.tail)         # TM + cytoplasmic
+print(result.status)       # "ok", "alpha3_fallback", etc.
+print(result.mature_start) # signal peptide length</code></pre>
+
+<h3>Species utilities</h3>
+<pre><code>mhcseqs.normalize_species("Macaca mulatta")  # "macaque"
+mhcseqs.normalize_mhc_species("macaque")      # "nhp"
+mhcseqs.get_latin_name("macaque")             # "Macaca mulatta"
+mhcseqs.get_canonical_prefix("macaque")       # "Mamu"</code></pre>
+
+<h3>Allele utilities</h3>
+<pre><code>mhcseqs.normalize_allele_name("A0201")  # "HLA-A*02:01"
+mhcseqs.infer_gene("HLA-A*02:01")       # "A"
+mhcseqs.infer_mhc_class("HLA-A*02:01")  # "I"</code></pre>
+
+<h2 id="output">Output columns</h2>
+
+<h3>mhc-seqs-raw.csv</h3>
+<table>
+  <tr><th style="text-align:left">Column</th><th style="text-align:left">Description</th></tr>
+  <tr><td style="text-align:left"><code>allele_raw</code></td><td style="text-align:left">Original allele token from FASTA header</td></tr>
+  <tr><td style="text-align:left"><code>allele_normalized</code></td><td style="text-align:left">Full-resolution name from mhcgnomes</td></tr>
+  <tr><td style="text-align:left"><code>two_field_allele</code></td><td style="text-align:left">Truncated to two-field / "4-digit" resolution</td></tr>
+  <tr><td style="text-align:left"><code>gene</code></td><td style="text-align:left">Gene name (e.g. A, DRB1, DQA1)</td></tr>
+  <tr><td style="text-align:left"><code>mhc_class</code></td><td style="text-align:left">I or II</td></tr>
+  <tr><td style="text-align:left"><code>chain</code></td><td style="text-align:left">alpha, beta, or B2M</td></tr>
+  <tr><td style="text-align:left"><code>species</code></td><td style="text-align:left">Species name (usually Latin)</td></tr>
+  <tr><td style="text-align:left"><code>species_category</code></td><td style="text-align:left">One of: human, nhp, murine, other_mammal, bird, fish, other_vertebrate</td></tr>
+  <tr><td style="text-align:left"><code>species_prefix</code></td><td style="text-align:left">MHC naming prefix (HLA, Mamu, SLA, etc.)</td></tr>
+  <tr><td style="text-align:left"><code>source</code></td><td style="text-align:left">imgt, ipd_mhc, or uniprot_reference</td></tr>
+  <tr><td style="text-align:left"><code>sequence</code></td><td style="text-align:left">Full protein sequence</td></tr>
+  <tr><td style="text-align:left"><code>has_signal_peptide</code></td><td style="text-align:left">Whether a signal peptide was detected</td></tr>
+  <tr><td style="text-align:left"><code>signal_peptide_len</code></td><td style="text-align:left">Inferred signal peptide length</td></tr>
+  <tr><td style="text-align:left"><code>is_null</code>, <code>is_questionable</code>, <code>is_pseudogene</code></td><td style="text-align:left">Allele status flags</td></tr>
+</table>
+
+<h3>mhc-full-seqs.csv</h3>
+<p>All raw columns plus:</p>
+<table>
+  <tr><th style="text-align:left">Column</th><th style="text-align:left">Description</th></tr>
+  <tr><td style="text-align:left"><code>representative_allele</code></td><td style="text-align:left">Specific full-resolution allele chosen</td></tr>
+  <tr><td style="text-align:left"><code>representative_policy</code></td><td style="text-align:left">Selection method (unique, nested_longest, etc.)</td></tr>
+  <tr><td style="text-align:left"><code>mature_start</code></td><td style="text-align:left">Offset where mature protein begins</td></tr>
+  <tr><td style="text-align:left"><code>mature_sequence</code></td><td style="text-align:left">Protein with signal peptide removed</td></tr>
+  <tr><td style="text-align:left"><code>is_functional</code></td><td style="text-align:left">Groove parseable AND not null/pseudogene</td></tr>
+</table>
+
+<h3>mhc-binding-grooves.csv</h3>
+<table>
+  <tr><th style="text-align:left">Column</th><th style="text-align:left">Description</th></tr>
+  <tr><td style="text-align:left"><code>groove1</code></td><td style="text-align:left">N-terminal groove half: α1 domain (class I &amp; II alpha chains)</td></tr>
+  <tr><td style="text-align:left"><code>groove2</code></td><td style="text-align:left">C-terminal groove half: α2 domain (class I) or β1 domain (class II beta)</td></tr>
+  <tr><td style="text-align:left"><code>groove_seq</code></td><td style="text-align:left">Concatenation of groove1 + groove2</td></tr>
+  <tr><td style="text-align:left"><code>ig_domain</code></td><td style="text-align:left">Ig support domain: α3 (class I), α2 (class II α), β2 (class II β)</td></tr>
+  <tr><td style="text-align:left"><code>tail</code></td><td style="text-align:left">Transmembrane + cytoplasmic region</td></tr>
+  <tr><td style="text-align:left"><code>groove_status</code></td><td style="text-align:left">Parse outcome (ok, alpha3_fallback, etc.)</td></tr>
+  <tr><td style="text-align:left"><code>anchor_type</code></td><td style="text-align:left">Which Cys pair anchored the parse</td></tr>
+</table>
+
+<h2 id="algorithm">Groove extraction algorithm</h2>
+
+<p>The parser is <strong>alignment-free</strong> — it uses conserved Cys-Cys disulfide
+pairs in Ig-fold domains as structural landmarks.</p>
+
+<h3>Domain architecture</h3>
+<pre><code>CLASS I alpha chain:
+
+  raw pos:  0       SP   ms        ms+90  C1  C1+10     C2+20     s_C2+20
+            |--------|    |          |     |    |          |         |
+            [ signal ]    [-- groove1 --]--[--- groove2 ---]--[-- ig --]--[ tail ]
+            [ peptide]    [     α1      ]  [      α2       ]  [  α3   ]
+                          |<-- 90 aa -->|  | C1.......C2   |  |C1..C2 |
+                                           |<--- 93 aa --->|
+
+CLASS II alpha chain:
+
+  raw pos:  0       SP   ms           ms+83  C1         C2
+            |--------|    |              |    |          |
+            [ signal ]    [-- groove1 ---]----[--- ig ------]--[ tail ]
+            [ peptide]    [     α1       ]    [    α2       ]
+
+CLASS II beta chain:
+
+  raw pos:  0       SP   ms  C1b       C2b      C1i         C2i
+            |--------|    |   |          |        |           |
+            [ signal ]    [------- groove2 ------]--[-- ig ----]--[ tail ]
+            [ peptide]    [         β1           ]  [   β2     ]</code></pre>
+
+<h3>How it works</h3>
+<ol>
+  <li>Find all Cys-Cys pairs with 48–72 residue separation (Ig-fold signature).</li>
+  <li>Select the pair in the expected positional range, preferring the one whose
+      separation is closest to the domain's canonical value.</li>
+  <li>Infer signal peptide length by subtracting the known mature-position constant
+      from the raw Cys position.</li>
+  <li>Slice groove, Ig domain, and tail using offsets relative to the anchor pair.</li>
+</ol>
+
+<h3>Groove status codes</h3>
+<table>
+  <tr><th style="text-align:left">Status</th><th style="text-align:left">Meaning</th></tr>
+  <tr><td style="text-align:left"><code>ok</code></td><td style="text-align:left">Primary anchor found, groove extracted normally</td></tr>
+  <tr><td style="text-align:left"><code>alpha3_fallback</code></td><td style="text-align:left">Class I: used α3 Cys pair instead of α2</td></tr>
+  <tr><td style="text-align:left"><code>beta1_only_fallback</code></td><td style="text-align:left">Class II β: only β1 Cys pair available</td></tr>
+  <tr><td style="text-align:left"><code>fragment_fallback</code></td><td style="text-align:left">Short sequence treated as raw groove fragment</td></tr>
+  <tr><td style="text-align:left"><code>not_applicable</code></td><td style="text-align:left">B2M, MICA, MICB, HFE (not peptide-binding)</td></tr>
+  <tr><td style="text-align:left"><code>too_short</code></td><td style="text-align:left">Sequence &lt; 70 aa</td></tr>
+  <tr><td style="text-align:left"><code>no_cys_pairs</code></td><td style="text-align:left">No valid Cys-Cys pairs found</td></tr>
+  <tr><td style="text-align:left"><code>no_alpha2_pair</code></td><td style="text-align:left">Class I: no Cys pair in α2 range</td></tr>
+</table>
+
+<h2 id="species">Species taxonomy</h2>
+
+<p>Every entry is assigned a <code>species_category</code> from a 7-class taxonomy:</p>
+<table>
+  <tr><th style="text-align:left">Category</th><th style="text-align:left">Fine-grained species included</th></tr>
+  <tr><td style="text-align:left"><code>human</code></td><td style="text-align:left">Homo sapiens</td></tr>
+  <tr><td style="text-align:left"><code>nhp</code></td><td style="text-align:left">macaque, chimpanzee, gorilla, orangutan, baboon, other NHP</td></tr>
+  <tr><td style="text-align:left"><code>murine</code></td><td style="text-align:left">mouse, rat</td></tr>
+  <tr><td style="text-align:left"><code>other_mammal</code></td><td style="text-align:left">cattle, pig, horse, sheep, goat, dog, cat, rabbit</td></tr>
+  <tr><td style="text-align:left"><code>bird</code></td><td style="text-align:left">chicken, other birds</td></tr>
+  <tr><td style="text-align:left"><code>fish</code></td><td style="text-align:left">salmon, zebrafish, other fish</td></tr>
+  <tr><td style="text-align:left"><code>other_vertebrate</code></td><td style="text-align:left">reptiles, amphibians</td></tr>
+</table>
+
+<h2 id="modules">Module reference</h2>
+
+<h3>mhcseqs.groove</h3>
+<p>Core groove extraction. Key functions:</p>
+<ul>
+  <li><code>extract_groove(seq, mhc_class, ...)</code> — main dispatcher</li>
+  <li><code>parse_class_i(seq, ...)</code> — class I alpha chain parser</li>
+  <li><code>parse_class_ii_alpha(seq, ...)</code> — class II alpha chain parser</li>
+  <li><code>parse_class_ii_beta(seq, ...)</code> — class II beta chain parser</li>
+  <li><code>find_cys_pairs(seq)</code> — locate Ig-fold Cys-Cys pairs</li>
+  <li><code>GrooveResult</code> — dataclass with all parsed fields</li>
+</ul>
+
+<h3>mhcseqs.alleles</h3>
+<p>Allele name parsing via mhcgnomes:</p>
+<ul>
+  <li><code>parse_allele_name(name)</code> — parse with mhcgnomes</li>
+  <li><code>normalize_allele_name(name)</code> — canonical two-field form</li>
+  <li><code>infer_gene(allele)</code> — extract gene (e.g. "A", "DRB1")</li>
+  <li><code>infer_mhc_class(allele)</code> — "I" or "II"</li>
+</ul>
+
+<h3>mhcseqs.species</h3>
+<p>Species normalization:</p>
+<ul>
+  <li><code>normalize_species(raw)</code> — 29-class fine-grained</li>
+  <li><code>normalize_mhc_species(raw)</code> — 7-class category</li>
+  <li><code>get_latin_name(raw)</code> — canonical Latin name</li>
+  <li><code>get_canonical_prefix(raw)</code> — MHC naming prefix</li>
+  <li><code>LATIN_NAMES</code>, <code>CANONICAL_MHC_PREFIXES</code> — lookup dicts</li>
+</ul>
+
+<h3>mhcseqs.pipeline</h3>
+<p>Three-step build pipeline:</p>
+<ul>
+  <li><code>build_raw_index(fasta_paths, out_csv)</code> — Step 1: parse FASTA → raw CSV</li>
+  <li><code>build_full_seqs(raw_csv, out_csv)</code> — Step 2: select representatives</li>
+  <li><code>build_binding_grooves(full_csv, out_csv)</code> — Step 3: extract grooves</li>
+</ul>
+
+<h3>mhcseqs.validate</h3>
+<p>Post-build sanity checks:</p>
+<ul>
+  <li><code>validate_build(raw_csv, full_csv, groove_csv)</code> — run all checks</li>
+  <li><code>format_validation_report(warnings, stats)</code> — human-readable report</li>
+</ul>
+
+<h3>mhcseqs.download</h3>
+<p>FASTA source downloading:</p>
+<ul>
+  <li><code>download_all(dest_dir)</code> — download IMGT/HLA + IPD-MHC</li>
+  <li><code>SOURCES</code> — dict of source URLs and metadata</li>
+</ul>
+
+<hr>
+<p><small>Generated by <a href="https://github.com/openvax/mhcseqs">mhcseqs</a>. MIT License.</small></p>
+</body>
+</html>
