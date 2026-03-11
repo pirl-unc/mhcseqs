@@ -1,3 +1,3 @@
 #!/bin/bash
 set -euo pipefail
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
