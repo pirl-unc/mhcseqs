@@ -14,7 +14,7 @@ For development:
 ```bash
 git clone https://github.com/openvax/mhcseqs.git
 cd mhcseqs
-./develop.sh          # pip install -e ".[dev]"
+./develop.sh          # uv pip install -e ".[dev]"
 ./test.sh             # pytest
 ./lint.sh             # ruff
 ```
@@ -42,21 +42,34 @@ mhcseqs --version
 ```python
 import mhcseqs
 
-# Build everything (downloads FASTA sources if needed)
-paths = mhcseqs.build(output_dir="output")
+# Build the database (downloads FASTA sources, only needed once)
+mhcseqs.build()
 
-# Load results as DataFrames
-import pandas as pd
-df = pd.read_csv(paths["grooves"])
+# Look up any allele → AlleleRecord with everything
+r = mhcseqs.lookup("HLA-A*02:01")
+r.sequence          # full protein (with signal peptide)
+r.mature_sequence   # signal peptide removed (computed property)
+r.mature_start      # signal peptide length (24 for HLA-A*02:01)
+r.groove1           # α1 domain
+r.groove2           # α2 domain
+r.ig_domain         # α3 Ig-fold
+r.tail              # TM + cytoplasmic
+r.species_category  # "human"
 
-# Or use built-in loaders (no pandas required)
-rows = mhcseqs.load_grooves()
-
-# Single-allele groove extraction
+# Extract groove from a raw sequence (no build needed)
 result = mhcseqs.extract_groove(
     sequence, mhc_class="I", allele="HLA-A*02:01"
 )
-print(result.groove1, result.groove2, result.ig_domain, result.tail)
+
+# Apply mutations (IEDB-style, e.g. "K66A")
+mutant = mhcseqs.extract_groove(
+    sequence, mhc_class="I", allele="HLA-A*02:01",
+    mutations=["K66A", "D77S"],
+)
+
+# Load all grooves as a DataFrame
+import pandas as pd
+df = pd.read_csv("mhc-binding-grooves.csv")
 ```
 
 ## Output files
@@ -159,7 +172,8 @@ mhcseqs/
 │   ├── download.py        # FASTA source downloading
 │   ├── species.py         # Species taxonomy (29-class → 7-class)
 │   ├── alleles.py         # Allele name parsing (mhcgnomes wrapper)
-│   ├── groove.py          # Binding groove extraction
+│   ├── groove.py          # Binding groove extraction + mutation support
+│   ├── imgt.py            # IMGT G-DOMAIN position numbering
 │   ├── pipeline.py        # Three-step build pipeline
 │   ├── validate.py        # Post-build validation
 │   └── b2m_sequences.csv  # Reference B2M sequences

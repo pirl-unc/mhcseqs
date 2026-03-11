@@ -163,13 +163,42 @@ CLASS_II_BETA_GENE_PREFIXES = ("DRB", "DQB", "DPB", "DMB", "DOB")
 
 
 # ---------------------------------------------------------------------------
-# Result dataclass
+# Data classes
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
-class GrooveResult:
-    """Result of parsing one MHC chain into groove halves.
+class RawAllele:
+    """Unparsed allele record: identity, species, and sequence data.
+
+    This is what you have before groove extraction — the raw sequence
+    plus metadata from the FASTA header or CSV.
+    """
+
+    allele: str = ""
+    two_field_allele: str = ""
+    gene: str = ""
+    mhc_class: str = ""
+    chain: str = ""  # "alpha" or "beta"
+    species: str = ""
+    species_category: str = ""
+    species_prefix: str = ""
+    source: str = ""
+    sequence: str = ""  # full protein (may include signal peptide)
+    seq_len: int = 0
+    mature_start: int = 0
+
+    @property
+    def mature_sequence(self) -> str:
+        """The mature protein sequence (signal peptide removed)."""
+        if self.sequence:
+            return self.sequence[self.mature_start:]
+        return ""
+
+
+@dataclass(frozen=True)
+class AlleleRecord(RawAllele):
+    """Fully parsed allele record with groove domains, Ig domain, and tail.
 
     The peptide-binding groove has two structural halves:
       groove1  (N-terminal):  α1 in class I, α1 in class II alpha
@@ -178,12 +207,6 @@ class GrooveResult:
     Class I alpha provides both halves; class II alpha and beta each provide one.
     """
 
-    allele: str = ""
-    gene: str = ""
-    mhc_class: str = ""
-    chain: str = ""  # "alpha" or "beta"
-    seq_len: int = 0
-    mature_start: int = 0
     groove_seq: str = ""  # concatenation of groove halves
     groove1: str = ""  # α1 (class I & II alpha), empty (class II beta)
     groove2: str = ""  # α2 (class I), β1 (class II beta), empty (class II alpha)
@@ -210,6 +233,24 @@ class GrooveResult:
             "beta1_only_fallback",
             "fragment_fallback",
         }
+
+    @property
+    def mature_sequence(self) -> str:
+        """The mature protein sequence, materialized from sequence or domain parts."""
+        if self.sequence:
+            return self.sequence[self.mature_start:]
+        # Reconstruct from parsed domains
+        if self.mhc_class == "I":
+            return self.groove1 + self.groove2 + self.ig_domain + self.tail
+        if self.chain == "alpha":
+            return self.groove1 + self.ig_domain + self.tail
+        if self.chain == "beta":
+            return self.groove2 + self.ig_domain + self.tail
+        return ""
+
+
+#: Backwards-compatible alias.
+GrooveResult = AlleleRecord
 
 
 # ---------------------------------------------------------------------------
