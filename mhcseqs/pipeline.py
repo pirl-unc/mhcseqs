@@ -35,7 +35,7 @@ from .species import get_latin_name, normalize_mhc_species
 MIN_MHC_SEQUENCE_LEN = 70
 
 # B2M reference CSV (shipped with this repo)
-_B2M_CSV = Path(__file__).resolve().parent.parent / "data" / "b2m_sequences.csv"
+_B2M_CSV = Path(__file__).resolve().parent / "b2m_sequences.csv"
 
 _NUCLEOTIDE_LIKE_CHARS = set("ACGTUNWSMKRYBDHV")
 

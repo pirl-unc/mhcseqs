@@ -110,7 +110,7 @@ All three CSVs share: `gene`, `mhc_class`, `chain`, `species`,
 |---|---|---|
 | IMGT/HLA | Human | `https://raw.githubusercontent.com/ANHIG/IMGTHLA/Latest/fasta/hla_prot.fasta` |
 | IPD-MHC | Non-human | `https://raw.githubusercontent.com/ANHIG/IPDMHC/Latest/MHC_prot.fasta` |
-| UniProt | B2M references | Curated (shipped in `data/b2m_sequences.csv`) |
+| UniProt | B2M references | Curated (shipped in `mhcseqs/b2m_sequences.csv`) |
 
 ## Species prefixes
 
@@ -161,10 +161,10 @@ mhcseqs/
 │   ├── alleles.py         # Allele name parsing (mhcgnomes wrapper)
 │   ├── groove.py          # Binding groove extraction
 │   ├── pipeline.py        # Three-step build pipeline
-│   └── validate.py        # Post-build validation
+│   ├── validate.py        # Post-build validation
+│   └── b2m_sequences.csv  # Reference B2M sequences
 ├── tests/                 # pytest test suite
 ├── data/
-│   └── b2m_sequences.csv  # Reference B2M sequences
 ├── build.py               # Convenience shim
 ├── pyproject.toml         # Package metadata
 ├── develop.sh             # Install in dev mode
@@ -175,4 +175,4 @@ mhcseqs/
 
 ## License
 
-MIT
+Apache 2.0

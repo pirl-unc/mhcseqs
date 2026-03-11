@@ -95,10 +95,10 @@ def cmd_build(args):
 
 
 def cmd_lookup(args):
-    data_dir: Path = args.data_dir
+    out_dir: Path = args.output_dir
 
-    # Find the CSVs — look in data_dir's parent (the repo root) by default
-    search_dirs = [data_dir.parent, data_dir, Path(".")]
+    # Find the CSVs — look in output dir and CWD
+    search_dirs = [out_dir, Path(".")]
     csv_files = {}
     for name in ("mhc-seqs-raw.csv", "mhc-full-seqs.csv", "mhc-binding-grooves.csv"):
         for d in search_dirs:
@@ -187,10 +187,10 @@ def main():
     lookup_parser = subparsers.add_parser("lookup", help="Look up an allele from built CSVs")
     lookup_parser.add_argument("allele", help="Allele name to look up (e.g. HLA-A*02:01)")
     lookup_parser.add_argument(
-        "--data-dir",
+        "--output-dir",
         type=Path,
-        default=_default_data_dir(),
-        help="Directory containing built CSVs",
+        default=_default_output_dir(),
+        help="Directory where built CSVs are located",
     )
 
     args = parser.parse_args()

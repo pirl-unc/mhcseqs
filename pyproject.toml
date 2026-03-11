@@ -3,7 +3,7 @@ name = "mhcseqs"
 dynamic = ["version"]
 description = "MHC sequence curation and binding groove extraction"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = ["mhcgnomes>=1.8.0"]
 classifiers = [
@@ -14,6 +14,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "License :: OSI Approved :: Apache Software License",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +37,7 @@ version = {attr = "mhcseqs.version.__version__"}
 include = ["mhcseqs*"]
 
 [tool.setuptools.package-data]
-mhcseqs = ["../data/*.csv"]
+mhcseqs = ["b2m_sequences.csv"]
 
 [tool.ruff]
 line-length = 120

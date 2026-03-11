@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -31,7 +33,17 @@ def download_fasta(key: str, dest_dir: Path) -> Path:
         print(f"  {info['filename']} already downloaded ({dest.stat().st_size:,} bytes)")
         return dest
     print(f"  Downloading {info['filename']} from {info['url']} ...")
-    urllib.request.urlretrieve(info["url"], dest)
+    fd, tmp_path = tempfile.mkstemp(dir=dest_dir, suffix=".tmp")
+    try:
+        os.close(fd)
+        urllib.request.urlretrieve(info["url"], tmp_path)
+        os.replace(tmp_path, dest)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
     print(f"  Saved {dest.stat().st_size:,} bytes")
     return dest
 

@@ -1,5 +1,9 @@
 from mhcseqs.alleles import (
     allele_suffix_flags,
+    infer_gene,
+    infer_mhc_class,
+    infer_species,
+    normalize_allele_name,
     normalize_mhc_class,
 )
 
@@ -34,3 +38,60 @@ def test_allele_suffix_flags_normal():
     assert flags["is_null"] is False
     assert flags["is_questionable"] is False
     assert flags["is_pseudogene"] is False
+
+
+def test_normalize_allele_name_full():
+    assert normalize_allele_name("HLA-A*02:01") == "HLA-A*02:01"
+
+
+def test_normalize_allele_name_compact():
+    result = normalize_allele_name("A0201")
+    assert "02" in result
+    assert "01" in result
+
+
+def test_infer_gene_hla_a():
+    result = infer_gene("HLA-A*02:01")
+    assert result == "A"
+
+
+def test_infer_gene_drb1():
+    result = infer_gene("HLA-DRB1*01:01")
+    assert result == "DRB1"
+
+
+def test_infer_mhc_class_i():
+    assert infer_mhc_class("HLA-A*02:01") == "I"
+    assert infer_mhc_class("HLA-B*07:02") == "I"
+    assert infer_mhc_class("HLA-C*04:01") == "I"
+
+
+def test_infer_mhc_class_ii():
+    assert infer_mhc_class("HLA-DRB1*01:01") == "II"
+    assert infer_mhc_class("HLA-DQA1*01:01") == "II"
+
+
+def test_infer_mhc_class_none():
+    assert infer_mhc_class(None) is None
+    assert infer_mhc_class("") is None
+
+
+def test_infer_species_human():
+    result = infer_species("HLA-A*02:01")
+    assert result == "human"
+
+
+def test_infer_species_returns_7_class():
+    from mhcseqs.species import MHC_SPECIES_CATEGORIES
+
+    result = infer_species("HLA-A*02:01")
+    assert result in MHC_SPECIES_CATEGORIES
+
+
+def test_normalize_mhc_class_aliases():
+    assert normalize_mhc_class("MHC-I") == "I"
+    assert normalize_mhc_class("MHC-II") == "II"
+    assert normalize_mhc_class("CLASSI") == "I"
+    assert normalize_mhc_class("CLASSII") == "II"
+    assert normalize_mhc_class("IA") == "I"
+    assert normalize_mhc_class("IIA") == "II"

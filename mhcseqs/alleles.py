@@ -190,7 +190,7 @@ def infer_species_identity(allele: Optional[str]) -> Optional[str]:
 
 
 def infer_species(allele: str) -> Optional[str]:
-    """Infer 6-class MHC species bucket from allele name."""
+    """Infer 7-class MHC species bucket from allele name."""
     species_identity = infer_species_identity(allele)
     if species_identity is None:
         return None

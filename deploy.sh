@@ -9,6 +9,7 @@ bash test.sh
 
 echo "Building distribution..."
 pip install build twine
+rm -rf dist/
 python -m build
 
 echo "Uploading to PyPI..."
