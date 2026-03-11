@@ -83,36 +83,48 @@ mhcseqs lookup "Mamu-A1*001:01"</code></pre>
 
 <h2 id="api">Python API</h2>
 
-<h3>Full build</h3>
+<h3>Allele lookup</h3>
 <pre><code>import mhcseqs
 
-# Build all CSVs (downloads data if needed)
-paths = mhcseqs.build(output_dir="output")
-# paths = {"raw": "...", "full_seqs": "...", "grooves": "...", ...}
+# Build the database (downloads FASTA sources, only needed once)
+mhcseqs.build()
 
-# Load as DataFrames (requires pandas)
-import pandas as pd
-df = pd.read_csv(paths["grooves"])</code></pre>
+# Look up any allele → AlleleRecord with everything
+r = mhcseqs.lookup("HLA-A*02:01")
+r.allele             # "HLA-A*02:01" (two-field)
+r.full_allele        # "HLA-A*02:01:01:100" (full resolution)
+r.sequence           # full protein (with signal peptide)
+r.mature_sequence    # signal peptide removed (computed property)
+r.mature_start       # signal peptide length (24)
+r.groove1            # α1 domain (90 aa)
+r.groove2            # α2 domain (93 aa)
+r.ig_domain          # α3 Ig-fold (95 aa)
+r.tail               # TM + cytoplasmic
+r.species_category   # "human"
 
-<h3>Convenience loaders</h3>
-<pre><code># Returns list[dict], no pandas needed
-rows = mhcseqs.load_grooves()
-rows = mhcseqs.load_full_seqs()
-rows = mhcseqs.load_raw()</code></pre>
+# Apply mutations (IEDB-style, e.g. "K66A")
+m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])</code></pre>
 
 <h3>Single-sequence groove extraction</h3>
-<pre><code>result = mhcseqs.extract_groove(
+<pre><code># Extract groove from a raw sequence (no build needed)
+result = mhcseqs.extract_groove(
     sequence,
     mhc_class="I",
     allele="HLA-A*02:01",
-    gene="A",
+    mutations=["K66A"],  # optional
 )
-print(result.groove1)      # α1 domain (~90 aa)
-print(result.groove2)      # α2 domain (~93 aa)
-print(result.ig_domain)    # α3 Ig-fold (~95 aa)
-print(result.tail)         # TM + cytoplasmic
-print(result.status)       # "ok", "alpha3_fallback", etc.
-print(result.mature_start) # signal peptide length</code></pre>
+result.groove1       # α1 domain (~90 aa)
+result.groove2       # α2 domain (~93 aa)
+result.ig_domain     # α3 Ig-fold (~95 aa)
+result.tail          # TM + cytoplasmic
+result.status        # "ok", "alpha3_fallback", etc.
+result.mature_start  # signal peptide length</code></pre>
+
+<h3>Convenience loaders</h3>
+<pre><code># Load built CSVs as list[dict]
+rows = mhcseqs.load_grooves()
+rows = mhcseqs.load_full_seqs()
+rows = mhcseqs.load_raw()</code></pre>
 
 <h3>Species utilities</h3>
 <pre><code>mhcseqs.normalize_species("Macaca mulatta")  # "macaque"

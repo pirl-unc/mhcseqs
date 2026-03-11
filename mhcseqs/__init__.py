@@ -2,16 +2,23 @@
 
 Quick start::
 
-    # Build all CSVs from upstream databases
     import mhcseqs
-    paths = mhcseqs.build()
 
-    # Load results as DataFrames (requires pandas)
-    import pandas as pd
-    df = pd.read_csv(paths["grooves"])
+    # Build the database (downloads FASTA sources, only needed once)
+    mhcseqs.build()
 
-    # Or use the convenience loaders (returns list[dict], no pandas needed)
-    rows = mhcseqs.load_grooves()
+    # Look up any allele → AlleleRecord
+    r = mhcseqs.lookup("HLA-A*02:01")
+    r.groove1            # α1 domain
+    r.groove2            # α2 domain
+    r.mature_sequence    # signal peptide removed
+    r.sequence           # full protein (with signal peptide)
+
+    # Look up with mutations (IEDB-style)
+    m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A"])
+
+    # Extract groove from a raw sequence (no build needed)
+    r = mhcseqs.extract_groove(seq, mhc_class="I")
 """
 
 from typing import Sequence
