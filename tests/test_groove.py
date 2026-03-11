@@ -1,6 +1,6 @@
 from mhcseqs.groove import (
     NON_GROOVE_GENES,
-    GrooveResult,
+    AlleleRecord,
     extract_groove,
     find_cys_pairs,
     parse_class_i,
@@ -65,7 +65,7 @@ def test_non_groove_genes():
 
 
 def test_groove_result_fields():
-    r = GrooveResult()
+    r = AlleleRecord()
     assert r.groove1 == ""
     assert r.groove2 == ""
     assert r.ig_domain == ""

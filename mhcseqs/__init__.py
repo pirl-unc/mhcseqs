@@ -26,7 +26,6 @@ from .download import SOURCES, download_all
 from .groove import (
     NON_GROOVE_GENES,
     AlleleRecord,
-    GrooveResult,
     RawAllele,
     apply_mutations,
     extract_groove,
@@ -230,9 +229,7 @@ def lookup(allele: str, *, search_dir: str | None = None) -> AlleleRecord:
         try:
             _find_csv("mhc-binding-grooves.csv", search_dir=search_dir)
         except FileNotFoundError:
-            raise FileNotFoundError(
-                "No built CSVs found. Run mhcseqs.build() or 'mhcseqs build' first."
-            ) from None
+            raise FileNotFoundError("No built CSVs found. Run mhcseqs.build() or 'mhcseqs build' first.") from None
         raise KeyError(f"Allele {query!r} not found")
 
     return _dict_to_allele_record(merged)
@@ -308,7 +305,6 @@ __all__ = [
     "find_cys_pairs",
     "RawAllele",
     "AlleleRecord",
-    "GrooveResult",
     "NON_GROOVE_GENES",
     "parse_allele_name",
     "normalize_allele_name",

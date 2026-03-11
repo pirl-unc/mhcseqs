@@ -67,9 +67,12 @@ def _write_grooves_csv(path, rows):
 
 def test_lookup_finds_allele(tmp_path, monkeypatch):
     csv_path = tmp_path / "mhc-binding-grooves.csv"
-    _write_grooves_csv(csv_path, [
-        {"two_field_allele": "HLA-A*02:01", "groove1": "AAA", "groove2": "BBB"},
-    ])
+    _write_grooves_csv(
+        csv_path,
+        [
+            {"two_field_allele": "HLA-A*02:01", "groove1": "AAA", "groove2": "BBB"},
+        ],
+    )
     monkeypatch.chdir(tmp_path)
     rec = mhcseqs.lookup("HLA-A*02:01")
     assert isinstance(rec, mhcseqs.AlleleRecord)
@@ -79,9 +82,12 @@ def test_lookup_finds_allele(tmp_path, monkeypatch):
 
 def test_lookup_case_insensitive(tmp_path, monkeypatch):
     csv_path = tmp_path / "mhc-binding-grooves.csv"
-    _write_grooves_csv(csv_path, [
-        {"two_field_allele": "HLA-A*02:01", "groove1": "XYZ"},
-    ])
+    _write_grooves_csv(
+        csv_path,
+        [
+            {"two_field_allele": "HLA-A*02:01", "groove1": "XYZ"},
+        ],
+    )
     monkeypatch.chdir(tmp_path)
     rec = mhcseqs.lookup("hla-a*02:01")
     assert rec.groove1 == "XYZ"
@@ -89,9 +95,12 @@ def test_lookup_case_insensitive(tmp_path, monkeypatch):
 
 def test_lookup_not_found(tmp_path, monkeypatch):
     csv_path = tmp_path / "mhc-binding-grooves.csv"
-    _write_grooves_csv(csv_path, [
-        {"two_field_allele": "HLA-A*02:01"},
-    ])
+    _write_grooves_csv(
+        csv_path,
+        [
+            {"two_field_allele": "HLA-A*02:01"},
+        ],
+    )
     # Write an empty full-seqs CSV so it doesn't fall through to the repo root
     from mhcseqs.pipeline import FULL_FIELDS
 
@@ -105,8 +114,12 @@ def test_lookup_not_found(tmp_path, monkeypatch):
 
 def test_lookup_no_csv(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(mhcseqs, "_find_csv", lambda name, **kw: (_ for _ in ()).throw(
-        FileNotFoundError(f"{name} not found. Run mhcseqs.build() or 'mhcseqs build' first.")
-    ))
+    monkeypatch.setattr(
+        mhcseqs,
+        "_find_csv",
+        lambda name, **kw: (_ for _ in ()).throw(
+            FileNotFoundError(f"{name} not found. Run mhcseqs.build() or 'mhcseqs build' first.")
+        ),
+    )
     with pytest.raises(FileNotFoundError, match="build"):
         mhcseqs.lookup("HLA-A*02:01")

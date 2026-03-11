@@ -192,7 +192,7 @@ class RawAllele:
     def mature_sequence(self) -> str:
         """The mature protein sequence (signal peptide removed)."""
         if self.sequence:
-            return self.sequence[self.mature_start:]
+            return self.sequence[self.mature_start :]
         return ""
 
 
@@ -238,7 +238,7 @@ class AlleleRecord(RawAllele):
     def mature_sequence(self) -> str:
         """The mature protein sequence, materialized from sequence or domain parts."""
         if self.sequence:
-            return self.sequence[self.mature_start:]
+            return self.sequence[self.mature_start :]
         # Reconstruct from parsed domains
         if self.mhc_class == "I":
             return self.groove1 + self.groove2 + self.ig_domain + self.tail
@@ -247,10 +247,6 @@ class AlleleRecord(RawAllele):
         if self.chain == "beta":
             return self.groove2 + self.ig_domain + self.tail
         return ""
-
-
-#: Backwards-compatible alias.
-GrooveResult = AlleleRecord
 
 
 # ---------------------------------------------------------------------------
@@ -315,8 +311,8 @@ def _parse_mutation(mut: object) -> tuple[int, str, str]:
     raise TypeError(f"Unsupported mutation type: {type(mut).__name__}")
 
 
-def apply_mutations(result: GrooveResult, mutations: Sequence[object]) -> GrooveResult:
-    """Apply mutations to a GrooveResult, returning a new result with mutated sequences.
+def apply_mutations(result: AlleleRecord, mutations: Sequence[object]) -> AlleleRecord:
+    """Apply mutations to a AlleleRecord, returning a new result with mutated sequences.
 
     Mutations are specified in mature protein numbering (1-indexed).
     Accepts any sequence of mutation specs: strings ("K66A"), tuples, or
@@ -457,10 +453,10 @@ def _class_ii_fragment_result(
     allele: str,
     gene: str,
     chain: str,
-) -> GrooveResult:
+) -> AlleleRecord:
     cleaned = _clean_seq(seq)
     if chain == "alpha":
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="II",
@@ -476,7 +472,7 @@ def _class_ii_fragment_result(
             anchor_type="raw_fragment",
             flags=("fragment_fallback",),
         )
-    return GrooveResult(
+    return AlleleRecord(
         allele=allele,
         gene=gene,
         mhc_class="II",
@@ -504,7 +500,7 @@ def parse_class_i(
     *,
     allele: str = "",
     gene: str = "",
-) -> GrooveResult:
+) -> AlleleRecord:
     """Parse a class-I alpha chain into alpha1/alpha2 groove halves.
 
     Primary strategy: locate the alpha2-domain Cys pair (raw pos ~60-180),
@@ -516,7 +512,7 @@ def parse_class_i(
     cleaned = _clean_seq(seq)
     flags: list[str] = []
     if len(cleaned) < MIN_GROOVE_SOURCE_LEN:
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="I",
@@ -527,7 +523,7 @@ def parse_class_i(
 
     pairs = find_cys_pairs(cleaned)
     if not pairs:
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="I",
@@ -557,7 +553,7 @@ def parse_class_i(
             None,
         )
         if alpha3_pair is None:
-            return GrooveResult(
+            return AlleleRecord(
                 allele=allele,
                 gene=gene,
                 mhc_class="I",
@@ -573,7 +569,7 @@ def parse_class_i(
         half_1 = _slice_or_empty(cleaned, mature_start, alpha1_end)
         half_2 = _slice_or_empty(cleaned, alpha1_end, alpha2_end)
         if not half_1 or not half_2:
-            return GrooveResult(
+            return AlleleRecord(
                 allele=allele,
                 gene=gene,
                 mhc_class="I",
@@ -586,7 +582,7 @@ def parse_class_i(
                 anchor_cys2=c2,
             )
         flags.append("alpha3_fallback")
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="I",
@@ -635,7 +631,7 @@ def parse_class_i(
     if len(half_2) < 60:
         flags.append(f"alpha2_short({len(half_2)})")
     if not half_1 or not half_2:
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="I",
@@ -647,7 +643,7 @@ def parse_class_i(
             anchor_cys1=c1,
             anchor_cys2=c2,
         )
-    return GrooveResult(
+    return AlleleRecord(
         allele=allele,
         gene=gene,
         mhc_class="I",
@@ -683,7 +679,7 @@ def parse_class_ii_alpha(
     *,
     allele: str = "",
     gene: str = "",
-) -> GrooveResult:
+) -> AlleleRecord:
     """Parse a class-II alpha chain into the alpha1 groove half.
 
     Locates the alpha2-domain Ig-fold Cys pair to infer the boundary between
@@ -692,7 +688,7 @@ def parse_class_ii_alpha(
     cleaned = _clean_seq(seq)
     flags: list[str] = []
     if len(cleaned) < MIN_GROOVE_SOURCE_LEN:
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="II",
@@ -717,7 +713,7 @@ def parse_class_ii_alpha(
                 chain="alpha",
             )
         status = "no_cys_pairs" if not pairs else "no_anchor_pair"
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="II",
@@ -739,7 +735,7 @@ def parse_class_ii_alpha(
     if len(half_1) < 60:
         flags.append(f"alpha1_short({len(half_1)})")
     if not half_1:
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="II",
@@ -751,7 +747,7 @@ def parse_class_ii_alpha(
             anchor_cys1=c1,
             anchor_cys2=c2,
         )
-    return GrooveResult(
+    return AlleleRecord(
         allele=allele,
         gene=gene,
         mhc_class="II",
@@ -785,7 +781,7 @@ def parse_class_ii_beta(
     *,
     allele: str = "",
     gene: str = "",
-) -> GrooveResult:
+) -> AlleleRecord:
     """Parse a class-II beta chain into the beta1 groove half.
 
     Primary strategy: locate the beta2 Ig-fold Cys pair to infer where the
@@ -794,7 +790,7 @@ def parse_class_ii_beta(
     cleaned = _clean_seq(seq)
     flags: list[str] = []
     if len(cleaned) < MIN_GROOVE_SOURCE_LEN:
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="II",
@@ -812,7 +808,7 @@ def parse_class_ii_beta(
                 gene=gene,
                 chain="beta",
             )
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="II",
@@ -836,7 +832,7 @@ def parse_class_ii_beta(
                 gene=gene,
                 chain="beta",
             )
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="II",
@@ -872,7 +868,7 @@ def parse_class_ii_beta(
     if len(half_2) < 70:
         flags.append(f"beta1_short({len(half_2)})")
     if not half_2:
-        return GrooveResult(
+        return AlleleRecord(
             allele=allele,
             gene=gene,
             mhc_class="II",
@@ -884,7 +880,7 @@ def parse_class_ii_beta(
             anchor_cys1=(anchor_pair[0] if anchor_pair else None),
             anchor_cys2=(anchor_pair[1] if anchor_pair else None),
         )
-    return GrooveResult(
+    return AlleleRecord(
         allele=allele,
         gene=gene,
         mhc_class="II",
@@ -923,7 +919,7 @@ def extract_groove(
     allele: str = "",
     gene: str = "",
     mutations: Sequence[object] = (),
-) -> GrooveResult:
+) -> AlleleRecord:
     """Dispatch groove parsing by class and chain.
 
     If ``mutations`` is provided, the groove is first extracted from the
@@ -942,7 +938,7 @@ def extract_groove(
         raise ValueError(f"Unsupported MHC class: {mhc_class!r}")
 
     chain_token = str(chain or "").strip().lower()
-    result: Optional[GrooveResult] = None
+    result: Optional[AlleleRecord] = None
     if chain_token in {"a", "alpha", "mhc_a"}:
         result = parse_class_ii_alpha(seq, allele=allele, gene=gene)
     elif chain_token in {"b", "beta", "mhc_b"}:
@@ -965,7 +961,7 @@ def extract_groove(
             elif beta_r.ok and not alpha_r.ok:
                 result = beta_r
             elif alpha_r.ok and beta_r.ok:
-                result = GrooveResult(
+                result = AlleleRecord(
                     allele=allele,
                     gene=gene,
                     mhc_class="II",
@@ -981,7 +977,7 @@ def extract_groove(
                     ),
                 )
             else:
-                result = GrooveResult(
+                result = AlleleRecord(
                     allele=allele,
                     gene=gene,
                     mhc_class="II",

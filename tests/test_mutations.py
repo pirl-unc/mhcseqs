@@ -158,10 +158,10 @@ def test_out_of_range_raises():
 
 
 def test_failed_result_raises():
-    """Cannot apply mutations to a failed GrooveResult."""
-    from mhcseqs.groove import GrooveResult
+    """Cannot apply mutations to a failed AlleleRecord."""
+    from mhcseqs.groove import AlleleRecord
 
-    bad = GrooveResult(status="too_short")
+    bad = AlleleRecord(status="too_short")
     with pytest.raises(ValueError, match="failed result"):
         apply_mutations(bad, ["K66A"])
 

@@ -22,7 +22,7 @@ from .alleles import (
 )
 from .groove import (
     NON_GROOVE_GENES,
-    GrooveResult,
+    AlleleRecord,
     extract_groove,
     is_class_ii_alpha_gene,
     parse_class_i,
@@ -397,7 +397,7 @@ def _try_groove_parse(
     mhc_class: str,
     gene: str,
     allele: str,
-) -> Optional[GrooveResult]:
+) -> Optional[AlleleRecord]:
     try:
         gene_upper = (gene or "").strip().upper()
         # B2M and non-groove genes (MICA/MICB/HFE) don't have peptide-binding grooves
@@ -707,7 +707,7 @@ def _emit_full_row(
     representative: dict,
     policy: str,
     seq: str,
-    groove: Optional[GrooveResult],
+    groove: Optional[AlleleRecord],
 ) -> dict:
     """Build a row for mhc-full-seqs.csv."""
     mature_start = groove.mature_start if groove and groove.ok else 0
