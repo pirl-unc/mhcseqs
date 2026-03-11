@@ -91,7 +91,8 @@ Ported from presto/data/groove.py.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass, field, replace
 from typing import Optional, Sequence
 
 from .alleles import infer_gene, normalize_mhc_class
@@ -198,6 +199,7 @@ class GrooveResult:
     anchor_cys2: Optional[int] = None
     secondary_cys1: Optional[int] = None
     secondary_cys2: Optional[int] = None
+    mutations: tuple[str, ...] = field(default_factory=tuple)
     flags: tuple[str, ...] = field(default_factory=tuple)
 
     @property
@@ -231,6 +233,122 @@ def _slice_or_empty(seq: str, start: int, end: int) -> str:
     lo = max(0, int(start))
     hi = max(lo, min(len(seq), int(end)))
     return seq[lo:hi]
+
+
+# ---------------------------------------------------------------------------
+# Mutation parsing and application
+# ---------------------------------------------------------------------------
+
+_MUTATION_RE = re.compile(r"^([A-Y])(\d+)([A-Y])$", re.IGNORECASE)
+
+
+def _parse_mutation(mut: object) -> tuple[int, str, str]:
+    """Parse a mutation spec into (mature_pos, original_aa, mutant_aa).
+
+    Accepts:
+      - str: "K66A" (original + position + mutant, IEDB/mhcgnomes format)
+      - tuple/list: (66, "K", "A") or (66, "A") — position, [original], mutant
+      - mhcgnomes Mutation object: has .pos, .aa_original, .aa_mutant
+
+    Positions are 1-indexed mature protein numbering.
+    """
+    if isinstance(mut, str):
+        m = _MUTATION_RE.match(mut.strip())
+        if not m:
+            raise ValueError(f"Cannot parse mutation string: {mut!r} (expected format like 'K66A')")
+        return (int(m.group(2)), m.group(1).upper(), m.group(3).upper())
+
+    # mhcgnomes Mutation object or similar duck-typed object
+    if hasattr(mut, "pos") and hasattr(mut, "aa_mutant"):
+        return (int(mut.pos), str(getattr(mut, "aa_original", "") or "").upper(), str(mut.aa_mutant).upper())  # type: ignore[union-attr]
+
+    if isinstance(mut, (tuple, list)):
+        if len(mut) == 3:
+            pos, orig, mutant = mut
+            return (int(pos), str(orig).upper(), str(mutant).upper())
+        if len(mut) == 2:
+            pos, mutant = mut
+            return (int(pos), "", str(mutant).upper())
+        raise ValueError(f"Mutation tuple must have 2-3 elements, got {len(mut)}: {mut!r}")
+
+    raise TypeError(f"Unsupported mutation type: {type(mut).__name__}")
+
+
+def apply_mutations(result: GrooveResult, mutations: Sequence[object]) -> GrooveResult:
+    """Apply mutations to a GrooveResult, returning a new result with mutated sequences.
+
+    Mutations are specified in mature protein numbering (1-indexed).
+    Accepts any sequence of mutation specs: strings ("K66A"), tuples, or
+    mhcgnomes Mutation objects.
+
+    The original groove extraction must have succeeded (result.ok must be True).
+    Mutations are applied to the mature sequence reconstructed from domain parts,
+    then re-sliced into the same domain boundaries.
+
+    >>> from mhcseqs.groove import parse_class_i, apply_mutations
+    >>> wt = parse_class_i("G" * 400, allele="test")  # doctest: +SKIP
+    """
+    if not result.ok:
+        raise ValueError(f"Cannot apply mutations to failed result (status={result.status!r})")
+
+    parsed = [_parse_mutation(m) for m in mutations]
+    if not parsed:
+        return result
+
+    # Reconstruct mature sequence from domain parts
+    if result.mhc_class == "I":
+        mature = result.groove1 + result.groove2 + result.ig_domain + result.tail
+    elif result.chain == "alpha":
+        mature = result.groove1 + result.ig_domain + result.tail
+    else:  # beta
+        mature = result.groove2 + result.ig_domain + result.tail
+
+    # Apply mutations
+    mature_list = list(mature)
+    mutation_strs: list[str] = []
+    for pos, orig, mutant in parsed:
+        idx = pos - 1  # convert to 0-indexed
+        if idx < 0 or idx >= len(mature_list):
+            raise ValueError(f"Mutation position {pos} out of range for mature sequence (length {len(mature_list)})")
+        actual = mature_list[idx]
+        if orig and actual != orig:
+            raise ValueError(f"Mutation {orig}{pos}{mutant}: expected {orig} at mature position {pos}, found {actual}")
+        mutation_strs.append(f"{actual}{pos}{mutant}")
+        mature_list[idx] = mutant
+
+    mutated = "".join(mature_list)
+
+    # Re-slice into domain parts using original lengths
+    g1_len = result.groove1_len
+    g2_len = result.groove2_len
+    ig_len = result.ig_domain_len
+
+    if result.mhc_class == "I":
+        g1 = mutated[:g1_len]
+        g2 = mutated[g1_len : g1_len + g2_len]
+        ig = mutated[g1_len + g2_len : g1_len + g2_len + ig_len]
+        t = mutated[g1_len + g2_len + ig_len :]
+    elif result.chain == "alpha":
+        g1 = mutated[:g1_len]
+        g2 = ""
+        ig = mutated[g1_len : g1_len + ig_len]
+        t = mutated[g1_len + ig_len :]
+    else:  # beta
+        g1 = ""
+        g2 = mutated[:g2_len]
+        ig = mutated[g2_len : g2_len + ig_len]
+        t = mutated[g2_len + ig_len :]
+
+    return replace(
+        result,
+        groove_seq=g1 + g2,
+        groove1=g1,
+        groove2=g2,
+        ig_domain=ig,
+        tail=t,
+        tail_len=len(t),
+        mutations=tuple(mutation_strs),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -763,57 +881,84 @@ def extract_groove(
     chain: Optional[str] = None,
     allele: str = "",
     gene: str = "",
+    mutations: Sequence[object] = (),
 ) -> GrooveResult:
-    """Dispatch groove parsing by class and chain."""
+    """Dispatch groove parsing by class and chain.
+
+    If ``mutations`` is provided, the groove is first extracted from the
+    wild-type sequence (preserving Cys-pair detection), then the mutations
+    are applied to the result.  Mutations use mature protein numbering
+    (1-indexed) and can be strings ("K66A"), tuples, or mhcgnomes Mutation
+    objects.
+    """
     nc = normalize_mhc_class(mhc_class)
     if nc == "I":
-        return parse_class_i(seq, allele=allele, gene=gene)
+        result = parse_class_i(seq, allele=allele, gene=gene)
+        if mutations and result.ok:
+            result = apply_mutations(result, mutations)
+        return result
     if nc != "II":
         raise ValueError(f"Unsupported MHC class: {mhc_class!r}")
 
     chain_token = str(chain or "").strip().lower()
+    result: Optional[GrooveResult] = None
     if chain_token in {"a", "alpha", "mhc_a"}:
-        return parse_class_ii_alpha(seq, allele=allele, gene=gene)
-    if chain_token in {"b", "beta", "mhc_b"}:
-        return parse_class_ii_beta(seq, allele=allele, gene=gene)
-
-    if chain_token:
+        result = parse_class_ii_alpha(seq, allele=allele, gene=gene)
+    elif chain_token in {"b", "beta", "mhc_b"}:
+        result = parse_class_ii_beta(seq, allele=allele, gene=gene)
+    elif chain_token:
         raise ValueError(f"Unsupported class-II chain token: {chain!r}")
-
-    # Infer chain from gene name
-    name_chain = _class_ii_chain_from_name(gene=gene, allele=allele)
-    if name_chain == "alpha":
-        return parse_class_ii_alpha(seq, allele=allele, gene=gene)
-    if name_chain == "beta":
-        return parse_class_ii_beta(seq, allele=allele, gene=gene)
-
-    # Last resort: try both parsers
-    alpha = parse_class_ii_alpha(seq, allele=allele, gene=gene)
-    beta = parse_class_ii_beta(seq, allele=allele, gene=gene)
-    if alpha.ok and not beta.ok:
-        return alpha
-    if beta.ok and not alpha.ok:
-        return beta
-
-    if alpha.ok and beta.ok:
-        status = "ambiguous_chain"
     else:
-        status = "chain_inference_failed"
-    return GrooveResult(
-        allele=allele,
-        gene=gene,
-        mhc_class="II",
-        chain="",
-        seq_len=len(_clean_seq(seq)),
-        status=status,
-        anchor_type="chain_inference",
-        flags=_flags_to_tuple(
-            (
-                f"alpha_status={alpha.status}",
-                f"beta_status={beta.status}",
-            )
-        ),
-    )
+        # Infer chain from gene name
+        name_chain = _class_ii_chain_from_name(gene=gene, allele=allele)
+        if name_chain == "alpha":
+            result = parse_class_ii_alpha(seq, allele=allele, gene=gene)
+        elif name_chain == "beta":
+            result = parse_class_ii_beta(seq, allele=allele, gene=gene)
+        else:
+            # Last resort: try both parsers
+            alpha_r = parse_class_ii_alpha(seq, allele=allele, gene=gene)
+            beta_r = parse_class_ii_beta(seq, allele=allele, gene=gene)
+            if alpha_r.ok and not beta_r.ok:
+                result = alpha_r
+            elif beta_r.ok and not alpha_r.ok:
+                result = beta_r
+            elif alpha_r.ok and beta_r.ok:
+                result = GrooveResult(
+                    allele=allele,
+                    gene=gene,
+                    mhc_class="II",
+                    chain="",
+                    seq_len=len(_clean_seq(seq)),
+                    status="ambiguous_chain",
+                    anchor_type="chain_inference",
+                    flags=_flags_to_tuple(
+                        (
+                            f"alpha_status={alpha_r.status}",
+                            f"beta_status={beta_r.status}",
+                        )
+                    ),
+                )
+            else:
+                result = GrooveResult(
+                    allele=allele,
+                    gene=gene,
+                    mhc_class="II",
+                    chain="",
+                    seq_len=len(_clean_seq(seq)),
+                    status="chain_inference_failed",
+                    anchor_type="chain_inference",
+                    flags=_flags_to_tuple(
+                        (
+                            f"alpha_status={alpha_r.status}",
+                            f"beta_status={beta_r.status}",
+                        )
+                    ),
+                )
+
+    if mutations and result.ok:
+        result = apply_mutations(result, mutations)
+    return result
 
 
 def is_class_ii_alpha_gene(gene: str) -> bool:

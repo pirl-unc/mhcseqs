@@ -26,11 +26,24 @@ from .download import SOURCES, download_all
 from .groove import (
     NON_GROOVE_GENES,
     GrooveResult,
+    apply_mutations,
     extract_groove,
     find_cys_pairs,
     parse_class_i,
     parse_class_ii_alpha,
     parse_class_ii_beta,
+)
+from .imgt import (
+    CONSERVED_CYS_POSITIONS,
+    GALPHA2_GAP_POSITIONS,
+    GALPHA2_POSITIONS,
+    HELIX_INSERTIONS,
+    STRUCTURAL_ELEMENTS,
+    imgt_to_mature,
+    imgt_to_mature_class_i,
+    mature_to_imgt,
+    mature_to_imgt_class_i,
+    structural_element,
 )
 from .pipeline import (
     FULL_FIELDS,
@@ -163,6 +176,7 @@ __all__ = [
     "build_raw_index",
     "build_full_seqs",
     "build_binding_grooves",
+    "apply_mutations",
     "extract_groove",
     "parse_class_i",
     "parse_class_ii_alpha",
@@ -188,4 +202,14 @@ __all__ = [
     "RAW_FIELDS",
     "FULL_FIELDS",
     "GROOVE_FIELDS",
+    "mature_to_imgt",
+    "mature_to_imgt_class_i",
+    "imgt_to_mature",
+    "imgt_to_mature_class_i",
+    "structural_element",
+    "STRUCTURAL_ELEMENTS",
+    "GALPHA2_GAP_POSITIONS",
+    "GALPHA2_POSITIONS",
+    "HELIX_INSERTIONS",
+    "CONSERVED_CYS_POSITIONS",
 ]
