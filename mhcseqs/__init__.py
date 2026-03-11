@@ -257,8 +257,8 @@ def _dict_to_allele_record(d: dict) -> AlleleRecord:
             return None
 
     return AlleleRecord(
-        allele=d.get("representative_allele", d.get("allele", "")),
-        two_field_allele=d.get("two_field_allele", ""),
+        allele=d.get("two_field_allele", d.get("allele", "")),
+        representative_allele=d.get("representative_allele", ""),
         gene=d.get("gene", ""),
         mhc_class=d.get("mhc_class", ""),
         chain=d.get("chain", ""),
