@@ -14,6 +14,8 @@ Quick start::
     rows = mhcseqs.load_grooves()
 """
 
+from typing import Sequence
+
 from .alleles import (
     infer_gene,
     infer_mhc_class,
@@ -168,24 +170,34 @@ def load_grooves(path: str | None = None) -> list[dict]:
         return list(_csv.DictReader(f))
 
 
-def lookup(allele: str, *, search_dir: str | None = None) -> AlleleRecord:
-    """Look up a single allele and return an AlleleRecord.
+def lookup(
+    allele: str,
+    *,
+    mutations: Sequence = (),
+    search_dir: str | None = None,
+) -> AlleleRecord:
+    """Look up a single allele and return a fully parsed AlleleRecord.
 
-    Merges data from both the full-sequences and binding-grooves CSVs,
-    giving you everything: full sequence, signal peptide boundary,
-    groove domains, Ig domain, tail, species info, etc.
+    Finds the allele in the built full-sequences CSV, then runs
+    ``extract_groove()`` on it to produce a complete record with all
+    fields populated (including anchor Cys positions).
 
-    >>> result = mhcseqs.lookup("HLA-A*02:01")  # doctest: +SKIP
-    >>> result.groove1[:10]                      # doctest: +SKIP
+    Optionally applies mutations (same format as ``extract_groove()``).
+
+    >>> r = mhcseqs.lookup("HLA-A*02:01")           # doctest: +SKIP
+    >>> r.groove1[:10]                               # doctest: +SKIP
     'GSHSMRYFFT'
-    >>> result.mature_sequence[:10]              # doctest: +SKIP
-    'GSHSMRYFFT'
+    >>> m = mhcseqs.lookup("HLA-A*02:01",            # doctest: +SKIP
+    ...                    mutations=["K66A"])
+    >>> m.groove1[65]                                # doctest: +SKIP
+    'A'
 
     Raises:
-        FileNotFoundError: If the CSVs haven't been built yet.
+        FileNotFoundError: If the full-seqs CSV hasn't been built yet.
         KeyError: If no matching allele is found.
     """
     import csv as _csv
+    from dataclasses import replace
 
     query = allele.strip()
     query_upper = query.upper()
@@ -201,89 +213,42 @@ def lookup(allele: str, *, search_dir: str | None = None) -> AlleleRecord:
                 return True
         return False
 
-    merged: dict = {}
+    p = _find_csv("mhc-full-seqs.csv", search_dir=search_dir)
+    hit: dict | None = None
+    with open(p, "r", encoding="utf-8") as f:
+        for row in _csv.DictReader(f):
+            if _match(row):
+                hit = row
+                break
 
-    # Try full-seqs first (has sequence, mature_start, etc.)
-    try:
-        p = _find_csv("mhc-full-seqs.csv", search_dir=search_dir)
-        with open(p, "r", encoding="utf-8") as f:
-            for row in _csv.DictReader(f):
-                if _match(row):
-                    merged.update(row)
-                    break
-    except FileNotFoundError:
-        pass
+    if hit is None:
+        raise KeyError(f"Allele {query!r} not found in {p}")
 
-    # Then grooves (has groove1, groove2, ig_domain, tail, etc.)
-    try:
-        p = _find_csv("mhc-binding-grooves.csv", search_dir=search_dir)
-        with open(p, "r", encoding="utf-8") as f:
-            for row in _csv.DictReader(f):
-                if _match(row):
-                    merged.update(row)
-                    break
-    except FileNotFoundError:
-        pass
+    seq = hit.get("sequence", "")
+    mhc_class = hit.get("mhc_class", "")
+    chain = hit.get("chain", "")
+    gene = hit.get("gene", "")
+    allele_name = hit.get("two_field_allele", "")
+    full_allele_name = hit.get("representative_allele", "")
 
-    if not merged:
-        try:
-            _find_csv("mhc-binding-grooves.csv", search_dir=search_dir)
-        except FileNotFoundError:
-            raise FileNotFoundError("No built CSVs found. Run mhcseqs.build() or 'mhcseqs build' first.") from None
-        raise KeyError(f"Allele {query!r} not found")
+    result = extract_groove(
+        seq,
+        mhc_class=mhc_class,
+        chain=chain,
+        allele=allele_name,
+        gene=gene,
+        mutations=mutations,
+    )
 
-    return _dict_to_allele_record(merged)
-
-
-def _dict_to_allele_record(d: dict) -> AlleleRecord:
-    """Convert a merged CSV row dict to an AlleleRecord."""
-
-    def _int(key: str, default: int = 0) -> int:
-        v = d.get(key, "")
-        if not v:
-            return default
-        try:
-            return int(v)
-        except (ValueError, TypeError):
-            return default
-
-    def _opt_int(key: str) -> int | None:
-        v = d.get(key, "")
-        if not v:
-            return None
-        try:
-            return int(v)
-        except (ValueError, TypeError):
-            return None
-
-    return AlleleRecord(
-        allele=d.get("two_field_allele", d.get("allele", "")),
-        representative_allele=d.get("representative_allele", ""),
-        gene=d.get("gene", ""),
-        mhc_class=d.get("mhc_class", ""),
-        chain=d.get("chain", ""),
-        species=d.get("species", ""),
-        species_category=d.get("species_category", ""),
-        species_prefix=d.get("species_prefix", ""),
-        source=d.get("source", ""),
-        sequence=d.get("sequence", ""),
-        seq_len=_int("seq_len"),
-        mature_start=_int("mature_start"),
-        groove_seq=d.get("groove_seq", ""),
-        groove1=d.get("groove1", ""),
-        groove2=d.get("groove2", ""),
-        groove1_len=_int("groove1_len"),
-        groove2_len=_int("groove2_len"),
-        ig_domain=d.get("ig_domain", ""),
-        ig_domain_len=_int("ig_domain_len"),
-        tail=d.get("tail", ""),
-        tail_len=_int("tail_len"),
-        status=d.get("groove_status", d.get("status", "ok")),
-        anchor_type=d.get("anchor_type", ""),
-        anchor_cys1=_opt_int("anchor_cys1"),
-        anchor_cys2=_opt_int("anchor_cys2"),
-        secondary_cys1=_opt_int("secondary_cys1"),
-        secondary_cys2=_opt_int("secondary_cys2"),
+    return replace(
+        result,
+        full_allele=full_allele_name,
+        species=hit.get("species", ""),
+        species_category=hit.get("species_category", ""),
+        species_prefix=hit.get("species_prefix", ""),
+        source=hit.get("source", ""),
+        sequence=seq,
+        seq_len=len(seq),
     )
 
 

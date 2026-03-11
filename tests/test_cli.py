@@ -51,62 +51,100 @@ def test_lookup_no_csvs(capsys, tmp_path, monkeypatch):
 # lookup() API tests
 # ---------------------------------------------------------------------------
 
+# HLA-A*02:01 full sequence (with signal peptide)
+_A0201_SEQ = (
+    "MAVMAPRTLVLLLSGALALTQTWAGSHSMRYFFTSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAPWIEQEGPEYWDGETRKVKAHSQTHRVDLG"
+    "TLRGYYNQSEAGSHTVQRMYGCDVGSDWRFLRGYHQYAYDGKDYIALKEDLRSWTAADMAAQTTKHKWEAAHVAEQLRA"
+    "YLEGTCVEWLRRYLENGKETLQRTDAPKTHMTHHAVSDHEATLRCWALSFYPAEITLTWQRDGEDQTQDTELVETRPAGD"
+    "GTFQKWAAVVVPSGQEQRYTCHVQHEGLPKPLTLRWEPSSQPTIPIVGIIAGLVLFGAVITGAVVAAVMWRRKSSDRKGGSYSQAASSDSAQGSDVSLTACKV"
+)
 
-def _write_grooves_csv(path, rows):
-    """Write a minimal grooves CSV for testing."""
-    from mhcseqs.pipeline import GROOVE_FIELDS
+
+def _write_full_seqs_csv(path, rows):
+    """Write a minimal full-seqs CSV for testing."""
+    from mhcseqs.pipeline import FULL_FIELDS
 
     with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=GROOVE_FIELDS)
+        writer = csv.DictWriter(f, fieldnames=FULL_FIELDS)
         writer.writeheader()
         for row in rows:
-            full = {k: "" for k in GROOVE_FIELDS}
+            full = {k: "" for k in FULL_FIELDS}
             full.update(row)
             writer.writerow(full)
 
 
 def test_lookup_finds_allele(tmp_path, monkeypatch):
-    csv_path = tmp_path / "mhc-binding-grooves.csv"
-    _write_grooves_csv(
-        csv_path,
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
         [
-            {"two_field_allele": "HLA-A*02:01", "groove1": "AAA", "groove2": "BBB"},
+            {
+                "two_field_allele": "HLA-A*02:01",
+                "representative_allele": "HLA-A*02:01:01:01",
+                "gene": "A",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Homo sapiens",
+                "species_category": "human",
+                "sequence": _A0201_SEQ,
+                "seq_len": str(len(_A0201_SEQ)),
+            },
         ],
     )
     monkeypatch.chdir(tmp_path)
     rec = mhcseqs.lookup("HLA-A*02:01")
     assert isinstance(rec, mhcseqs.AlleleRecord)
-    assert rec.groove1 == "AAA"
-    assert rec.groove2 == "BBB"
+    assert rec.ok
+    assert rec.allele == "HLA-A*02:01"
+    assert rec.full_allele == "HLA-A*02:01:01:01"
+    assert rec.species_category == "human"
+    assert len(rec.groove1) == 90
+    assert len(rec.groove2) == 93
+    assert rec.anchor_cys1 is not None  # populated by extract_groove
 
 
 def test_lookup_case_insensitive(tmp_path, monkeypatch):
-    csv_path = tmp_path / "mhc-binding-grooves.csv"
-    _write_grooves_csv(
-        csv_path,
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
         [
-            {"two_field_allele": "HLA-A*02:01", "groove1": "XYZ"},
+            {
+                "two_field_allele": "HLA-A*02:01",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "sequence": _A0201_SEQ,
+            },
         ],
     )
     monkeypatch.chdir(tmp_path)
     rec = mhcseqs.lookup("hla-a*02:01")
-    assert rec.groove1 == "XYZ"
+    assert rec.ok
+    assert len(rec.groove1) == 90
+
+
+def test_lookup_with_mutations(tmp_path, monkeypatch):
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
+        [
+            {
+                "two_field_allele": "HLA-A*02:01",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "sequence": _A0201_SEQ,
+            },
+        ],
+    )
+    monkeypatch.chdir(tmp_path)
+    rec = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A"])
+    assert rec.groove1[65] == "A"
+    assert rec.mutations == ("K66A",)
 
 
 def test_lookup_not_found(tmp_path, monkeypatch):
-    csv_path = tmp_path / "mhc-binding-grooves.csv"
-    _write_grooves_csv(
-        csv_path,
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
         [
-            {"two_field_allele": "HLA-A*02:01"},
+            {"two_field_allele": "HLA-A*02:01", "mhc_class": "I", "sequence": _A0201_SEQ},
         ],
     )
-    # Write an empty full-seqs CSV so it doesn't fall through to the repo root
-    from mhcseqs.pipeline import FULL_FIELDS
-
-    full_path = tmp_path / "mhc-full-seqs.csv"
-    with open(full_path, "w", newline="", encoding="utf-8") as f:
-        csv.DictWriter(f, fieldnames=FULL_FIELDS).writeheader()
     monkeypatch.chdir(tmp_path)
     with pytest.raises(KeyError, match="HLA-B"):
         mhcseqs.lookup("HLA-B*07:02")

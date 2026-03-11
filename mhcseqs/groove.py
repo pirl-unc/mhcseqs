@@ -176,7 +176,7 @@ class RawAllele:
     """
 
     allele: str = ""
-    representative_allele: str = ""
+    full_allele: str = ""
     gene: str = ""
     mhc_class: str = ""
     chain: str = ""  # "alpha" or "beta"
