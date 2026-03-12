@@ -56,16 +56,8 @@ r.ig_domain         # α3 Ig-fold
 r.tail              # TM + cytoplasmic
 r.species_category  # "human"
 
-# Extract groove from a raw sequence (no build needed)
-result = mhcseqs.extract_groove(
-    sequence, mhc_class="I", allele="HLA-A*02:01"
-)
-
 # Apply mutations (IEDB-style, e.g. "K66A")
-mutant = mhcseqs.extract_groove(
-    sequence, mhc_class="I", allele="HLA-A*02:01",
-    mutations=["K66A", "D77S"],
-)
+m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])
 
 # Load all grooves as a DataFrame
 import pandas as pd
@@ -86,15 +78,15 @@ Species category x MHC class counts (from `mhc-binding-grooves.csv`):
 
 | Category | Class I | Class II | Total |
 |---|---:|---:|---:|
-| human | 17,462 | 7,869 | 25,331 |
-| nhp | 4,615 | 2,466 | 7,081 |
+| human | 17,462 | 7,878 | 25,340 |
+| nhp | 4,639 | 2,466 | 7,105 |
 | murine | 49 | 9 | 58 |
-| other_mammal | 796 | 1,466 | 2,262 |
+| other_mammal | 807 | 1,564 | 2,371 |
 | bird | 28 | 0 | 28 |
 | fish | 90 | 85 | 175 |
-| **total** | **23,040** | **11,895** | **34,935** |
+| **total** | **23,075** | **12,002** | **35,077** |
 
-Groove parse success rate: 99.6% (145 failures out of 34,961 entries).
+Groove parse success rate: 99.6% (146 failures out of 35,077 entries).
 
 ## Structural decomposition
 

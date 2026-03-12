@@ -16,9 +16,6 @@ Quick start::
 
     # Look up with mutations (IEDB-style)
     m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A"])
-
-    # Extract groove from a raw sequence (no build needed)
-    r = mhcseqs.extract_groove(seq, mhc_class="I")
 """
 
 from typing import Sequence

@@ -105,21 +105,6 @@ r.species_category   # "human"
 # Apply mutations (IEDB-style, e.g. "K66A")
 m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])</code></pre>
 
-<h3>Single-sequence groove extraction</h3>
-<pre><code># Extract groove from a raw sequence (no build needed)
-result = mhcseqs.extract_groove(
-    sequence,
-    mhc_class="I",
-    allele="HLA-A*02:01",
-    mutations=["K66A"],  # optional
-)
-result.groove1       # α1 domain (~90 aa)
-result.groove2       # α2 domain (~93 aa)
-result.ig_domain     # α3 Ig-fold (~95 aa)
-result.tail          # TM + cytoplasmic
-result.status        # "ok", "alpha3_fallback", etc.
-result.mature_start  # signal peptide length</code></pre>
-
 <h3>Convenience loaders</h3>
 <pre><code># Load built CSVs as list[dict]
 rows = mhcseqs.load_grooves()
