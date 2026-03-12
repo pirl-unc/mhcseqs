@@ -58,9 +58,25 @@ def test_mhc_species_bird():
     assert normalize_mhc_species("Gallus") == "bird"
 
 
-def test_mhc_species_other_mammal():
-    assert normalize_mhc_species("Bos taurus") == "other_mammal"
-    assert normalize_mhc_species("Sus scrofa") == "other_mammal"
+def test_mhc_species_ungulate():
+    assert normalize_mhc_species("Bos taurus") == "ungulate"
+    assert normalize_mhc_species("Sus scrofa") == "ungulate"
+    assert normalize_mhc_species("Equus caballus") == "ungulate"
+
+
+def test_mhc_species_carnivore():
+    assert normalize_mhc_species("Canis lupus familiaris") == "carnivore"
+    assert normalize_mhc_species("Felis catus") == "carnivore"
+
+
+def test_mhc_species_cetacean():
+    assert normalize_mhc_species("Tursiops truncatus") == "cetacean"
+    assert normalize_mhc_species("Balaenoptera musculus") == "cetacean"
+
+
+def test_alouatta_is_nhp_not_pig():
+    assert normalize_species("Alouatta pigra") == "other_nhp"
+    assert normalize_mhc_species("Alouatta pigra") == "nhp"
 
 
 def test_latin_name():

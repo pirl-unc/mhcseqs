@@ -95,9 +95,11 @@ Species category x MHC class counts (from `mhc-binding-grooves.csv`):
 | Category | Class I | Class II | Total |
 |---|---:|---:|---:|
 | human | 17,462 | 7,878 | 25,340 |
-| nhp | 4,639 | 2,466 | 7,105 |
+| nhp | 4,639 | 2,486 | 7,125 |
 | murine | 49 | 9 | 58 |
-| other_mammal | 807 | 1,564 | 2,371 |
+| ungulate | 638 | 1,128 | 1,766 |
+| carnivore | 166 | 318 | 484 |
+| cetacean | 3 | 98 | 101 |
 | bird | 28 | 0 | 28 |
 | fish | 90 | 85 | 175 |
 | **total** | **23,075** | **12,002** | **35,077** |
@@ -122,8 +124,8 @@ For a class I chain: `mature_protein = groove1 + groove2 + ig_domain + tail`
 All three CSVs share: `gene`, `mhc_class`, `chain`, `species`,
 `species_category`, `species_prefix`, `source`.
 
-`species_category` is one of: `human`, `nhp`, `murine`, `other_mammal`,
-`bird`, `fish`, `other_vertebrate`.
+`species_category` is one of: `human`, `nhp`, `murine`, `ungulate`,
+`carnivore`, `cetacean`, `other_mammal`, `bird`, `fish`, `other_vertebrate`.
 
 ## Data sources
 

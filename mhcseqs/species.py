@@ -1,8 +1,8 @@
 """Species normalization for MHC alleles.
 
-Provides a 29-class fine-grained species taxonomy with roll-up mappings
-to coarser 7-class MHC species categories (human, nhp, murine,
-other_mammal, bird, fish, other_vertebrate).
+Provides a fine-grained species taxonomy with roll-up mappings
+to MHC species categories (human, nhp, murine, ungulate, carnivore,
+cetacean, other_mammal, bird, fish, other_vertebrate).
 
 Ported from presto/data/vocab.py.
 """
@@ -11,11 +11,14 @@ from __future__ import annotations
 
 from typing import Dict, Optional, Tuple
 
-# 7-class MHC species categories
+# MHC species categories
 MHC_SPECIES_CATEGORIES = [
     "human",
     "nhp",
     "murine",
+    "ungulate",
+    "carnivore",
+    "cetacean",
     "other_mammal",
     "bird",
     "fish",
@@ -44,6 +47,7 @@ FINE_SPECIES = [
     "dog",
     "cat",
     "rabbit",
+    "cetacean",
     "other_mammal",
     # Birds
     "chicken",
@@ -91,6 +95,7 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
             "callicebus",
             "cebus",
             "semnopithecus",
+            "alouatta",
             "primate",
         ),
         "other_nhp",
@@ -104,7 +109,7 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
         ("bos taurus", "bos ", "bovine", "cow", "cattle", "bola-", "bos grunniens", "bubalus"),
         "cattle",
     ),
-    (("sus scrofa", "sus ", "porcine", "pig", "swine", "sla-"), "pig"),
+    (("sus scrofa", "sus ", "porcine", "pig ", "swine", "sla-"), "pig"),
     (("equus", "equine", "horse", "ela-"), "horse"),
     (("ovis", "ovine", "sheep", "ola-"), "sheep"),
     (("capra", "caprine", "goat"), "goat"),
@@ -133,7 +138,7 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
             "mesoplodon",
             "ziphius",
         ),
-        "other_mammal",
+        "cetacean",
     ),
     (("mammal",), "other_mammal"),
     # Birds
@@ -273,7 +278,7 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
 
 FINE_SPECIES_SET = set(FINE_SPECIES)
 
-# Fine → 7-class MHC species category
+# Fine → MHC species category
 FINE_TO_MHC_SPECIES: Dict[str, Optional[str]] = {
     "human": "human",
     "macaque": "nhp",
@@ -284,14 +289,15 @@ FINE_TO_MHC_SPECIES: Dict[str, Optional[str]] = {
     "other_nhp": "nhp",
     "mouse": "murine",
     "rat": "murine",
-    "cattle": "other_mammal",
-    "pig": "other_mammal",
-    "horse": "other_mammal",
-    "sheep": "other_mammal",
-    "goat": "other_mammal",
-    "dog": "other_mammal",
-    "cat": "other_mammal",
+    "cattle": "ungulate",
+    "pig": "ungulate",
+    "horse": "ungulate",
+    "sheep": "ungulate",
+    "goat": "ungulate",
+    "dog": "carnivore",
+    "cat": "carnivore",
     "rabbit": "other_mammal",
+    "cetacean": "cetacean",
     "other_mammal": "other_mammal",
     "chicken": "bird",
     "other_bird": "bird",
