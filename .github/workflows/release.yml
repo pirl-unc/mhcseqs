@@ -1,0 +1,39 @@
+name: Build and Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-csvs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install
+      run: pip install -e .
+
+    - name: Build CSVs
+      run: mhcseqs build --output-dir dist-csv/
+
+    - name: Compress CSVs
+      run: |
+        cd dist-csv
+        gzip -k mhc-seqs-raw.csv
+        gzip -k mhc-full-seqs.csv
+        gzip -k mhc-binding-grooves.csv
+
+    - name: Attach to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          dist-csv/mhc-seqs-raw.csv.gz
+          dist-csv/mhc-full-seqs.csv.gz
+          dist-csv/mhc-binding-grooves.csv.gz
+          dist-csv/mhc-merge-report.txt
+          dist-csv/mhc-validation-report.txt

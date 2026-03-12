@@ -4,7 +4,7 @@ Quick start::
 
     import mhcseqs
 
-    # Build the database (downloads FASTA sources, only needed once)
+    # Build the database (downloads to ~/.cache/mhcseqs/, only needed once)
     paths = mhcseqs.build()
 
     # Look up any allele → AlleleRecord
@@ -98,11 +98,29 @@ class BuildPaths:
     validation_report: str
 
 
+def default_data_dir() -> str:
+    """Return the default directory for downloads and built CSVs.
+
+    Uses ``$MHCSEQS_DATA`` if set, otherwise ``~/.cache/mhcseqs``.
+    The directory is created on first use.
+    """
+    import os
+    from pathlib import Path
+
+    d = Path(os.environ.get("MHCSEQS_DATA", Path.home() / ".cache" / "mhcseqs"))
+    d.mkdir(parents=True, exist_ok=True)
+    return str(d)
+
+
 def build(
-    output_dir: str = ".",
+    output_dir: str | None = None,
     data_dir: str | None = None,
 ) -> BuildPaths:
     """Run the full build pipeline: download, parse, extract grooves.
+
+    If *output_dir* is ``None`` (default), CSVs are written to
+    :func:`default_data_dir` (``~/.cache/mhcseqs``).
+    FASTA downloads are stored in a ``fasta/`` subdirectory of the data dir.
 
     Returns a :class:`BuildPaths` with the paths to the generated files.
     """
@@ -110,9 +128,12 @@ def build(
 
     from .validate import format_validation_report, validate_build
 
-    out = Path(output_dir)
+    if output_dir is None:
+        out = Path(default_data_dir())
+    else:
+        out = Path(output_dir)
     if data_dir is None:
-        dd = Path(__file__).resolve().parent.parent / "data" / "fasta"
+        dd = out / "fasta"
     else:
         dd = Path(data_dir)
 
@@ -147,7 +168,11 @@ def build(
 
 
 def _find_csv(name: str, search_dir: str | None = None) -> str:
-    """Locate a built CSV file."""
+    """Locate a built CSV file.
+
+    Search order: *search_dir* (if given), current directory,
+    :func:`default_data_dir`, package parent directory.
+    """
     from pathlib import Path
 
     candidates = []
@@ -156,6 +181,7 @@ def _find_csv(name: str, search_dir: str | None = None) -> str:
     candidates.extend(
         [
             Path(".") / name,
+            Path(default_data_dir()) / name,
             Path(__file__).resolve().parent.parent / name,
         ]
     )
@@ -294,6 +320,7 @@ def lookup(
 __all__ = [
     "__version__",
     "BuildPaths",
+    "default_data_dir",
     "build",
     "load_raw",
     "load_sequences",

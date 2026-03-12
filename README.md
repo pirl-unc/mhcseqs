@@ -24,10 +24,10 @@ cd mhcseqs
 ### CLI
 
 ```bash
-# Build all output CSVs from upstream databases
+# Build all output CSVs (writes to ~/.cache/mhcseqs/)
 mhcseqs build
 
-# Build to a specific directory
+# Build to a specific directory instead
 mhcseqs build --output-dir output/
 
 # Look up a specific allele
@@ -42,7 +42,7 @@ mhcseqs --version
 ```python
 import mhcseqs
 
-# Build the database (downloads FASTA sources, only needed once)
+# Build the database (downloads to ~/.cache/mhcseqs/, only needed once)
 paths = mhcseqs.build()  # BuildPaths dataclass
 
 # Look up any allele → AlleleRecord with everything
@@ -79,6 +79,26 @@ df = pd.read_csv(paths.sequences)
 rows = mhcseqs.load_binding_grooves()  # list[dict]
 rows = mhcseqs.load_sequences()        # list[dict]
 ```
+
+## Data directory
+
+By default, `mhcseqs build` downloads FASTA files and writes output CSVs to
+`~/.cache/mhcseqs/` (override with `$MHCSEQS_DATA` or `--output-dir`).
+
+```
+~/.cache/mhcseqs/
+├── fasta/                     # Downloaded FASTA source files
+│   ├── hla_prot.fasta         # IMGT/HLA (human)
+│   └── ipd_mhc_prot.fasta    # IPD-MHC (non-human)
+├── mhc-seqs-raw.csv           # Every protein entry from all sources
+├── mhc-full-seqs.csv          # One representative per two-field allele
+├── mhc-binding-grooves.csv    # Binding groove + Ig domain + tail
+├── mhc-merge-report.txt       # Deduplication decisions
+└── mhc-validation-report.txt  # Sanity checks
+```
+
+Pre-built CSVs are also attached to each
+[GitHub release](https://github.com/openvax/mhcseqs/releases) as gzipped artifacts.
 
 ## Output files
 
@@ -134,12 +154,16 @@ All three CSVs share: `gene`, `mhc_class`, `chain`, `species`,
 
 ## Data sources
 
-| Source | Species | URL |
-|---|---|---|
-| IMGT/HLA | Human | `https://raw.githubusercontent.com/ANHIG/IMGTHLA/Latest/fasta/hla_prot.fasta` |
-| IPD-MHC | Non-human | `https://raw.githubusercontent.com/ANHIG/IPDMHC/Latest/MHC_prot.fasta` |
-| UniProt | B2M references | Curated (shipped in `mhcseqs/b2m_sequences.csv`) |
-| UniProt | Mouse H-2 (30 alleles) | Curated (shipped in `mhcseqs/mouse_h2_sequences.csv`) |
+| Source | `source` value | Species | Data |
+|---|---|---|---|
+| IMGT/HLA | `imgt` | Human | Downloaded at build time |
+| IPD-MHC | `ipd_mhc` | Non-human | Downloaded at build time |
+| UniProt | `uniprot_reference` | Multi-species | B2M references (shipped in package) |
+| UniProt | `uniprot_curated` | Mouse | 30 H-2 alleles (shipped in package) |
+
+IMGT/HLA and IPD-MHC FASTA files are downloaded on first `build` and cached.
+The UniProt curated CSVs (`b2m_sequences.csv`, `mouse_h2_sequences.csv`) ship
+inside the `mhcseqs` package — no download needed.
 
 ## Species prefixes
 

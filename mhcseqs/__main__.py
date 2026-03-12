@@ -15,23 +15,17 @@ import json
 import sys
 from pathlib import Path
 
+from . import default_data_dir
 from .download import SOURCES, download_all
 from .pipeline import build_binding_grooves, build_full_seqs, build_raw_index
 from .validate import format_validation_report, validate_build
 from .version import __version__
 
 
-def _default_data_dir() -> Path:
-    return Path(__file__).resolve().parent.parent / "data" / "fasta"
-
-
-def _default_output_dir() -> Path:
-    return Path(__file__).resolve().parent.parent
-
-
 def cmd_build(args):
-    out_dir: Path = args.output_dir
-    data_dir: Path = args.data_dir
+    dd = Path(default_data_dir())
+    out_dir: Path = args.output_dir or dd
+    data_dir: Path = args.data_dir or (dd / "fasta")
 
     print("=" * 60)
     print("Step 1/5: Downloading FASTA source files")
@@ -95,10 +89,11 @@ def cmd_build(args):
 
 
 def cmd_lookup(args):
-    out_dir: Path = args.output_dir
+    dd = Path(default_data_dir())
+    out_dir: Path = args.output_dir or dd
 
-    # Find the CSVs — look in output dir and CWD
-    search_dirs = [out_dir, Path(".")]
+    # Find the CSVs — look in output dir, default data dir, and CWD
+    search_dirs = [out_dir, dd, Path(".")]
     csv_files = {}
     for name in ("mhc-seqs-raw.csv", "mhc-full-seqs.csv", "mhc-binding-grooves.csv"):
         for d in search_dirs:
@@ -173,14 +168,14 @@ def main():
     build_parser.add_argument(
         "--output-dir",
         type=Path,
-        default=_default_output_dir(),
-        help="Directory for output CSVs",
+        default=None,
+        help="Directory for output CSVs (default: ~/.cache/mhcseqs)",
     )
     build_parser.add_argument(
         "--data-dir",
         type=Path,
-        default=_default_data_dir(),
-        help="Directory for downloaded FASTA files",
+        default=None,
+        help="Directory for downloaded FASTA files (default: ~/.cache/mhcseqs/fasta)",
     )
 
     # lookup
@@ -189,8 +184,8 @@ def main():
     lookup_parser.add_argument(
         "--output-dir",
         type=Path,
-        default=_default_output_dir(),
-        help="Directory where built CSVs are located",
+        default=None,
+        help="Directory where built CSVs are located (default: ~/.cache/mhcseqs)",
     )
 
     args = parser.parse_args()

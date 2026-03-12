@@ -1,23 +1,18 @@
 import csv
 import sys
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 import mhcseqs
-from mhcseqs.__main__ import _default_data_dir, _default_output_dir, main
+from mhcseqs import default_data_dir
+from mhcseqs.__main__ import main
 
 
 def test_default_data_dir():
-    d = _default_data_dir()
-    assert isinstance(d, Path)
-    assert d.name == "fasta"
-
-
-def test_default_output_dir():
-    d = _default_output_dir()
-    assert isinstance(d, Path)
+    d = default_data_dir()
+    assert isinstance(d, str)
+    assert "mhcseqs" in d
 
 
 def test_version_flag(capsys):
