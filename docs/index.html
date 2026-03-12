@@ -87,7 +87,7 @@ mhcseqs lookup "Mamu-A1*001:01"</code></pre>
 <pre><code>import mhcseqs
 
 # Build the database (downloads FASTA sources, only needed once)
-mhcseqs.build()
+paths = mhcseqs.build()
 
 # Look up any allele → AlleleRecord with everything
 r = mhcseqs.lookup("HLA-A*02:01")
@@ -108,17 +108,19 @@ m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])</code></pre>
 <h3>Load all sequences</h3>
 <pre><code>import mhcseqs, pandas as pd
 
-mhcseqs.build()  # once — downloads + builds CSVs
+paths = mhcseqs.build()  # once — downloads + builds CSVs
 
-# All binding grooves with structural decomposition (35K rows)
-df = pd.read_csv("mhc-binding-grooves.csv")
+# Binding grooves with structural decomposition (35K rows)
+# One row per allele: groove1, groove2, ig_domain, tail, status
+df = pd.read_csv(paths.binding_grooves)
 
-# Or full protein sequences (one per two-field allele)
-df = pd.read_csv("mhc-full-seqs.csv")
+# Full protein sequences (one per two-field allele)
+# Includes full sequence, mature_sequence, signal peptide, species metadata
+df = pd.read_csv(paths.sequences)
 
 # Without pandas
-rows = mhcseqs.load_grooves()     # list[dict]
-rows = mhcseqs.load_full_seqs()   # list[dict]</code></pre>
+rows = mhcseqs.load_binding_grooves()  # list[dict]
+rows = mhcseqs.load_sequences()        # list[dict]</code></pre>
 
 <h3>Species utilities</h3>
 <pre><code>mhcseqs.normalize_species("Macaca mulatta")  # "macaque"

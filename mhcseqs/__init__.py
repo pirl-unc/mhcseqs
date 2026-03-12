@@ -5,7 +5,7 @@ Quick start::
     import mhcseqs
 
     # Build the database (downloads FASTA sources, only needed once)
-    mhcseqs.build()
+    paths = mhcseqs.build()
 
     # Look up any allele → AlleleRecord
     r = mhcseqs.lookup("HLA-A*02:01")
@@ -19,9 +19,10 @@ Quick start::
 
     # Load all sequences as a DataFrame
     import pandas as pd
-    df = pd.read_csv("mhc-binding-grooves.csv")
+    df = pd.read_csv(paths.binding_grooves)
 """
 
+from dataclasses import dataclass
 from typing import Sequence
 
 from .alleles import (
@@ -76,21 +77,34 @@ from .species import (
 from .version import __version__
 
 
+@dataclass(frozen=True)
+class BuildPaths:
+    """Paths to CSV files produced by :func:`build`.
+
+    Attributes:
+        raw: Every protein entry from both databases (``mhc-seqs-raw.csv``).
+        sequences: One representative mature protein per two-field allele
+            group, with full sequence and metadata (``mhc-full-seqs.csv``).
+        binding_grooves: Extracted binding groove, Ig domain, and tail for
+            each representative allele (``mhc-binding-grooves.csv``).
+        merge_report: Human-readable report of the merge/dedup step.
+        validation_report: Human-readable validation sanity checks.
+    """
+
+    raw: str
+    sequences: str
+    binding_grooves: str
+    merge_report: str
+    validation_report: str
+
+
 def build(
     output_dir: str = ".",
     data_dir: str | None = None,
-) -> dict[str, str]:
+) -> BuildPaths:
     """Run the full build pipeline: download, parse, extract grooves.
 
-    Returns a dict mapping output names to file paths::
-
-        {
-            "raw": "path/to/mhc-seqs-raw.csv",
-            "full_seqs": "path/to/mhc-full-seqs.csv",
-            "grooves": "path/to/mhc-binding-grooves.csv",
-            "merge_report": "path/to/mhc-merge-report.txt",
-            "validation_report": "path/to/mhc-validation-report.txt",
-        }
+    Returns a :class:`BuildPaths` with the paths to the generated files.
     """
     from pathlib import Path
 
@@ -123,13 +137,13 @@ def build(
     with open(validation_path, "w", encoding="utf-8") as f:
         f.write(format_validation_report(warnings, stats) + "\n")
 
-    return {
-        "raw": str(raw_csv),
-        "full_seqs": str(full_csv),
-        "grooves": str(groove_csv),
-        "merge_report": str(report_path),
-        "validation_report": str(validation_path),
-    }
+    return BuildPaths(
+        raw=str(raw_csv),
+        sequences=str(full_csv),
+        binding_grooves=str(groove_csv),
+        merge_report=str(report_path),
+        validation_report=str(validation_path),
+    )
 
 
 def _find_csv(name: str, search_dir: str | None = None) -> str:
@@ -152,7 +166,12 @@ def _find_csv(name: str, search_dir: str | None = None) -> str:
 
 
 def load_raw(path: str | None = None) -> list[dict]:
-    """Load the raw sequence CSV as a list of dicts."""
+    """Load the raw sequence CSV as a list of dicts.
+
+    Contains every individual protein entry from IMGT/HLA and IPD-MHC,
+    including duplicates and fragments. Most users want
+    :func:`load_sequences` or :func:`load_binding_grooves` instead.
+    """
     import csv as _csv
 
     p = path or _find_csv("mhc-seqs-raw.csv")
@@ -160,8 +179,14 @@ def load_raw(path: str | None = None) -> list[dict]:
         return list(_csv.DictReader(f))
 
 
-def load_full_seqs(path: str | None = None) -> list[dict]:
-    """Load the full-sequence representatives CSV as a list of dicts."""
+def load_sequences(path: str | None = None) -> list[dict]:
+    """Load the full-sequence representatives CSV as a list of dicts.
+
+    One row per two-field allele with the best available full-length
+    protein sequence, species metadata, and signal peptide annotation.
+    Does *not* include groove decomposition — use
+    :func:`load_binding_grooves` for that.
+    """
     import csv as _csv
 
     p = path or _find_csv("mhc-full-seqs.csv")
@@ -169,8 +194,13 @@ def load_full_seqs(path: str | None = None) -> list[dict]:
         return list(_csv.DictReader(f))
 
 
-def load_grooves(path: str | None = None) -> list[dict]:
-    """Load the binding grooves CSV as a list of dicts."""
+def load_binding_grooves(path: str | None = None) -> list[dict]:
+    """Load the binding grooves CSV as a list of dicts.
+
+    One row per two-field allele with groove1, groove2, ig_domain, tail,
+    and groove parse status. This is the most useful file for training
+    models on MHC binding groove sequences.
+    """
     import csv as _csv
 
     p = path or _find_csv("mhc-binding-grooves.csv")
@@ -262,10 +292,11 @@ def lookup(
 
 __all__ = [
     "__version__",
+    "BuildPaths",
     "build",
     "load_raw",
-    "load_full_seqs",
-    "load_grooves",
+    "load_sequences",
+    "load_binding_grooves",
     "lookup",
     "build_raw_index",
     "build_full_seqs",
