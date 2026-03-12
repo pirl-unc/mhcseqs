@@ -77,18 +77,13 @@ jobs:
       if: steps.check.outputs.exists == 'false'
       run: mhcseqs build --output-dir dist-csv/
 
-    - name: Compress and attach artifacts
+    - name: Attach artifacts
       if: steps.check.outputs.exists == 'false'
       run: |
-        cd dist-csv
-        gzip -k mhc-seqs-raw.csv
-        gzip -k mhc-full-seqs.csv
-        gzip -k mhc-binding-grooves.csv
-        cd ..
         gh release upload "${{ steps.version.outputs.tag }}" \
-          dist-csv/mhc-seqs-raw.csv.gz \
-          dist-csv/mhc-full-seqs.csv.gz \
-          dist-csv/mhc-binding-grooves.csv.gz \
+          dist-csv/mhc-seqs-raw.csv \
+          dist-csv/mhc-full-seqs.csv \
+          dist-csv/mhc-binding-grooves.csv \
           dist-csv/mhc-merge-report.txt \
           dist-csv/mhc-validation-report.txt
       env:
