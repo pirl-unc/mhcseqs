@@ -1,0 +1,40 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mhcseqs/version.py"
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract version
+      id: version
+      run: |
+        VERSION=$(python -c "exec(open('mhcseqs/version.py').read()); print(__version__)")
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+    - name: Check if release already exists
+      id: check
+      run: |
+        if gh release view "v${{ steps.version.outputs.version }}" &>/dev/null; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create release
+      if: steps.check.outputs.exists == 'false'
+      run: |
+        gh release create "${{ steps.version.outputs.tag }}" \
+          --title "${{ steps.version.outputs.tag }}" \
+          --generate-notes
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
