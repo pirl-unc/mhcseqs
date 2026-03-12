@@ -4,8 +4,10 @@ from mhcseqs.pipeline import (
     GROOVE_FIELDS,
     RAW_FIELDS,
     _candidate_tokens,
+    _extract_source_id,
     _infer_chain,
     _load_b2m_references,
+    _load_mouse_h2_references,
     _looks_like_nucleotide,
 )
 
@@ -139,3 +141,84 @@ def test_full_fields_does_not_include_raw_only_columns():
     assert "allele_normalized" not in FULL_FIELDS
     assert "has_signal_peptide" not in FULL_FIELDS
     assert "signal_peptide_seq" not in FULL_FIELDS
+
+
+def test_source_id_in_all_field_lists():
+    assert "source_id" in RAW_FIELDS
+    assert "source_id" in FULL_FIELDS
+    assert "source_id" in GROOVE_FIELDS
+
+
+def test_extract_source_id_imgt():
+    assert _extract_source_id("HLA:HLA00001 A*01:01:01:01 365 bp", "imgt") == "HLA00001"
+    assert _extract_source_id("HLA:HLA02169 A*01:01:01:02N 200 bp", "imgt") == "HLA02169"
+
+
+def test_extract_source_id_ipd():
+    assert _extract_source_id("IPD-MHC:NHP00001 Aona-DQA1*27:01 73 bp", "ipd_mhc") == "NHP00001"
+
+
+def test_extract_source_id_unknown():
+    assert _extract_source_id("some random header", "imgt") == ""
+    assert _extract_source_id("some random header", "other") == ""
+
+
+def test_load_mouse_h2_references():
+    rows = _load_mouse_h2_references()
+    assert len(rows) == 30
+    genes = {r["gene"] for r in rows}
+    assert "K" in genes
+    assert "D" in genes
+    assert "L" in genes
+    assert "Aa" in genes
+    assert "Ab1" in genes
+    assert "Ea" in genes
+    assert "Eb1" in genes
+
+
+def test_mouse_h2_class_i():
+    rows = _load_mouse_h2_references()
+    class_i = [r for r in rows if r["mhc_class"] == "I"]
+    assert len(class_i) == 10
+    assert all(r["chain"] == "alpha" for r in class_i)
+    alleles = {r["allele_normalized"] for r in class_i}
+    assert "H2-K*b" in alleles
+    assert "H2-D*b" in alleles
+    assert "H2-L*d" in alleles
+
+
+def test_mouse_h2_class_ii():
+    rows = _load_mouse_h2_references()
+    class_ii = [r for r in rows if r["mhc_class"] == "II"]
+    assert len(class_ii) == 20
+    alpha = [r for r in class_ii if r["chain"] == "alpha"]
+    beta = [r for r in class_ii if r["chain"] == "beta"]
+    assert len(alpha) == 10
+    assert len(beta) == 10
+
+
+def test_mouse_h2_has_source_id():
+    rows = _load_mouse_h2_references()
+    assert all(r["source_id"] for r in rows)
+    # Spot check known accessions
+    by_allele = {r["allele_normalized"]: r for r in rows}
+    assert by_allele["H2-K*b"]["source_id"] == "P01901"
+    assert by_allele["H2-D*b"]["source_id"] == "P01899"
+    assert by_allele["H2-Ab1*b"]["source_id"] == "P14483"
+
+
+def test_mouse_h2_metadata():
+    rows = _load_mouse_h2_references()
+    for r in rows:
+        assert r["species"] == "Mus musculus"
+        assert r["species_category"] == "murine"
+        assert r["species_prefix"] == "H2"
+        assert r["source"] == "uniprot_curated"
+
+
+def test_b2m_has_source_id():
+    rows = _load_b2m_references()
+    for r in rows:
+        assert r.get("source_id"), f"B2M entry {r['allele_normalized']} missing source_id"
+    human = [r for r in rows if "human" in r["allele_normalized"]]
+    assert human[0]["source_id"] == "P61769"

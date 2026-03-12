@@ -285,6 +285,7 @@ def lookup(
         species_category=hit.get("species_category", ""),
         species_prefix=hit.get("species_prefix", ""),
         source=hit.get("source", ""),
+        source_id=hit.get("source_id", ""),
         sequence=seq,
         seq_len=len(seq),
     )

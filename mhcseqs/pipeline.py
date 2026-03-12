@@ -34,8 +34,9 @@ from .species import get_latin_name, normalize_mhc_species
 # Minimum protein length to include (allows groove-bearing fragments)
 MIN_MHC_SEQUENCE_LEN = 70
 
-# B2M reference CSV (shipped with this repo)
+# Curated reference CSVs (shipped with this repo)
 _B2M_CSV = Path(__file__).resolve().parent / "b2m_sequences.csv"
+_MOUSE_H2_CSV = Path(__file__).resolve().parent / "mouse_h2_sequences.csv"
 
 _NUCLEOTIDE_LIKE_CHARS = set("ACGTUNWSMKRYBDHV")
 
@@ -62,6 +63,7 @@ RAW_FIELDS = [
     "species_category",
     "species_prefix",
     "source",
+    "source_id",
     "seq_len",
     "sequence",
     "has_signal_peptide",
@@ -83,6 +85,7 @@ FULL_FIELDS = [
     "species_category",
     "species_prefix",
     "source",
+    "source_id",
     "seq_len",
     "sequence",
     "mature_start",
@@ -104,6 +107,7 @@ GROOVE_FIELDS = [
     "species_category",
     "species_prefix",
     "source",
+    "source_id",
     "groove1",
     "groove2",
     "groove_seq",
@@ -150,6 +154,24 @@ def _looks_like_nucleotide(sequence: str) -> bool:
     chars = {ch for ch in seq if ch.isalpha()}
     nucleotide_chars = chars & set("ACGTU")
     return bool(chars) and chars <= _NUCLEOTIDE_LIKE_CHARS and len(nucleotide_chars) >= 3
+
+
+def _extract_source_id(header: str, source_label: str) -> str:
+    """Extract database accession from a FASTA header.
+
+    IMGT/HLA headers start with ``HLA:HLA00001``.
+    IPD-MHC headers start with ``IPD-MHC:NHP00001``.
+    Returns empty string if no accession is found.
+    """
+    if source_label == "imgt":
+        # Format: "HLA:HLA00001 A*01:01:01:01 365 bp"
+        m = re.match(r"HLA:(HLA\d+)", header)
+        return m.group(1) if m else ""
+    if source_label == "ipd_mhc":
+        # Format: "IPD-MHC:NHP00001 Aona-DQA1*27:01 73 bp"
+        m = re.match(r"IPD-MHC:(\w+)", header)
+        return m.group(1) if m else ""
+    return ""
 
 
 def _candidate_tokens(header: str) -> List[str]:
@@ -243,6 +265,7 @@ def _load_b2m_references() -> List[dict]:
                     "species_category": category,
                     "species_prefix": prefix,
                     "source": "uniprot_reference",
+                    "source_id": accession,
                     "seq_len": str(len(seq)),
                     "sequence": seq,
                     "has_signal_peptide": "False",
@@ -250,6 +273,58 @@ def _load_b2m_references() -> List[dict]:
                     "signal_peptide_seq": "",
                     "is_null": "False",
                     "is_questionable": "False",
+                    "is_pseudogene": "False",
+                }
+            )
+    return rows
+
+
+def _load_mouse_h2_references() -> List[dict]:
+    """Load curated mouse H-2 sequences from mouse_h2_sequences.csv.
+
+    These are SwissProt-reviewed reference sequences covering the major
+    H-2 loci (K, D, L class I; Aa, Ab1, Ea, Eb1 class II) across
+    common inbred mouse haplotypes (b, d, k, q, s, etc.).
+    """
+    if not _MOUSE_H2_CSV.exists():
+        return []
+    rows = []
+    with open(_MOUSE_H2_CSV, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            allele_name = row["allele_name"]
+            gene = row["gene"]
+            mhc_class = row["mhc_class"]
+            chain = row["chain"]
+            accession = row.get("uniprot_accession", "")
+            seq = row["sequence"]
+            is_fragment = row.get("is_fragment", "False") == "True"
+
+            # Groove parse to infer signal peptide / mature start
+            groove = _try_groove_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
+            mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
+            has_sp = mature_start >= 15 and seq[:1].upper() == "M"
+            sp_seq = seq[:mature_start] if has_sp else ""
+
+            rows.append(
+                {
+                    "allele_raw": accession or allele_name,
+                    "allele_normalized": allele_name,
+                    "two_field_allele": allele_name,
+                    "gene": gene,
+                    "mhc_class": mhc_class,
+                    "chain": chain,
+                    "species": "Mus musculus",
+                    "species_category": "murine",
+                    "species_prefix": "H2",
+                    "source": "uniprot_curated",
+                    "source_id": accession,
+                    "seq_len": str(len(seq)),
+                    "sequence": seq,
+                    "has_signal_peptide": str(has_sp),
+                    "signal_peptide_len": str(mature_start),
+                    "signal_peptide_seq": sp_seq,
+                    "is_null": "False",
+                    "is_questionable": str(is_fragment),
                     "is_pseudogene": "False",
                 }
             )
@@ -299,6 +374,7 @@ def build_raw_index(
                 stats["skipped_nucleotide"] += 1
                 continue
             # Allow even very short/empty for the raw CSV — but skip nucleotide
+            source_id = _extract_source_id(header, source_label)
             try:
                 normalized, gene, mhc_class, species_raw, allele_token = _resolve_header_allele(header)
             except RuntimeError:
@@ -346,6 +422,7 @@ def build_raw_index(
                 "species_category": species_category,
                 "species_prefix": species_prefix,
                 "source": source_label,
+                "source_id": source_id,
                 "seq_len": str(len(seq)),
                 "sequence": seq,
                 "has_signal_peptide": str(has_sp),
@@ -380,6 +457,15 @@ def build_raw_index(
             records[key] = b2m
             stats["parsed"] += 1
             stats["b2m_references"] = stats.get("b2m_references", 0) + 1
+
+    # Inject curated mouse H-2 reference sequences
+    h2_rows = _load_mouse_h2_references()
+    for h2 in h2_rows:
+        key = h2["allele_normalized"]
+        if key not in records:
+            records[key] = h2
+            stats["parsed"] += 1
+            stats["h2_references"] = stats.get("h2_references", 0) + 1
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     with open(out_csv, "w", newline="", encoding="utf-8") as f:
@@ -728,6 +814,7 @@ def _emit_full_row(
         "species_category": representative.get("species_category", ""),
         "species_prefix": representative.get("species_prefix", ""),
         "source": representative.get("source", ""),
+        "source_id": representative.get("source_id", ""),
         "seq_len": str(len(seq)),
         "sequence": seq,
         "mature_start": str(mature_start),
@@ -1000,6 +1087,7 @@ def build_binding_grooves(
                     "species_category": row.get("species_category", ""),
                     "species_prefix": row.get("species_prefix", ""),
                     "source": row.get("source", ""),
+                    "source_id": row.get("source_id", ""),
                     "groove1": "",
                     "groove2": "",
                     "groove_seq": "",
@@ -1039,6 +1127,7 @@ def build_binding_grooves(
                 "species_category": row.get("species_category", ""),
                 "species_prefix": row.get("species_prefix", ""),
                 "source": row.get("source", ""),
+                "source_id": row.get("source_id", ""),
                 "groove1": groove.groove1,
                 "groove2": groove.groove2,
                 "groove_seq": groove.groove_seq,

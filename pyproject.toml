@@ -36,7 +36,7 @@ version = {attr = "mhcseqs.version.__version__"}
 include = ["mhcseqs*"]
 
 [tool.setuptools.package-data]
-mhcseqs = ["b2m_sequences.csv"]
+mhcseqs = ["b2m_sequences.csv", "mouse_h2_sequences.csv"]
 
 [tool.ruff]
 line-length = 120

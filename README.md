@@ -84,7 +84,7 @@ rows = mhcseqs.load_sequences()        # list[dict]
 
 | File | Description |
 |---|---|
-| `mhc-seqs-raw.csv` | Every protein entry from both databases |
+| `mhc-seqs-raw.csv` | Every protein entry from all sources |
 | `mhc-full-seqs.csv` | One representative mature protein per two-field allele group |
 | `mhc-binding-grooves.csv` | Extracted binding groove + Ig domain + tail for each representative |
 
@@ -96,15 +96,15 @@ Species category x MHC class counts (from `mhc-binding-grooves.csv`):
 |---|---:|---:|---:|
 | human | 17,462 | 7,878 | 25,340 |
 | nhp | 4,639 | 2,486 | 7,125 |
-| murine | 49 | 9 | 58 |
+| murine | 59 | 29 | 88 |
 | ungulate | 638 | 1,128 | 1,766 |
 | carnivore | 166 | 318 | 484 |
 | cetacean | 3 | 98 | 101 |
 | bird | 28 | 0 | 28 |
 | fish | 90 | 85 | 175 |
-| **total** | **23,075** | **12,002** | **35,077** |
+| **total** | **23,085** | **12,022** | **35,107** |
 
-Groove parse success rate: 99.6% (146 failures out of 35,077 entries).
+Groove parse success rate: 99.6% (146 failures out of 35,107 entries).
 
 ## Structural decomposition
 
@@ -122,7 +122,12 @@ For a class I chain: `mature_protein = groove1 + groove2 + ig_domain + tail`
 ## Key columns
 
 All three CSVs share: `gene`, `mhc_class`, `chain`, `species`,
-`species_category`, `species_prefix`, `source`.
+`species_category`, `species_prefix`, `source`, `source_id`.
+
+`source` is one of: `imgt`, `ipd_mhc`, `uniprot_curated`, `uniprot_reference`.
+
+`source_id` is the database accession for provenance tracking (e.g.,
+`HLA00001` for IMGT, `NHP00001` for IPD-MHC, `P01901` for UniProt).
 
 `species_category` is one of: `human`, `nhp`, `murine`, `ungulate`,
 `carnivore`, `cetacean`, `other_mammal`, `bird`, `fish`, `other_vertebrate`.
@@ -134,6 +139,7 @@ All three CSVs share: `gene`, `mhc_class`, `chain`, `species`,
 | IMGT/HLA | Human | `https://raw.githubusercontent.com/ANHIG/IMGTHLA/Latest/fasta/hla_prot.fasta` |
 | IPD-MHC | Non-human | `https://raw.githubusercontent.com/ANHIG/IPDMHC/Latest/MHC_prot.fasta` |
 | UniProt | B2M references | Curated (shipped in `mhcseqs/b2m_sequences.csv`) |
+| UniProt | Mouse H-2 (30 alleles) | Curated (shipped in `mhcseqs/mouse_h2_sequences.csv`) |
 
 ## Species prefixes
 
@@ -180,13 +186,14 @@ mhcseqs/
 │   ├── __main__.py        # CLI entry point
 │   ├── version.py         # Package version
 │   ├── download.py        # FASTA source downloading
-│   ├── species.py         # Species taxonomy (29-class → 7-class)
+│   ├── species.py         # Species taxonomy (29-class → 10-class)
 │   ├── alleles.py         # Allele name parsing (mhcgnomes wrapper)
 │   ├── groove.py          # Binding groove extraction + mutation support
 │   ├── imgt.py            # IMGT G-DOMAIN position numbering
 │   ├── pipeline.py        # Three-step build pipeline
 │   ├── validate.py        # Post-build validation
-│   └── b2m_sequences.csv  # Reference B2M sequences
+│   ├── b2m_sequences.csv         # Reference B2M sequences (UniProt)
+│   └── mouse_h2_sequences.csv   # Mouse H-2 sequences (UniProt)
 ├── tests/                 # pytest test suite
 ├── data/
 ├── build.py               # Convenience shim

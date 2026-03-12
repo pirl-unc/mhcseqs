@@ -184,6 +184,7 @@ class RawAllele:
     species_category: str = ""
     species_prefix: str = ""
     source: str = ""
+    source_id: str = ""  # database accession (HLA00001, NHP00001, P01901, …)
     sequence: str = ""  # full protein (may include signal peptide)
     seq_len: int = 0
     mature_start: int = 0
