@@ -58,10 +58,24 @@ r.species_category  # "human"
 
 # Apply mutations (IEDB-style, e.g. "K66A")
 m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])
+```
 
-# Load all grooves as a DataFrame
-import pandas as pd
+### Load all sequences as a DataFrame
+
+```python
+import mhcseqs, pandas as pd
+
+mhcseqs.build()  # once — downloads + builds CSVs
+
+# All binding grooves with structural decomposition (35K rows)
 df = pd.read_csv("mhc-binding-grooves.csv")
+
+# Or full protein sequences (one per two-field allele)
+df = pd.read_csv("mhc-full-seqs.csv")
+
+# Without pandas
+rows = mhcseqs.load_grooves()     # list[dict]
+rows = mhcseqs.load_full_seqs()   # list[dict]
 ```
 
 ## Output files

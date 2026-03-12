@@ -16,6 +16,10 @@ Quick start::
 
     # Look up with mutations (IEDB-style)
     m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A"])
+
+    # Load all sequences as a DataFrame
+    import pandas as pd
+    df = pd.read_csv("mhc-binding-grooves.csv")
 """
 
 from typing import Sequence
