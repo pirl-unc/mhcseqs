@@ -7,10 +7,44 @@ on:
       - "mhcseqs/version.py"
 
 jobs:
-  create-release:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: pip install -e ".[dev]"
+
+    - name: Lint
+      run: |
+        ruff check mhcseqs/ tests/
+        ruff format --check mhcseqs/ tests/
+
+    - name: Test
+      run: pytest tests/ -v
+
+  release:
+    needs: test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install
+      run: pip install -e .
 
     - name: Extract version
       id: version
@@ -36,5 +70,26 @@ jobs:
         gh release create "${{ steps.version.outputs.tag }}" \
           --title "${{ steps.version.outputs.tag }}" \
           --generate-notes
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build CSVs
+      if: steps.check.outputs.exists == 'false'
+      run: mhcseqs build --output-dir dist-csv/
+
+    - name: Compress and attach artifacts
+      if: steps.check.outputs.exists == 'false'
+      run: |
+        cd dist-csv
+        gzip -k mhc-seqs-raw.csv
+        gzip -k mhc-full-seqs.csv
+        gzip -k mhc-binding-grooves.csv
+        cd ..
+        gh release upload "${{ steps.version.outputs.tag }}" \
+          dist-csv/mhc-seqs-raw.csv.gz \
+          dist-csv/mhc-full-seqs.csv.gz \
+          dist-csv/mhc-binding-grooves.csv.gz \
+          dist-csv/mhc-merge-report.txt \
+          dist-csv/mhc-validation-report.txt
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
