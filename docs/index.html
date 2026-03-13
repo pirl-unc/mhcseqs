@@ -60,15 +60,14 @@ cd mhcseqs
 <pre><code>mhcseqs build [--output-dir DIR] [--data-dir DIR]</code></pre>
 <table>
   <tr><th>Option</th><th style="text-align:left">Description</th></tr>
-  <tr><td style="text-align:left"><code>--output-dir</code></td><td style="text-align:left">Directory for output CSVs (default: repo root)</td></tr>
-  <tr><td style="text-align:left"><code>--data-dir</code></td><td style="text-align:left">Directory for downloaded FASTA files (default: <code>data/fasta/</code>)</td></tr>
+  <tr><td style="text-align:left"><code>--output-dir</code></td><td style="text-align:left">Directory for output CSVs (default: <code>~/.cache/mhcseqs</code>)</td></tr>
+  <tr><td style="text-align:left"><code>--data-dir</code></td><td style="text-align:left">Directory for downloaded FASTA files (default: <code>~/.cache/mhcseqs/fasta</code>)</td></tr>
 </table>
-<p>Produces five files:</p>
+<p>Produces four files:</p>
 <table>
   <tr><th style="text-align:left">File</th><th style="text-align:left">Description</th></tr>
-  <tr><td style="text-align:left"><code>mhc-seqs-raw.csv</code></td><td style="text-align:left">Every parsed protein entry from both databases</td></tr>
-  <tr><td style="text-align:left"><code>mhc-full-seqs.csv</code></td><td style="text-align:left">One representative mature protein per two-field allele group</td></tr>
-  <tr><td style="text-align:left"><code>mhc-binding-grooves.csv</code></td><td style="text-align:left">Structural decomposition: groove + Ig domain + tail</td></tr>
+  <tr><td style="text-align:left"><code>mhc-seqs-raw.csv</code></td><td style="text-align:left">Every parsed protein entry from all sources</td></tr>
+  <tr><td style="text-align:left"><code>mhc-full-seqs.csv</code></td><td style="text-align:left">One representative per two-field allele: full sequence, groove decomposition, and metadata</td></tr>
   <tr><td style="text-align:left"><code>mhc-merge-report.txt</code></td><td style="text-align:left">Details on allele group merging decisions</td></tr>
   <tr><td style="text-align:left"><code>mhc-validation-report.txt</code></td><td style="text-align:left">Sanity check results</td></tr>
 </table>
@@ -106,21 +105,13 @@ r.species_category   # "human"
 m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])</code></pre>
 
 <h3>Load all sequences</h3>
-<pre><code>import mhcseqs, pandas as pd
+<pre><code>import mhcseqs
 
-paths = mhcseqs.build()  # once — downloads + builds CSVs
+# As a DataFrame (full sequence + groove decomposition + metadata)
+df = mhcseqs.load_sequences_dataframe()
 
-# Binding grooves with structural decomposition (35K rows)
-# One row per allele: groove1, groove2, ig_domain, tail, status
-df = pd.read_csv(paths.binding_grooves)
-
-# Full protein sequences (one per two-field allele)
-# Includes full sequence, mature_sequence, signal peptide, species metadata
-df = pd.read_csv(paths.sequences)
-
-# Without pandas
-rows = mhcseqs.load_binding_grooves()  # list[dict]
-rows = mhcseqs.load_sequences()        # list[dict]</code></pre>
+# Or as a list of dicts (no pandas dependency)
+rows = mhcseqs.load_sequences_dict()</code></pre>
 
 <h3>Species utilities</h3>
 <pre><code>mhcseqs.normalize_species("Macaca mulatta")  # "macaque"
@@ -147,7 +138,8 @@ mhcseqs.infer_mhc_class("HLA-A*02:01")  # "I"</code></pre>
   <tr><td style="text-align:left"><code>species</code></td><td style="text-align:left">Species name (usually Latin)</td></tr>
   <tr><td style="text-align:left"><code>species_category</code></td><td style="text-align:left">One of: human, nhp, murine, other_mammal, bird, fish, other_vertebrate</td></tr>
   <tr><td style="text-align:left"><code>species_prefix</code></td><td style="text-align:left">MHC naming prefix (HLA, Mamu, SLA, etc.)</td></tr>
-  <tr><td style="text-align:left"><code>source</code></td><td style="text-align:left">imgt, ipd_mhc, or uniprot_reference</td></tr>
+  <tr><td style="text-align:left"><code>source</code></td><td style="text-align:left">imgt, ipd_mhc, uniprot_curated, or uniprot_reference</td></tr>
+  <tr><td style="text-align:left"><code>source_id</code></td><td style="text-align:left">Database accession (HLA00001, NHP00001, P01901, etc.)</td></tr>
   <tr><td style="text-align:left"><code>sequence</code></td><td style="text-align:left">Full protein sequence</td></tr>
   <tr><td style="text-align:left"><code>has_signal_peptide</code></td><td style="text-align:left">Whether a signal peptide was detected</td></tr>
   <tr><td style="text-align:left"><code>signal_peptide_len</code></td><td style="text-align:left">Inferred signal peptide length</td></tr>
@@ -165,20 +157,14 @@ mhcseqs.infer_mhc_class("HLA-A*02:01")  # "I"</code></pre>
   <tr><td style="text-align:left"><code>representative_policy</code></td><td style="text-align:left">Selection method (unique, nested_longest, etc.)</td></tr>
   <tr><td style="text-align:left"><code>mature_start</code></td><td style="text-align:left">Offset where mature protein begins</td></tr>
   <tr><td style="text-align:left"><code>mature_sequence</code></td><td style="text-align:left">Protein with signal peptide removed</td></tr>
-  <tr><td style="text-align:left"><code>groove_status</code></td><td style="text-align:left">Groove parse outcome (ok, alpha3_fallback, etc.)</td></tr>
-  <tr><td style="text-align:left"><code>is_functional</code></td><td style="text-align:left">Groove parseable AND not null/pseudogene</td></tr>
-</table>
-
-<h3>mhc-binding-grooves.csv</h3>
-<table>
-  <tr><th style="text-align:left">Column</th><th style="text-align:left">Description</th></tr>
   <tr><td style="text-align:left"><code>groove1</code></td><td style="text-align:left">N-terminal groove half: α1 domain (class I &amp; II alpha chains)</td></tr>
   <tr><td style="text-align:left"><code>groove2</code></td><td style="text-align:left">C-terminal groove half: α2 domain (class I) or β1 domain (class II beta)</td></tr>
   <tr><td style="text-align:left"><code>groove_seq</code></td><td style="text-align:left">Concatenation of groove1 + groove2</td></tr>
   <tr><td style="text-align:left"><code>ig_domain</code></td><td style="text-align:left">Ig support domain: α3 (class I), α2 (class II α), β2 (class II β)</td></tr>
   <tr><td style="text-align:left"><code>tail</code></td><td style="text-align:left">Transmembrane + cytoplasmic region</td></tr>
-  <tr><td style="text-align:left"><code>groove_status</code></td><td style="text-align:left">Parse outcome (ok, alpha3_fallback, etc.)</td></tr>
+  <tr><td style="text-align:left"><code>groove_status</code></td><td style="text-align:left">Groove parse outcome (ok, alpha3_fallback, etc.)</td></tr>
   <tr><td style="text-align:left"><code>anchor_type</code></td><td style="text-align:left">Which Cys pair anchored the parse</td></tr>
+  <tr><td style="text-align:left"><code>is_functional</code></td><td style="text-align:left">Groove parseable AND not null/pseudogene</td></tr>
 </table>
 
 <h2 id="algorithm">Groove extraction algorithm</h2>
@@ -235,13 +221,16 @@ CLASS II beta chain:
 
 <h2 id="species">Species taxonomy</h2>
 
-<p>Every entry is assigned a <code>species_category</code> from a 7-class taxonomy:</p>
+<p>Every entry is assigned a <code>species_category</code> from a 10-class taxonomy:</p>
 <table>
   <tr><th style="text-align:left">Category</th><th style="text-align:left">Fine-grained species included</th></tr>
   <tr><td style="text-align:left"><code>human</code></td><td style="text-align:left">Homo sapiens</td></tr>
   <tr><td style="text-align:left"><code>nhp</code></td><td style="text-align:left">macaque, chimpanzee, gorilla, orangutan, baboon, other NHP</td></tr>
   <tr><td style="text-align:left"><code>murine</code></td><td style="text-align:left">mouse, rat</td></tr>
-  <tr><td style="text-align:left"><code>other_mammal</code></td><td style="text-align:left">cattle, pig, horse, sheep, goat, dog, cat, rabbit</td></tr>
+  <tr><td style="text-align:left"><code>ungulate</code></td><td style="text-align:left">cattle, pig, horse, sheep, goat</td></tr>
+  <tr><td style="text-align:left"><code>carnivore</code></td><td style="text-align:left">dog, cat</td></tr>
+  <tr><td style="text-align:left"><code>cetacean</code></td><td style="text-align:left">whale, dolphin</td></tr>
+  <tr><td style="text-align:left"><code>other_mammal</code></td><td style="text-align:left">rabbit, other mammals</td></tr>
   <tr><td style="text-align:left"><code>bird</code></td><td style="text-align:left">chicken, other birds</td></tr>
   <tr><td style="text-align:left"><code>fish</code></td><td style="text-align:left">salmon, zebrafish, other fish</td></tr>
   <tr><td style="text-align:left"><code>other_vertebrate</code></td><td style="text-align:left">reptiles, amphibians</td></tr>
@@ -280,17 +269,16 @@ CLASS II beta chain:
 </ul>
 
 <h3>mhcseqs.pipeline</h3>
-<p>Three-step build pipeline:</p>
+<p>Two-step build pipeline:</p>
 <ul>
   <li><code>build_raw_index(fasta_paths, out_csv)</code> — Step 1: parse FASTA → raw CSV</li>
-  <li><code>build_full_seqs(raw_csv, out_csv)</code> — Step 2: select representatives</li>
-  <li><code>build_binding_grooves(full_csv, out_csv)</code> — Step 3: extract grooves</li>
+  <li><code>build_full_seqs(raw_csv, out_csv)</code> — Step 2: select representatives + extract grooves</li>
 </ul>
 
 <h3>mhcseqs.validate</h3>
 <p>Post-build sanity checks:</p>
 <ul>
-  <li><code>validate_build(raw_csv, full_csv, groove_csv)</code> — run all checks</li>
+  <li><code>validate_build(raw_csv, full_csv)</code> — run all checks</li>
   <li><code>format_validation_report(warnings, stats)</code> — human-readable report</li>
 </ul>
 
