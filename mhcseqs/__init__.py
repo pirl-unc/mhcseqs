@@ -18,8 +18,7 @@ Quick start::
     m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A"])
 
     # Load all sequences as a DataFrame
-    import pandas as pd
-    df = pd.read_csv(paths.binding_grooves)
+    df = mhcseqs.load_sequences_dataframe()
 """
 
 from dataclasses import dataclass
@@ -59,9 +58,7 @@ from .imgt import (
 )
 from .pipeline import (
     FULL_FIELDS,
-    GROOVE_FIELDS,
     RAW_FIELDS,
-    build_binding_grooves,
     build_full_seqs,
     build_raw_index,
 )
@@ -82,18 +79,15 @@ class BuildPaths:
     """Paths to CSV files produced by :func:`build`.
 
     Attributes:
-        raw: Every protein entry from both databases (``mhc-seqs-raw.csv``).
-        sequences: One representative mature protein per two-field allele
-            group, with full sequence and metadata (``mhc-full-seqs.csv``).
-        binding_grooves: Extracted binding groove, Ig domain, and tail for
-            each representative allele (``mhc-binding-grooves.csv``).
+        raw: Every protein entry from all sources (``mhc-seqs-raw.csv``).
+        sequences: One representative per two-field allele group, with full
+            sequence, groove decomposition, and metadata (``mhc-full-seqs.csv``).
         merge_report: Human-readable report of the merge/dedup step.
         validation_report: Human-readable validation sanity checks.
     """
 
     raw: str
     sequences: str
-    binding_grooves: str
     merge_report: str
     validation_report: str
 
@@ -150,10 +144,7 @@ def build(
     report_path = out / "mhc-merge-report.txt"
     build_full_seqs(raw_csv, full_csv, report_path=report_path)
 
-    groove_csv = out / "mhc-binding-grooves.csv"
-    build_binding_grooves(full_csv, groove_csv)
-
-    warnings, stats = validate_build(raw_csv, full_csv, groove_csv)
+    warnings, stats = validate_build(raw_csv, full_csv)
     validation_path = out / "mhc-validation-report.txt"
     with open(validation_path, "w", encoding="utf-8") as f:
         f.write(format_validation_report(warnings, stats) + "\n")
@@ -161,7 +152,6 @@ def build(
     return BuildPaths(
         raw=str(raw_csv),
         sequences=str(full_csv),
-        binding_grooves=str(groove_csv),
         merge_report=str(report_path),
         validation_report=str(validation_path),
     )
@@ -191,12 +181,11 @@ def _find_csv(name: str, search_dir: str | None = None) -> str:
     raise FileNotFoundError(f"{name} not found. Run mhcseqs.build() or 'mhcseqs build' first.")
 
 
-def load_raw(path: str | None = None) -> list[dict]:
+def load_raw_dict(path: str | None = None) -> list[dict]:
     """Load the raw sequence CSV as a list of dicts.
 
-    Contains every individual protein entry from IMGT/HLA and IPD-MHC,
-    including duplicates and fragments. Most users want
-    :func:`load_sequences` or :func:`load_binding_grooves` instead.
+    Contains every individual protein entry from all sources,
+    including duplicates and fragments.
     """
     import csv as _csv
 
@@ -205,13 +194,20 @@ def load_raw(path: str | None = None) -> list[dict]:
         return list(_csv.DictReader(f))
 
 
-def load_sequences(path: str | None = None) -> list[dict]:
+def load_raw_dataframe(path: str | None = None):
+    """Load the raw sequence CSV as a pandas DataFrame."""
+    import pandas as pd
+
+    p = path or _find_csv("mhc-seqs-raw.csv")
+    return pd.read_csv(p)
+
+
+def load_sequences_dict(path: str | None = None) -> list[dict]:
     """Load the full-sequence representatives CSV as a list of dicts.
 
     One row per two-field allele with the best available full-length
-    protein sequence, species metadata, and signal peptide annotation.
-    Does *not* include groove decomposition — use
-    :func:`load_binding_grooves` for that.
+    protein sequence, groove decomposition, species metadata, and
+    signal peptide annotation.
     """
     import csv as _csv
 
@@ -220,18 +216,16 @@ def load_sequences(path: str | None = None) -> list[dict]:
         return list(_csv.DictReader(f))
 
 
-def load_binding_grooves(path: str | None = None) -> list[dict]:
-    """Load the binding grooves CSV as a list of dicts.
+def load_sequences_dataframe(path: str | None = None):
+    """Load the full-sequence representatives CSV as a pandas DataFrame.
 
-    One row per two-field allele with groove1, groove2, ig_domain, tail,
-    and groove parse status. This is the most useful file for training
-    models on MHC binding groove sequences.
+    One row per two-field allele with full protein, mature sequence,
+    groove decomposition, species metadata, and allele status flags.
     """
-    import csv as _csv
+    import pandas as pd
 
-    p = path or _find_csv("mhc-binding-grooves.csv")
-    with open(p, "r", encoding="utf-8") as f:
-        return list(_csv.DictReader(f))
+    p = path or _find_csv("mhc-full-seqs.csv")
+    return pd.read_csv(p)
 
 
 def lookup(
@@ -322,13 +316,13 @@ __all__ = [
     "BuildPaths",
     "default_data_dir",
     "build",
-    "load_raw",
-    "load_sequences",
-    "load_binding_grooves",
+    "load_raw_dict",
+    "load_raw_dataframe",
+    "load_sequences_dict",
+    "load_sequences_dataframe",
     "lookup",
     "build_raw_index",
     "build_full_seqs",
-    "build_binding_grooves",
     "apply_mutations",
     "extract_groove",
     "parse_class_i",
@@ -355,7 +349,6 @@ __all__ = [
     "SOURCES",
     "RAW_FIELDS",
     "FULL_FIELDS",
-    "GROOVE_FIELDS",
     "mature_to_imgt",
     "mature_to_imgt_class_i",
     "imgt_to_mature",

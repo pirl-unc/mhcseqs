@@ -83,7 +83,6 @@ jobs:
         gh release upload "${{ steps.version.outputs.tag }}" \
           dist-csv/mhc-seqs-raw.csv \
           dist-csv/mhc-full-seqs.csv \
-          dist-csv/mhc-binding-grooves.csv \
           dist-csv/mhc-merge-report.txt \
           dist-csv/mhc-validation-report.txt
       env:

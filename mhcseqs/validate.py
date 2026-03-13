@@ -257,9 +257,8 @@ def _aa_composition_check(sequences: List[str], label: str) -> List[str]:
 def validate_build(
     raw_csv: Path,
     full_csv: Path,
-    groove_csv: Path,
 ) -> Tuple[List[str], Dict[str, int]]:
-    """Run all sanity checks on the three output CSVs.
+    """Run all sanity checks on the output CSVs.
 
     Returns (warnings, stats) where warnings is a list of warning strings
     and stats is a dict of check counts.
@@ -337,6 +336,7 @@ def validate_build(
             full_rows.append(row)
 
     stats["full_total"] = len(full_rows)
+    groove_ok = 0
 
     for row in full_rows:
         mature_warnings = _check_mature_sequence(row)
@@ -353,29 +353,20 @@ def validate_build(
             elif mc == "II" and ch == "beta":
                 mature_by_class["II_beta"].append(mature)
 
-    # Amino acid composition of mature sequences by class
-    for class_label, seqs in mature_by_class.items():
-        if seqs:
-            warnings.extend(_aa_composition_check(seqs, f"mature_{class_label}"))
-            stats[f"mature_{class_label}_count"] = len(seqs)
-            stats[f"mature_{class_label}_mean_len"] = round(sum(len(s) for s in seqs) / len(seqs), 1)
-
-    # --- Groove CSV checks ---
-    groove_rows = []
-    with open(groove_csv, "r", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            groove_rows.append(row)
-
-    stats["groove_total"] = len(groove_rows)
-    groove_ok = 0
-
-    for row in groove_rows:
+        # Groove checks (groove columns are now in full-seqs)
         groove_warnings = _check_groove_row(row)
         warnings.extend(groove_warnings)
         if row.get("groove_status") == "ok":
             groove_ok += 1
 
     stats["groove_ok"] = groove_ok
+
+    # Amino acid composition of mature sequences by class
+    for class_label, seqs in mature_by_class.items():
+        if seqs:
+            warnings.extend(_aa_composition_check(seqs, f"mature_{class_label}"))
+            stats[f"mature_{class_label}_count"] = len(seqs)
+            stats[f"mature_{class_label}_mean_len"] = round(sum(len(s) for s in seqs) / len(seqs), 1)
 
     # Groove length distributions
     for mc, ch, half_key, label in [
@@ -385,7 +376,7 @@ def validate_build(
         ("II", "beta", "groove2", "class_II_beta"),
     ]:
         lengths = []
-        for row in groove_rows:
+        for row in full_rows:
             if row.get("mhc_class") == mc and row.get("chain") == ch:
                 g = row.get(half_key, "")
                 if g:
@@ -413,8 +404,7 @@ def format_validation_report(
     lines.append(f"Raw entries:         {stats.get('raw_total', 0)}")
     lines.append(f"  with signal pep:   {stats.get('raw_with_sp', 0)}")
     lines.append(f"  B2M entries:       {stats.get('raw_b2m', 0)}")
-    lines.append(f"Full-seq entries:    {stats.get('full_total', 0)}")
-    lines.append(f"Groove entries:      {stats.get('groove_total', 0)} ({stats.get('groove_ok', 0)} ok)")
+    lines.append(f"Full-seq entries:    {stats.get('full_total', 0)} ({stats.get('groove_ok', 0)} groove ok)")
     lines.append("")
 
     # SP stats

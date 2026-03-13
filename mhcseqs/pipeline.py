@@ -1,6 +1,6 @@
-"""Main pipeline: parse FASTA → raw CSV → full-seqs CSV → binding-grooves CSV.
+"""Main pipeline: parse FASTA → raw CSV → full-seqs CSV.
 
-This module contains the core logic for building all three output files.
+This module contains the core logic for building both output files.
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ from .alleles import (
 from .groove import (
     NON_GROOVE_GENES,
     AlleleRecord,
-    extract_groove,
     is_class_ii_alpha_gene,
     parse_class_i,
     parse_class_ii_alpha,
@@ -90,24 +89,6 @@ FULL_FIELDS = [
     "sequence",
     "mature_start",
     "mature_sequence",
-    "groove_status",
-    "is_null",
-    "is_questionable",
-    "is_pseudogene",
-    "is_functional",
-]
-
-GROOVE_FIELDS = [
-    "two_field_allele",
-    "representative_allele",
-    "gene",
-    "mhc_class",
-    "chain",
-    "species",
-    "species_category",
-    "species_prefix",
-    "source",
-    "source_id",
     "groove1",
     "groove2",
     "groove_seq",
@@ -119,6 +100,10 @@ GROOVE_FIELDS = [
     "tail_len",
     "groove_status",
     "anchor_type",
+    "is_null",
+    "is_questionable",
+    "is_pseudogene",
+    "is_functional",
 ]
 
 
@@ -795,10 +780,21 @@ def _emit_full_row(
     seq: str,
     groove: Optional[AlleleRecord],
 ) -> dict:
-    """Build a row for mhc-full-seqs.csv."""
+    """Build a row for mhc-full-seqs.csv (includes groove decomposition)."""
     mature_start = groove.mature_start if groove and groove.ok else 0
     mature_seq = seq[mature_start:] if mature_start > 0 else seq
-    groove_status = groove.status if groove else ""
+
+    gene = representative.get("gene", "")
+    gene_upper = gene.strip().upper()
+    is_non_groove = gene_upper in NON_GROOVE_GENES or gene_upper in ("B2M", "BETA-2-MICROGLOBULIN")
+
+    if groove:
+        groove_status = groove.status
+    elif is_non_groove:
+        groove_status = "not_applicable"
+    else:
+        groove_status = ""
+
     suffix = allele_suffix_flags(representative.get("allele_normalized", ""))
     is_functional = (
         groove_status in FUNCTIONAL_GROOVE_STATUSES and not suffix["is_null"] and not suffix["is_pseudogene"]
@@ -807,7 +803,7 @@ def _emit_full_row(
         "two_field_allele": group_key,
         "representative_allele": representative.get("allele_normalized", ""),
         "representative_policy": policy,
-        "gene": representative.get("gene", ""),
+        "gene": gene,
         "mhc_class": representative.get("mhc_class", ""),
         "chain": representative.get("chain", ""),
         "species": representative.get("species", ""),
@@ -819,7 +815,17 @@ def _emit_full_row(
         "sequence": seq,
         "mature_start": str(mature_start),
         "mature_sequence": mature_seq,
+        "groove1": groove.groove1 if groove else "",
+        "groove2": groove.groove2 if groove else "",
+        "groove_seq": groove.groove_seq if groove else "",
+        "groove1_len": str(groove.groove1_len) if groove else "0",
+        "groove2_len": str(groove.groove2_len) if groove else "0",
+        "ig_domain": groove.ig_domain if groove else "",
+        "ig_domain_len": str(groove.ig_domain_len) if groove else "0",
+        "tail": groove.tail if groove else "",
+        "tail_len": str(groove.tail_len) if groove else "0",
         "groove_status": groove_status,
+        "anchor_type": groove.anchor_type if groove else "",
         "is_null": str(suffix["is_null"]),
         "is_questionable": str(suffix["is_questionable"]),
         "is_pseudogene": str(suffix["is_pseudogene"]),
@@ -1034,118 +1040,5 @@ def build_full_seqs(
     if report_path is None:
         report_path = out_csv.parent / "mhc-merge-report.txt"
     _write_merge_report(report_path, stats, mature_aligned_entries, conflict_entries)
-
-    return dict(stats)
-
-
-# ---------------------------------------------------------------------------
-# Step 3: Binding grooves
-# ---------------------------------------------------------------------------
-
-
-def build_binding_grooves(
-    full_csv: Path,
-    out_csv: Path,
-) -> Dict[str, int]:
-    """Extract binding grooves from the full-sequence representatives.
-
-    Returns stats dict.
-    """
-    full_rows: List[dict] = []
-    with open(full_csv, "r", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            full_rows.append(row)
-
-    groove_rows: List[dict] = []
-    stats = Counter(total=0, groove_ok=0, groove_failed=0)
-
-    for row in full_rows:
-        stats["total"] += 1
-        seq = row.get("sequence", "")
-        mhc_class = row.get("mhc_class", "")
-        gene = row.get("gene", "")
-        allele = row.get("representative_allele", "")
-        chain = row.get("chain", "")
-
-        # B2M, non-groove genes (MICA/MICB/HFE), and entries with unknown
-        # class don't have peptide-binding grooves.
-        gene_upper = (gene or "").strip().upper()
-        nc = normalize_mhc_class(mhc_class)
-        if nc not in ("I", "II") or gene_upper in NON_GROOVE_GENES:
-            if gene_upper in NON_GROOVE_GENES:
-                stats["groove_skipped_non_groove_gene"] += 1
-            else:
-                stats["groove_skipped_no_class"] += 1
-            groove_rows.append(
-                {
-                    "two_field_allele": row.get("two_field_allele", ""),
-                    "representative_allele": allele,
-                    "gene": gene,
-                    "mhc_class": mhc_class,
-                    "chain": chain,
-                    "species": row.get("species", ""),
-                    "species_category": row.get("species_category", ""),
-                    "species_prefix": row.get("species_prefix", ""),
-                    "source": row.get("source", ""),
-                    "source_id": row.get("source_id", ""),
-                    "groove1": "",
-                    "groove2": "",
-                    "groove_seq": "",
-                    "groove1_len": "0",
-                    "groove2_len": "0",
-                    "ig_domain": "",
-                    "ig_domain_len": "0",
-                    "tail": "",
-                    "tail_len": "0",
-                    "groove_status": "not_applicable",
-                    "anchor_type": "",
-                }
-            )
-            continue
-
-        groove = extract_groove(
-            seq,
-            mhc_class=mhc_class,
-            chain=chain,
-            allele=allele,
-            gene=gene,
-        )
-
-        if groove.ok:
-            stats["groove_ok"] += 1
-        else:
-            stats["groove_failed"] += 1
-
-        groove_rows.append(
-            {
-                "two_field_allele": row.get("two_field_allele", ""),
-                "representative_allele": allele,
-                "gene": gene,
-                "mhc_class": mhc_class,
-                "chain": chain or groove.chain,
-                "species": row.get("species", ""),
-                "species_category": row.get("species_category", ""),
-                "species_prefix": row.get("species_prefix", ""),
-                "source": row.get("source", ""),
-                "source_id": row.get("source_id", ""),
-                "groove1": groove.groove1,
-                "groove2": groove.groove2,
-                "groove_seq": groove.groove_seq,
-                "groove1_len": str(groove.groove1_len),
-                "groove2_len": str(groove.groove2_len),
-                "ig_domain": groove.ig_domain,
-                "ig_domain_len": str(groove.ig_domain_len),
-                "tail": groove.tail,
-                "tail_len": str(groove.tail_len),
-                "groove_status": groove.status,
-                "anchor_type": groove.anchor_type,
-            }
-        )
-
-    out_csv.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_csv, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=GROOVE_FIELDS)
-        writer.writeheader()
-        writer.writerows(groove_rows)
 
     return dict(stats)

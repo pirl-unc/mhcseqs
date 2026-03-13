@@ -1,7 +1,6 @@
 from mhcseqs.pipeline import (
     FULL_FIELDS,
     FUNCTIONAL_GROOVE_STATUSES,
-    GROOVE_FIELDS,
     RAW_FIELDS,
     _candidate_tokens,
     _extract_source_id,
@@ -115,15 +114,12 @@ def test_full_fields():
     assert "mature_sequence" in FULL_FIELDS
     assert "groove_status" in FULL_FIELDS
     assert "is_functional" in FULL_FIELDS
-
-
-def test_groove_fields():
-    assert isinstance(GROOVE_FIELDS, list)
-    assert "groove1" in GROOVE_FIELDS
-    assert "groove2" in GROOVE_FIELDS
-    assert "groove_seq" in GROOVE_FIELDS
-    assert "ig_domain" in GROOVE_FIELDS
-    assert "anchor_type" in GROOVE_FIELDS
+    # Groove columns merged into full fields
+    assert "groove1" in FULL_FIELDS
+    assert "groove2" in FULL_FIELDS
+    assert "groove_seq" in FULL_FIELDS
+    assert "ig_domain" in FULL_FIELDS
+    assert "anchor_type" in FULL_FIELDS
 
 
 def test_functional_groove_statuses():
@@ -146,7 +142,6 @@ def test_full_fields_does_not_include_raw_only_columns():
 def test_source_id_in_all_field_lists():
     assert "source_id" in RAW_FIELDS
     assert "source_id" in FULL_FIELDS
-    assert "source_id" in GROOVE_FIELDS
 
 
 def test_extract_source_id_imgt():

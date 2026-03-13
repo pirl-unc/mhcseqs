@@ -17,7 +17,7 @@ from pathlib import Path
 
 from . import default_data_dir
 from .download import SOURCES, download_all
-from .pipeline import build_binding_grooves, build_full_seqs, build_raw_index
+from .pipeline import build_full_seqs, build_raw_index
 from .validate import format_validation_report, validate_build
 from .version import __version__
 
@@ -28,7 +28,7 @@ def cmd_build(args):
     data_dir: Path = args.data_dir or (dd / "fasta")
 
     print("=" * 60)
-    print("Step 1/5: Downloading FASTA source files")
+    print("Step 1/4: Downloading FASTA source files")
     print("=" * 60)
     paths = download_all(data_dir)
     print()
@@ -40,7 +40,7 @@ def cmd_build(args):
 
     raw_csv = out_dir / "mhc-seqs-raw.csv"
     print("=" * 60)
-    print("Step 2/5: Building raw sequence index")
+    print("Step 2/4: Building raw sequence index")
     print("=" * 60)
     raw_stats = build_raw_index(fasta_inputs, raw_csv)
     print(f"  Raw index: {json.dumps(raw_stats, indent=2)}")
@@ -50,7 +50,7 @@ def cmd_build(args):
     full_csv = out_dir / "mhc-full-seqs.csv"
     report_path = out_dir / "mhc-merge-report.txt"
     print("=" * 60)
-    print("Step 3/5: Selecting two-field representatives")
+    print("Step 3/4: Selecting two-field representatives + groove extraction")
     print("=" * 60)
     full_stats = build_full_seqs(raw_csv, full_csv, report_path=report_path)
     print(f"  Full seqs: {json.dumps(full_stats, indent=2)}")
@@ -58,19 +58,10 @@ def cmd_build(args):
     print(f"  -> {report_path}")
     print()
 
-    groove_csv = out_dir / "mhc-binding-grooves.csv"
     print("=" * 60)
-    print("Step 4/5: Extracting binding grooves")
+    print("Step 4/4: Validation sanity checks")
     print("=" * 60)
-    groove_stats = build_binding_grooves(full_csv, groove_csv)
-    print(f"  Grooves: {json.dumps(groove_stats, indent=2)}")
-    print(f"  -> {groove_csv}")
-    print()
-
-    print("=" * 60)
-    print("Step 5/5: Validation sanity checks")
-    print("=" * 60)
-    warnings, val_stats = validate_build(raw_csv, full_csv, groove_csv)
+    warnings, val_stats = validate_build(raw_csv, full_csv)
     report = format_validation_report(warnings, val_stats)
     print(report)
     validation_path = out_dir / "mhc-validation-report.txt"
@@ -83,7 +74,6 @@ def cmd_build(args):
     print("Done!")
     print(f"  {raw_csv}")
     print(f"  {full_csv}")
-    print(f"  {groove_csv}")
     print(f"  {report_path}")
     print(f"  {validation_path}")
 
@@ -95,7 +85,7 @@ def cmd_lookup(args):
     # Find the CSVs — look in output dir, default data dir, and CWD
     search_dirs = [out_dir, dd, Path(".")]
     csv_files = {}
-    for name in ("mhc-seqs-raw.csv", "mhc-full-seqs.csv", "mhc-binding-grooves.csv"):
+    for name in ("mhc-seqs-raw.csv", "mhc-full-seqs.csv"):
         for d in search_dirs:
             p = d / name
             if p.exists():

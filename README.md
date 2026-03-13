@@ -60,24 +60,16 @@ r.species_category  # "human"
 m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])
 ```
 
-### Load all sequences as a DataFrame
+### Load as a DataFrame
 
 ```python
-import mhcseqs, pandas as pd
+import mhcseqs
 
-paths = mhcseqs.build()  # once — downloads + builds CSVs
+# As a DataFrame (full sequence + groove decomposition + metadata)
+df = mhcseqs.load_sequences_dataframe()
 
-# Binding grooves with structural decomposition (35K rows)
-# One row per allele: groove1, groove2, ig_domain, tail, status
-df = pd.read_csv(paths.binding_grooves)
-
-# Full protein sequences (one per two-field allele)
-# Includes full sequence, mature_sequence, signal peptide, species metadata
-df = pd.read_csv(paths.sequences)
-
-# Without pandas
-rows = mhcseqs.load_binding_grooves()  # list[dict]
-rows = mhcseqs.load_sequences()        # list[dict]
+# Or as a list of dicts (no pandas dependency)
+rows = mhcseqs.load_sequences_dict()
 ```
 
 ## Data directory
@@ -91,26 +83,24 @@ By default, `mhcseqs build` downloads FASTA files and writes output CSVs to
 │   ├── hla_prot.fasta         # IMGT/HLA (human)
 │   └── ipd_mhc_prot.fasta    # IPD-MHC (non-human)
 ├── mhc-seqs-raw.csv           # Every protein entry from all sources
-├── mhc-full-seqs.csv          # One representative per two-field allele
-├── mhc-binding-grooves.csv    # Binding groove + Ig domain + tail
+├── mhc-full-seqs.csv          # One representative per two-field allele (with grooves)
 ├── mhc-merge-report.txt       # Deduplication decisions
 └── mhc-validation-report.txt  # Sanity checks
 ```
 
 Pre-built CSVs are also attached to each
-[GitHub release](https://github.com/openvax/mhcseqs/releases) as gzipped artifacts.
+[GitHub release](https://github.com/openvax/mhcseqs/releases).
 
 ## Output files
 
 | File | Description |
 |---|---|
 | `mhc-seqs-raw.csv` | Every protein entry from all sources |
-| `mhc-full-seqs.csv` | One representative mature protein per two-field allele group |
-| `mhc-binding-grooves.csv` | Extracted binding groove + Ig domain + tail for each representative |
+| `mhc-full-seqs.csv` | One representative per two-field allele: full sequence, groove decomposition, and metadata |
 
 ## Current data summary
 
-Species category x MHC class counts (from `mhc-binding-grooves.csv`):
+Species category x MHC class counts (from `mhc-full-seqs.csv`):
 
 | Category | Class I | Class II | Total |
 |---|---:|---:|---:|
@@ -141,7 +131,7 @@ For a class I chain: `mature_protein = groove1 + groove2 + ig_domain + tail`
 
 ## Key columns
 
-All three CSVs share: `gene`, `mhc_class`, `chain`, `species`,
+Both CSVs share: `gene`, `mhc_class`, `chain`, `species`,
 `species_category`, `species_prefix`, `source`, `source_id`.
 
 `source` is one of: `imgt`, `ipd_mhc`, `uniprot_curated`, `uniprot_reference`.
@@ -214,7 +204,7 @@ mhcseqs/
 │   ├── alleles.py         # Allele name parsing (mhcgnomes wrapper)
 │   ├── groove.py          # Binding groove extraction + mutation support
 │   ├── imgt.py            # IMGT G-DOMAIN position numbering
-│   ├── pipeline.py        # Three-step build pipeline
+│   ├── pipeline.py        # Two-step build pipeline
 │   ├── validate.py        # Post-build validation
 │   ├── b2m_sequences.csv         # Reference B2M sequences (UniProt)
 │   └── mouse_h2_sequences.csv   # Mouse H-2 sequences (UniProt)
