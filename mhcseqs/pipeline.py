@@ -76,7 +76,7 @@ RAW_FIELDS = [
 FULL_FIELDS = [
     "two_field_allele",
     "representative_allele",
-    "representative_policy",
+    "protein_seq_selection",
     "gene",
     "mhc_class",
     "chain",
@@ -802,7 +802,7 @@ def _emit_full_row(
     return {
         "two_field_allele": group_key,
         "representative_allele": representative.get("allele_normalized", ""),
-        "representative_policy": policy,
+        "protein_seq_selection": policy,
         "gene": gene,
         "mhc_class": representative.get("mhc_class", ""),
         "chain": representative.get("chain", ""),
