@@ -31,13 +31,13 @@ from pathlib import Path
 
 CLASS_I_PATTERN = re.compile(
     r"(class\s*I[^IV]|class\s*Ia\b|class I alpha|class\s*1\b|"
-    r"\bBF[12]?\b|MHC-Y|H-2 class I|"
+    r"\bBF[12]?\b|\bYF[12]?\b|MHC-Y|H-2 class I|"
     r"MHC class I heavy chain|MHC I\b|MhcI\b)",
     re.IGNORECASE,
 )
 CLASS_II_ALPHA_PATTERN = re.compile(
     r"(class\s*II\S*\s*alpha|class\s*II\s+\bA\b|"
-    r"\bD[A-Z]A\d*\b|"
+    r"\bD[A-Z]A\d*\b|\bBLA\d*\b|"
     r"MHC-II.*alpha)",
     re.IGNORECASE,
 )
@@ -217,7 +217,13 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
                 return f"{candidate_prefix}-{gene_part}"
 
         # Bare MHC gene name (no prefix): DAB1*06, UBA*01, BF1, DRB1, etc.
-        bare_gene_re = r"^(BF|BLB|DAB|DAA|DRB|DRA|DQA|DQB|DMB|DXB|DXA|UBA|UAA|UCA|UDA|UEA|UFA|UGA|DBA|DBB)"
+        bare_gene_re = (
+            r"^(BF|BLB|BLA|YF|"
+            r"DAB|DAA|DRB|DRA|DQA|DQB|DPA|DPB|DMA|DMB|DOA|DOB|DXB|DXA|DYA|DYB|DNA|"
+            r"DBA|DBB|DCA|DCB|DDA|DDB|DEA|DEB|"
+            r"UBA|UAA|UCA|UDA|UEA|UFA|UGA|UHA|ULA|"
+            r"ZAA|ZBA|ZCA|ZDA|SAA)"
+        )
         if re.match(bare_gene_re, tok_stripped, re.IGNORECASE):
             if organism_prefix:
                 return f"{organism_prefix}-{tok_stripped}"

@@ -106,6 +106,11 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
             "cebus",
             "semnopithecus",
             "alouatta",
+            "colobus",
+            "lophocebus",
+            "rhinopithecus",
+            "sapajus",
+            "theropithecus",
             "primate",
         ),
         "other_nhp",
@@ -190,13 +195,37 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
         ("bos taurus", "bos ", "bovine", "cow", "cattle", "bola-", "bos grunniens", "bubalus"),
         "cattle",
     ),
-    (("sus scrofa", "sus ", "porcine", "pig", "swine", "sla-"), "pig"),
-    (("equus", "equine", "horse", "ela-"), "horse"),
+    (("sus scrofa", "sus ", "porcine", "pig", "swine", "sla-", "phacochoerus", "warthog"), "pig"),
+    (("equus", "equine", "horse", "ela-", "donkey"), "horse"),
     (("ovis", "ovine", "sheep", "ola-"), "sheep"),
     (("capra", "caprine", "goat"), "goat"),
-    (("canis lupus", "canis ", "canine", "dog", "dla-"), "dog"),
+    (("cervus", "odocoileus", "deer", "elk", "moose", "alces"), "other_mammal"),
+    (("camelus", "camelid", "llama", "lama ", "vicugna", "alpaca"), "other_mammal"),
+    (("bison",), "cattle"),
+    (("canis lupus", "canis ", "canine", "dog", "dla-", "cuon", "lycaon", "vulpes", "fox", "dhole"), "dog"),
     (("felis", "feline", "cat"), "cat"),
     (("rabbit", "oryctolagus"), "rabbit"),
+    (
+        (
+            "phoca",
+            "seal",
+            "sea lion",
+            "zalophus",
+            "halichoerus",
+            "neomonachus",
+            "pinniped",
+            "mustela",
+            "ferret",
+            "mink",
+            "neovison",
+            "neogale",
+            "ursus",
+            "bear",
+            "ailuropoda",
+            "panda",
+        ),
+        "other_mammal",
+    ),
     (
         (
             "whale",
@@ -218,6 +247,19 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
             "cephalorhynchus",
             "mesoplodon",
             "ziphius",
+            "orcinus",
+            "orca",
+            "delphinapterus",
+            "beluga",
+            "eschrichtius",
+            "hyperoodon",
+            "inia",
+            "lipotes",
+            "monodon",
+            "narwhal",
+            "neophocaena",
+            "phocoena",
+            "pontoporia",
         ),
         "cetacean",
     ),
@@ -348,7 +390,32 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
     # Fish (after bacteria so "salmonella" doesn't match "salmon")
     (("salmo salar", "salmo ", "salmon", "trout", "oncorhynchus"), "salmon"),
     (("danio", "zebrafish"), "zebrafish"),
-    (("*fish", "pisces", "teleost", "actinopterygii"), "other_fish"),
+    (
+        (
+            "*fish",
+            "pisces",
+            "teleost",
+            "actinopterygii",
+            "oryzias",
+            "medaka",
+            "gasterosteus",
+            "stickleback",
+            "gadus",
+            "cod",
+            "cyprinus",
+            "carp",
+            "oreochromis",
+            "tilapia",
+            "ictalurus",
+            "catfish",
+            "takifugu",
+            "fugu",
+            "tetraodon",
+            "esox",
+            "pike",
+        ),
+        "other_fish",
+    ),
     # Reptiles
     (
         (
@@ -516,7 +583,7 @@ CANONICAL_MHC_PREFIXES: Dict[str, str] = {
     "goat": "CLA",
     "dog": "DLA",
     "cat": "FLA",
-    "rabbit": "OrCu",
+    "rabbit": "RLA",
     "chicken": "Gaga",
     "salmon": "Sasa",
     "zebrafish": "Dare",
@@ -562,9 +629,10 @@ def normalize_species(raw: Optional[str]) -> Optional[str]:
 
 
 def normalize_mhc_species(raw: Optional[str]) -> Optional[str]:
-    """Normalize to 7-class MHC species category.
+    """Normalize to 10-class MHC species category.
 
-    Returns one of: human, nhp, murine, other_mammal, bird, fish, other_vertebrate.
+    Returns one of: human, nhp, murine, ungulate, carnivore, cetacean,
+    other_mammal, bird, fish, other_vertebrate.
     Returns None for non-animal or unrecognizable inputs.
     """
     fine = normalize_species(raw)
