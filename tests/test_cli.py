@@ -34,6 +34,7 @@ def test_no_args_prints_help(capsys):
 
 def test_lookup_no_csvs(capsys, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("mhcseqs.__main__.default_data_dir", lambda: str(tmp_path))
     with patch.object(sys, "argv", ["mhcseqs", "lookup", "HLA-A*02:01", "--output-dir", str(tmp_path)]):
         with pytest.raises(SystemExit) as exc_info:
             main()

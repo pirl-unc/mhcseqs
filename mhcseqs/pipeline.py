@@ -36,6 +36,7 @@ MIN_MHC_SEQUENCE_LEN = 70
 # Curated reference CSVs (shipped with this repo)
 _B2M_CSV = Path(__file__).resolve().parent / "b2m_sequences.csv"
 _MOUSE_H2_CSV = Path(__file__).resolve().parent / "mouse_h2_sequences.csv"
+_DIVERSE_MHC_CSV = Path(__file__).resolve().parent / "diverse_mhc_sequences.csv"
 
 _NUCLEOTIDE_LIKE_CHARS = set("ACGTUNWSMKRYBDHV")
 
@@ -328,6 +329,94 @@ def _infer_chain(gene: str, mhc_class: str) -> str:
     return ""
 
 
+# Source group → species_category mapping (for diverse_mhc_sequences.csv)
+_DIVERSE_GROUP_TO_CATEGORY = {
+    "reptile_lepidosauria": "other_vertebrate",
+    "reptile_crocodylia": "other_vertebrate",
+    "reptile_testudines": "other_vertebrate",
+    "amphibian": "other_vertebrate",
+    "bird_non_chicken": "bird",
+    "chicken": "bird",
+    "shark_ray": "fish",
+    "bony_fish": "fish",
+    "marsupial": "other_mammal",
+    "monotreme": "other_mammal",
+    "bat": "other_mammal",
+}
+
+
+def _load_diverse_mhc_references() -> List[dict]:
+    """Load curated diverse MHC sequences from diverse_mhc_sequences.csv.
+
+    These are UniProt sequences from taxonomic groups underrepresented in
+    IMGT/HLA and IPD-MHC: reptiles, amphibians, birds, fish, sharks,
+    marsupials, monotremes, and bats.
+    """
+    if not _DIVERSE_MHC_CSV.exists():
+        return []
+    rows = []
+    with open(_DIVERSE_MHC_CSV, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            accession = row.get("uniprot_accession", "")
+            gene = row.get("gene", "")
+            mhc_class = row.get("mhc_class", "")
+            chain = row.get("chain", "")
+            organism = row.get("organism", "")
+            source_group = row.get("source_group", "")
+            seq = row.get("sequence", "")
+            is_fragment = row.get("is_fragment", "False") == "True"
+            length = len(seq)
+
+            if not seq or length < MIN_MHC_SEQUENCE_LEN:
+                continue
+
+            # Use accession as the allele name (no standard nomenclature)
+            allele_name = accession
+
+            # Determine species_category from source_group (reliable)
+            species_category = _DIVERSE_GROUP_TO_CATEGORY.get(source_group, "")
+            if not species_category:
+                species_category = normalize_mhc_species(organism) or ""
+
+            # Fix chain for class II unknowns: try class_ii_alpha_gene check
+            if mhc_class == "II" and chain in ("unknown", ""):
+                if gene and is_class_ii_alpha_gene(gene):
+                    chain = "alpha"
+                elif gene:
+                    chain = "beta"
+
+            # Groove parse for signal peptide detection
+            groove = _try_groove_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
+            mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
+            has_sp = mature_start >= 15 and seq[:1].upper() == "M"
+            sp_seq = seq[:mature_start] if has_sp else ""
+
+            rows.append(
+                {
+                    "allele_raw": accession,
+                    "allele_normalized": allele_name,
+                    "two_field_allele": allele_name,
+                    "gene": gene,
+                    "mhc_class": mhc_class,
+                    "chain": chain,
+                    "species": organism,
+                    "species_category": species_category,
+                    "species_prefix": "",
+                    "source": "uniprot_diverse",
+                    "source_id": accession,
+                    "seq_len": str(length),
+                    "sequence": seq,
+                    "has_signal_peptide": str(has_sp),
+                    "signal_peptide_len": str(mature_start),
+                    "signal_peptide_seq": sp_seq,
+                    "is_null": "False",
+                    "is_questionable": str(is_fragment),
+                    "is_pseudogene": "False",
+                }
+            )
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # Step 1: Raw index
 # ---------------------------------------------------------------------------
@@ -451,6 +540,15 @@ def build_raw_index(
             records[key] = h2
             stats["parsed"] += 1
             stats["h2_references"] = stats.get("h2_references", 0) + 1
+
+    # Inject diverse MHC sequences (reptiles, amphibians, birds, fish, etc.)
+    diverse_rows = _load_diverse_mhc_references()
+    for dr in diverse_rows:
+        key = dr["allele_normalized"]
+        if key not in records:
+            records[key] = dr
+            stats["parsed"] += 1
+            stats["diverse_references"] = stats.get("diverse_references", 0) + 1
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     with open(out_csv, "w", newline="", encoding="utf-8") as f:

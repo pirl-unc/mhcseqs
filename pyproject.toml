@@ -5,7 +5,7 @@ description = "MHC sequence curation and binding groove extraction"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
-dependencies = ["mhcgnomes>=1.8.0"]
+dependencies = ["mhcgnomes>=3.1.0"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -36,7 +36,7 @@ version = {attr = "mhcseqs.version.__version__"}
 include = ["mhcseqs*"]
 
 [tool.setuptools.package-data]
-mhcseqs = ["b2m_sequences.csv", "mouse_h2_sequences.csv"]
+mhcseqs = ["b2m_sequences.csv", "mouse_h2_sequences.csv", "diverse_mhc_sequences.csv"]
 
 [tool.ruff]
 line-length = 120

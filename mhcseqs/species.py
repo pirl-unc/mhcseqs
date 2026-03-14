@@ -9,6 +9,7 @@ Ported from presto/data/vocab.py.
 
 from __future__ import annotations
 
+import re
 from typing import Dict, Optional, Tuple
 
 # MHC species categories
@@ -25,7 +26,7 @@ MHC_SPECIES_CATEGORIES = [
     "other_vertebrate",
 ]
 
-# 29-class fine-grained species
+# Fine-grained species
 FINE_SPECIES = [
     # Primates
     "human",
@@ -47,6 +48,9 @@ FINE_SPECIES = [
     "dog",
     "cat",
     "rabbit",
+    "bat",
+    "marsupial",
+    "monotreme",
     "cetacean",
     "other_mammal",
     # Birds
@@ -55,7 +59,11 @@ FINE_SPECIES = [
     # Fish
     "salmon",
     "zebrafish",
+    "shark",
     "other_fish",
+    # Reptiles & amphibians
+    "reptile",
+    "amphibian",
     # Other
     "other_vertebrate",
     "invertebrate",
@@ -66,6 +74,8 @@ FINE_SPECIES = [
 ]
 
 # Keyword patterns checked in order; first match wins.
+# IMPORTANT: Order matters! More specific patterns must come before broader ones
+# to avoid false positives (e.g., "horseshoe bat" matching "horse").
 _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
     # Human
     (("homo sapiens", "human"), "human"),
@@ -102,19 +112,90 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
     ),
     # Rodents
     (("mus musculus", "mouse", "c57bl", "balb/c"), "mouse"),
-    (("rattus", "rat "), "rat"),
+    (("rattus", "rat"), "rat"),
     (("murine", "h2-", "h-2"), "mouse"),
-    # Mammals
+    # Bats — BEFORE horse/dog to avoid "horseshoe bat" → horse, "dogfish" → dog
+    (
+        (
+            "chiroptera",
+            "rhinolophus",
+            "pteropus",
+            "myotis",
+            "eptesicus",
+            "pipistrellus",
+            "miniopterus",
+            "rousettus",
+            "desmodus",
+            "artibeus",
+            "carollia",
+            "phyllostomus",
+            "hipposideros",
+            "noctilio",
+            "tadarida",
+            "molossus",
+        ),
+        "bat",
+    ),
+    # Monotremes — BEFORE duck/bird to avoid "duck-billed platypus" → bird
+    (("ornithorhynchus", "platypus", "tachyglossus", "echidna", "monotreme"), "monotreme"),
+    # Marsupials
+    (
+        (
+            "marsupial",
+            "monodelphis",
+            "didelphis",
+            "opossum",
+            "macropus",
+            "kangaroo",
+            "wallaby",
+            "phascolarctos",
+            "koala",
+            "sarcophilus",
+            "devil",
+            "vombatus",
+            "wombat",
+            "petaurus",
+            "dasyurus",
+            "antechinus",
+            "potoroidae",
+            "sminthopsis",
+            "notamacropus",
+            "wallabia",
+        ),
+        "marsupial",
+    ),
+    # Sharks and rays — BEFORE dog/fish to avoid "dogfish" → dog
+    (
+        (
+            "chondrichthyes",
+            "squalus",
+            "carcharodon",
+            "rhincodon",
+            "triakis",
+            "ginglymostoma",
+            "heterodontus",
+            "scyliorhinus",
+            "chiloscyllium",
+            "leucoraja",
+            "raja",
+            "pristis",
+            "callorhinchus",
+            "hydrolagus",
+            "dogfish",
+        ),
+        "shark",
+    ),
+    # Mammals (ungulates, carnivores, cetaceans)
     (
         ("bos taurus", "bos ", "bovine", "cow", "cattle", "bola-", "bos grunniens", "bubalus"),
         "cattle",
     ),
-    (("sus scrofa", "sus ", "porcine", "pig ", "swine", "sla-"), "pig"),
+    (("sus scrofa", "sus ", "porcine", "pig", "swine", "sla-"), "pig"),
     (("equus", "equine", "horse", "ela-"), "horse"),
     (("ovis", "ovine", "sheep", "ola-"), "sheep"),
     (("capra", "caprine", "goat"), "goat"),
-    (("canis", "canine", "dog", "dla-"), "dog"),
-    (("felis", "feline", "cat "), "cat"),
+    (("canis lupus", "canis ", "canine", "dog", "dla-"), "dog"),
+    (("felis", "feline", "cat"), "cat"),
     (("rabbit", "oryctolagus"), "rabbit"),
     (
         (
@@ -130,7 +211,7 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
             "tursiops",
             "delphinus",
             "stenella",
-            "steno ",
+            "steno",
             "grampus",
             "globicephala",
             "lagenorhynchus",
@@ -143,7 +224,42 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
     (("mammal",), "other_mammal"),
     # Birds
     (("gallus", "chicken", "gaga-"), "chicken"),
-    (("duck", "turkey", "quail", "bird", "avian", "aves"), "other_bird"),
+    (
+        (
+            "duck",
+            "turkey",
+            "quail",
+            "bird",
+            "avian",
+            "aves",
+            "falcon",
+            "eagle",
+            "hawk",
+            "owl",
+            "penguin",
+            "parrot",
+            "pigeon",
+            "sparrow",
+            "finch",
+            "warbler",
+            "passeriformes",
+            "anseriformes",
+            "anas ",
+            "taeniopygia",
+            "ficedula",
+            "parus",
+            "corvus",
+            "sturnus",
+            "turdus",
+            "passer",
+            "columba",
+            "struthio",
+            "meleagris",
+            "coturnix",
+            "spheniscus",
+        ),
+        "other_bird",
+    ),
     # Pathogens
     (
         (
@@ -232,25 +348,68 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
     # Fish (after bacteria so "salmonella" doesn't match "salmon")
     (("salmo salar", "salmo ", "salmon", "trout", "oncorhynchus"), "salmon"),
     (("danio", "zebrafish"), "zebrafish"),
-    (("fish", "pisces"), "other_fish"),
-    # Other
+    (("*fish", "pisces", "teleost", "actinopterygii"), "other_fish"),
+    # Reptiles
     (
         (
             "reptile",
             "reptilia",
+            "squamata",
+            "lacertilia",
+            "serpentes",
+            "lizard",
+            "snake",
+            "gecko",
+            "iguana",
+            "anolis",
+            "pogona",
+            "varanus",
+            "sphenodon",
+            "tuatara",
+            "alligator",
+            "crocodile",
+            "crocodylus",
+            "gavialis",
+            "caiman",
+            "crocodylia",
+            "turtle",
+            "tortoise",
+            "testudines",
+            "chelonia",
+            "chrysemys",
+            "trachemys",
+            "gopherus",
+            "terrapene",
+        ),
+        "reptile",
+    ),
+    # Amphibians
+    (
+        (
             "amphibian",
             "amphibia",
             "frog",
+            "toad",
             "xenopus",
-            "turtle",
-            "lizard",
-            "snake",
-            "alligator",
-            "crocodile",
+            "rana",
+            "bufo",
             "salamander",
+            "newt",
+            "axolotl",
+            "ambystoma",
+            "caecilian",
+            "anura",
+            "caudata",
+            "gymnophiona",
+            "lithobates",
+            "nanorana",
+            "pelophylax",
         ),
-        "other_vertebrate",
+        "amphibian",
     ),
+    # Catch-all vertebrate
+    (("vertebrate",), "other_vertebrate"),
+    # Invertebrates
     (
         (
             "drosophila",
@@ -297,13 +456,19 @@ FINE_TO_MHC_SPECIES: Dict[str, Optional[str]] = {
     "dog": "carnivore",
     "cat": "carnivore",
     "rabbit": "other_mammal",
+    "bat": "other_mammal",
+    "marsupial": "other_mammal",
+    "monotreme": "other_mammal",
     "cetacean": "cetacean",
     "other_mammal": "other_mammal",
     "chicken": "bird",
     "other_bird": "bird",
     "salmon": "fish",
     "zebrafish": "fish",
+    "shark": "fish",
     "other_fish": "fish",
+    "reptile": "other_vertebrate",
+    "amphibian": "other_vertebrate",
     "other_vertebrate": "other_vertebrate",
 }
 # Non-animal categories → None
@@ -358,8 +523,28 @@ CANONICAL_MHC_PREFIXES: Dict[str, str] = {
 }
 
 
+def _word_match(keyword: str, text: str) -> bool:
+    """Match a keyword in text using word-boundary-aware logic.
+
+    - Keywords ending with a space or hyphen are matched as prefixes (substring).
+    - Keywords starting with ``*`` are matched as word suffixes
+      (e.g., ``*fish`` matches "rockfish", "swordfish", "fish").
+    - All other keywords are matched as whole words using regex word boundaries,
+      preventing false positives like "horse" matching "horseshoe".
+    """
+    if keyword.startswith("*"):
+        # Suffix match: the word must end with this
+        suffix = keyword[1:]
+        return bool(re.search(re.escape(suffix) + r"\b", text))
+    if keyword.endswith((" ", "-")):
+        # Explicit prefix/substring match (the trailing char is intentional)
+        return keyword in text
+    # Use word boundary matching
+    return bool(re.search(r"\b" + re.escape(keyword) + r"\b", text))
+
+
 def normalize_species(raw: Optional[str]) -> Optional[str]:
-    """Normalize a species string to one of 29 fine-grained categories.
+    """Normalize a species string to a fine-grained category.
 
     Returns None if unrecognizable.
     """
@@ -371,7 +556,7 @@ def normalize_species(raw: Optional[str]) -> Optional[str]:
     if s in FINE_SPECIES_SET:
         return s
     for keywords, label in _SPECIES_PATTERNS:
-        if any(kw in s for kw in keywords):
+        if any(_word_match(kw, s) for kw in keywords):
             return label
     return None
 

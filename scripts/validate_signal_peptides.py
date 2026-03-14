@@ -15,28 +15,27 @@ from pathlib import Path
 # These are the canonical/reviewed Swiss-Prot entries
 UNIPROT_MHC_ENTRIES = {
     # Class I
-    "P01892": "HLA-A*02:01",     # HLA-A
-    "P30461": "HLA-A*03:01",     # HLA-A
-    "P30685": "HLA-B*07:02",     # HLA-B
-    "P10321": "HLA-B*08:01",     # HLA-B
-    "P30504": "HLA-C*04:01",     # HLA-C
-    "P13747": "HLA-E*01:01",     # HLA-E
-    "P30511": "HLA-F*01:01",     # HLA-F
-    "P17693": "HLA-G*01:01",     # HLA-G
+    "P01892": "HLA-A*02:01",  # HLA-A
+    "P30461": "HLA-A*03:01",  # HLA-A
+    "P30685": "HLA-B*07:02",  # HLA-B
+    "P10321": "HLA-B*08:01",  # HLA-B
+    "P30504": "HLA-C*04:01",  # HLA-C
+    "P13747": "HLA-E*01:01",  # HLA-E
+    "P30511": "HLA-F*01:01",  # HLA-F
+    "P17693": "HLA-G*01:01",  # HLA-G
     # Class II alpha
-    "P01903": "HLA-DRA*01:01",   # HLA-DRA
+    "P01903": "HLA-DRA*01:01",  # HLA-DRA
     "P01920": "HLA-DQA1*01:01",  # HLA-DQA1
     "P20036": "HLA-DPA1*01:03",  # HLA-DPA1
-    "P28067": "HLA-DMA*01:01",   # HLA-DMA
-    "P06340": "HLA-DOA*01:01",   # HLA-DOA
+    "P28067": "HLA-DMA*01:01",  # HLA-DMA
+    "P06340": "HLA-DOA*01:01",  # HLA-DOA
     # Class II beta
     "P01911": "HLA-DRB1*01:01",  # HLA-DRB1
-    "P01920": "HLA-DQA1*01:01",  # (duplicate - skip)
     "P04229": "HLA-DRB1*04:01",  # HLA-DRB1
     "P01918": "HLA-DQB1*02:01",  # HLA-DQB1
     "P04440": "HLA-DPB1*04:01",  # HLA-DPB1
-    "P28068": "HLA-DMB*01:01",   # HLA-DMB
-    "P06341": "HLA-DOB*01:01",   # HLA-DOB
+    "P28068": "HLA-DMB*01:01",  # HLA-DMB
+    "P06341": "HLA-DOB*01:01",  # HLA-DOB
 }
 
 
@@ -81,7 +80,9 @@ def main():
 
     print("Signal Peptide Validation: Cys-pair inference vs UniProt curated annotations")
     print("=" * 90)
-    print(f"{'Allele':<25} {'UniProt':>8} {'Ours':>6} {'Delta':>7} {'UniProt SP len':>15} {'Our SP len':>11} {'Match':>6}")
+    cols = f"{'Allele':<25} {'UniProt':>8} {'Ours':>6} {'Delta':>7}"
+    cols += f" {'UP SP len':>15} {'Our SP len':>11} {'Match':>6}"
+    print(cols)
     print("-" * 90)
 
     matches = 0
@@ -129,15 +130,17 @@ def main():
         our_seq_len = int(our_row.get("seq_len", "0") or "0")
         delta = our_sp_len - up_sp_len
 
-        match = "OK" if delta == 0 else f"{'':>6}"
         if delta == 0:
             matches += 1
             match_str = "OK"
         else:
             mismatches += 1
-            match_str = f"DIFF"
+            match_str = "DIFF"
 
-        print(f"  {allele_hint:<25} {up_seq_len:>8} {our_seq_len:>6} {delta:>+7} {f'1-{up_sp_len}':>15} {our_sp_len:>11} {match_str:>6}")
+        up_range = f"1-{up_sp_len}"
+        row_str = f"  {allele_hint:<25} {up_seq_len:>8} {our_seq_len:>6} {delta:>+7}"
+        row_str += f" {up_range:>15} {our_sp_len:>11} {match_str:>6}"
+        print(row_str)
 
     print("-" * 90)
     print(f"Summary: {matches} match, {mismatches} differ, {skipped} skipped")
