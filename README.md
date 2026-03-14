@@ -100,9 +100,8 @@ Pre-built CSVs are also attached to each
 
 ## Current data summary
 
-### Built sequences (from `mhc-full-seqs.csv`)
-
-Species category x MHC class counts from IMGT/HLA and IPD-MHC:
+All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and 16,208
+diverse MHC sequences from UniProt) are merged into a single dataset:
 
 | Category | Class I | Class II | Total |
 |---|---:|---:|---:|
@@ -112,34 +111,14 @@ Species category x MHC class counts from IMGT/HLA and IPD-MHC:
 | ungulate | 638 | 1,128 | 1,766 |
 | carnivore | 166 | 318 | 484 |
 | cetacean | 3 | 98 | 101 |
-| bird | 28 | 0 | 28 |
-| fish | 90 | 85 | 175 |
-| **total** | **23,085** | **12,022** | **35,107** |
+| other_mammal | 483 | 288 | 771 |
+| bird | 6,135 | 3,351 | 9,486 |
+| fish | 1,416 | 3,569 | 4,985 |
+| other_vertebrate | 502 | 666 | 1,168 |
+| **total** | **31,503** | **19,811** | **51,314** |
 
-Groove parse success rate: 99.6% (146 failures out of 35,107 entries).
-
-### Diverse MHC sequences (shipped with package)
-
-16,208 curated UniProt sequences from underrepresented taxonomic groups,
-fetched with `scripts/fetch_diverse_mhc.py` and curated with
-`scripts/curate_diverse_mhc.py`:
-
-| Source group | Sequences | Class I | Class II |
-|---|---:|---:|---:|
-| bird (non-chicken) | 8,869 | 5,564 | 3,305 |
-| bony fish | 4,747 | 1,313 | 3,434 |
-| amphibian | 847 | 305 | 542 |
-| chicken | 589 | 274 | 315 |
-| marsupial | 579 | 432 | 147 |
-| bat | 181 | 22 | 159 |
-| reptile (lepidosauria) | 144 | 93 | 51 |
-| reptile (crocodylia) | 150 | 133 | 17 |
-| shark/ray | 63 | 52 | 11 |
-| reptile (testudines) | 28 | 14 | 14 |
-| monotreme | 11 | 5 | 6 |
-| **total** | **16,208** | **8,207** | **8,001** |
-
-Covering 614 unique species prefixes across 11 taxonomic groups.
+Covering 614+ species prefixes. Groove parse success rate on IMGT/IPD-MHC
+entries: 99.6%.
 
 ## Structural decomposition
 
@@ -159,7 +138,8 @@ For a class I chain: `mature_protein = groove1 + groove2 + ig_domain + tail`
 Both CSVs share: `gene`, `mhc_class`, `chain`, `species`,
 `species_category`, `species_prefix`, `source`, `source_id`.
 
-`source` is one of: `imgt`, `ipd_mhc`, `uniprot_curated`, `uniprot_reference`.
+`source` is one of: `imgt`, `ipd_mhc`, `uniprot_curated`, `uniprot_reference`,
+`uniprot_diverse`.
 
 `source_id` is the database accession for provenance tracking (e.g.,
 `HLA00001` for IMGT, `NHP00001` for IPD-MHC, `P01901` for UniProt).
