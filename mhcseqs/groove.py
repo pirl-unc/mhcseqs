@@ -119,7 +119,7 @@ CLASS_I_ALPHA2_CYS1_MATURE_POS = 100  # α2 Ig-fold Cys1 at mature pos 100
 CLASS_I_ALPHA3_CYS1_MATURE_POS = 202  # α3 Ig-fold Cys1 at mature pos 202
 CLASS_I_ALPHA2_CYS1_OFFSET = 10
 CLASS_I_ALPHA2_END_AFTER_CYS2 = 20
-CLASS_I_ALPHA2_CYS1_RAW_MIN = 60
+CLASS_I_ALPHA2_CYS1_RAW_MIN = 35  # lowered from 60 to catch N-terminal truncations
 CLASS_I_ALPHA2_CYS1_RAW_MAX = 180
 CLASS_I_ALPHA3_CYS1_RAW_MIN = 180
 
@@ -150,8 +150,15 @@ DEFAULT_CLASS_II_GROOVE2_LEN = 93  # β1 groove half (class II beta chain)
 IG_DOMAIN_END_AFTER_CYS2 = 20
 
 # Fragment fallback thresholds
+CLASS_I_FRAGMENT_MAX_LEN = 200  # class I groove1+groove2 = ~183 aa
 CLASS_II_ALPHA_FRAGMENT_MAX_LEN = 110
 CLASS_II_BETA_FRAGMENT_MAX_LEN = 120
+
+# Maximum plausible signal peptide length.  No known MHC species has an SP
+# longer than ~42 aa (DMA).  Anything beyond 50 indicates the Cys-pair
+# anchor is wrong — typically because a point mutation destroyed the
+# conserved Ig-fold cysteine.
+MAX_PLAUSIBLE_SP = 50
 
 # Genes whose MHC-like fold does not form a peptide-binding groove.
 # These are excluded from groove extraction in the pipeline.
@@ -478,6 +485,32 @@ def _class_ii_chain_from_name(
     return None
 
 
+def _class_i_fragment_result(
+    *,
+    seq: str,
+    allele: str,
+    gene: str,
+) -> AlleleRecord:
+    """Return a fragment_fallback record for short class I sequences."""
+    cleaned = _clean_seq(seq)
+    return AlleleRecord(
+        allele=allele,
+        gene=gene,
+        mhc_class="I",
+        chain="alpha",
+        seq_len=len(cleaned),
+        mature_start=0,
+        groove_seq=cleaned,
+        groove1=cleaned,
+        groove2="",
+        groove1_len=len(cleaned),
+        groove2_len=0,
+        status="fragment_fallback",
+        anchor_type="raw_fragment",
+        flags=("fragment_fallback",),
+    )
+
+
 def _class_ii_fragment_result(
     *,
     seq: str,
@@ -554,6 +587,8 @@ def parse_class_i(
 
     pairs = find_cys_pairs(cleaned)
     if not pairs:
+        if len(cleaned) <= CLASS_I_FRAGMENT_MAX_LEN:
+            return _class_i_fragment_result(seq=cleaned, allele=allele, gene=gene)
         return AlleleRecord(
             allele=allele,
             gene=gene,
@@ -584,6 +619,9 @@ def parse_class_i(
             None,
         )
         if alpha3_pair is None:
+            # Fragment fallback for short class I sequences
+            if len(cleaned) <= CLASS_I_FRAGMENT_MAX_LEN:
+                return _class_i_fragment_result(seq=cleaned, allele=allele, gene=gene)
             return AlleleRecord(
                 allele=allele,
                 gene=gene,
@@ -635,6 +673,22 @@ def parse_class_i(
     # Primary alpha2 strategy
     c1, c2, _ = alpha2_pair
     mature_start = _infer_mature_start(c1, CLASS_I_ALPHA2_CYS1_MATURE_POS)
+    if mature_start > MAX_PLAUSIBLE_SP:
+        # Cys mutation likely destroyed the real anchor; this pair is wrong
+        flags.append(f"suspect_mature_start({mature_start})")
+        return AlleleRecord(
+            allele=allele,
+            gene=gene,
+            mhc_class="I",
+            chain="alpha",
+            seq_len=len(cleaned),
+            mature_start=mature_start,
+            status="suspect_anchor",
+            anchor_type="alpha2_cys",
+            anchor_cys1=c1,
+            anchor_cys2=c2,
+            flags=_flags_to_tuple(flags),
+        )
     if mature_start > 40:
         flags.append(f"long_sp({mature_start})")
 
@@ -755,6 +809,21 @@ def parse_class_ii_alpha(
 
     c1, c2, _ = min(candidates, key=lambda item: (abs(item[2] - 56), -item[0]))
     mature_start = _infer_mature_start(c1, CLASS_II_ALPHA_IG_CYS1_MATURE_POS)
+    if mature_start > MAX_PLAUSIBLE_SP:
+        flags.append(f"suspect_mature_start({mature_start})")
+        return AlleleRecord(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="alpha",
+            seq_len=len(cleaned),
+            mature_start=mature_start,
+            status="suspect_anchor",
+            anchor_type="alpha2_cys",
+            anchor_cys1=c1,
+            anchor_cys2=c2,
+            flags=_flags_to_tuple(flags),
+        )
     groove_end = max(mature_start, c1 - CLASS_II_ALPHA_GROOVE_END_BEFORE_IG_CYS)
     half_1 = _slice_or_empty(cleaned, mature_start, groove_end)
 
@@ -875,6 +944,21 @@ def parse_class_ii_beta(
     if beta2_pair is not None:
         c1, c2, _ = beta2_pair
         mature_start = _infer_mature_start(c1, CLASS_II_BETA2_CYS1_MATURE_POS)
+        if mature_start > MAX_PLAUSIBLE_SP:
+            flags.append(f"suspect_mature_start({mature_start})")
+            return AlleleRecord(
+                allele=allele,
+                gene=gene,
+                mhc_class="II",
+                chain="beta",
+                seq_len=len(cleaned),
+                mature_start=mature_start,
+                status="suspect_anchor",
+                anchor_type="beta2_cys",
+                anchor_cys1=c1,
+                anchor_cys2=c2,
+                flags=_flags_to_tuple(flags),
+            )
         groove_end = max(mature_start, c1 - CLASS_II_BETA_GROOVE_END_BEFORE_BETA2_CYS)
         status = "ok"
         anchor_type = "beta2_cys"
@@ -886,6 +970,21 @@ def parse_class_ii_beta(
     else:
         c1, c2, _ = beta1_pair  # type: ignore[misc]
         mature_start = _infer_mature_start(c1, CLASS_II_BETA1_CYS1_MATURE_POS)
+        if mature_start > MAX_PLAUSIBLE_SP:
+            flags.append(f"suspect_mature_start({mature_start})")
+            return AlleleRecord(
+                allele=allele,
+                gene=gene,
+                mhc_class="II",
+                chain="beta",
+                seq_len=len(cleaned),
+                mature_start=mature_start,
+                status="suspect_anchor",
+                anchor_type="beta1_cys",
+                anchor_cys1=c1,
+                anchor_cys2=c2,
+                flags=_flags_to_tuple(flags),
+            )
         groove_end = min(len(cleaned), c2 + CLASS_II_BETA1_ONLY_END_AFTER_CYS2)
         status = "beta1_only_fallback"
         anchor_type = "beta1_cys"

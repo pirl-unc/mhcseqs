@@ -158,3 +158,23 @@ def test_format_validation_report_with_warnings():
     report = format_validation_report(warnings, {"raw_total": 10, "full_total": 10, "groove_total": 10, "groove_ok": 9})
     assert "Warnings: 1 total" in report
     assert "unusual SP length" in report
+
+
+def test_format_validation_report_shows_all_by_default():
+    """All warnings should be shown when max_warnings_per_type is None."""
+    warnings = [f"SP(allele_{i}): unusual SP length {40 + i}" for i in range(10)]
+    report = format_validation_report(warnings, {"raw_total": 10, "full_total": 10})
+    # All 10 warnings should appear
+    for i in range(10):
+        assert f"allele_{i}" in report
+    assert "... and" not in report
+
+
+def test_format_validation_report_truncates_when_requested():
+    """max_warnings_per_type should limit output per category."""
+    warnings = [f"SP(allele_{i}): unusual SP length {40 + i}" for i in range(10)]
+    report = format_validation_report(warnings, {"raw_total": 10, "full_total": 10}, max_warnings_per_type=3)
+    assert "allele_0" in report
+    assert "allele_2" in report
+    assert "allele_3" not in report
+    assert "... and 7 more" in report
