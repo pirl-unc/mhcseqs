@@ -155,11 +155,41 @@ CLASS_II_BETA_FRAGMENT_MAX_LEN = 120
 
 # Genes whose MHC-like fold does not form a peptide-binding groove.
 # These are excluded from groove extraction in the pipeline.
-NON_GROOVE_GENES = frozenset({"MICA", "MICB", "MIC1", "MIC2", "HFE"})
+NON_GROOVE_GENES = frozenset({"MICA", "MICB", "MIC1", "MIC2", "HFE", "B2M", "MR1"})
 
-# Gene prefix patterns for class II chain inference
-CLASS_II_ALPHA_GENE_PREFIXES = ("DRA", "DQA", "DPA", "DMA", "DOA")
-CLASS_II_BETA_GENE_PREFIXES = ("DRB", "DQB", "DPB", "DMB", "DOB")
+# Gene prefix patterns for class II chain inference.
+# Covers mammalian D-series, chicken B-locus, fish (DA/DB/DC/DD/DE groups),
+# and ruminant-specific DY genes.
+CLASS_II_ALPHA_GENE_PREFIXES = (
+    "DRA",
+    "DQA",
+    "DPA",
+    "DMA",
+    "DOA",  # mammalian standard
+    "DYA",
+    "DNA",  # ruminant-specific
+    "DAA",
+    "DBA",
+    "DCA",
+    "DDA",
+    "DEA",  # fish class II alpha
+    "BLA",  # chicken class II alpha
+)
+CLASS_II_BETA_GENE_PREFIXES = (
+    "DRB",
+    "DQB",
+    "DPB",
+    "DMB",
+    "DOB",  # mammalian standard
+    "DYB",
+    "DIB",  # ruminant-specific
+    "DAB",
+    "DBB",
+    "DCB",
+    "DDB",
+    "DEB",  # fish class II beta
+    "BLB",  # chicken class II beta
+)
 
 
 # ---------------------------------------------------------------------------
@@ -1000,6 +1030,12 @@ def extract_groove(
 
 
 def is_class_ii_alpha_gene(gene: str) -> bool:
-    """Whether a gene name corresponds to a class II alpha chain."""
+    """Whether a gene name corresponds to a class II alpha chain.
+
+    NOTE: This function uses a trailing-letter heuristic as a fallback
+    (gene ending in "A" → alpha). This can misclassify fish class I
+    genes (UBA, UCA, etc.) as class II alpha. Callers should gate on
+    mhc_class == "II" before using this function.
+    """
     token = str(gene or "").strip().upper()
-    return token.startswith(("DRA", "DQA", "DPA", "DMA", "DOA")) or token.endswith("A")
+    return token.startswith(CLASS_II_ALPHA_GENE_PREFIXES) or token.endswith("A")
