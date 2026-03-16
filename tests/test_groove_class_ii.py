@@ -1,4 +1,7 @@
 from mhcseqs.groove import (
+    _class_ii_alpha_cys1_mature_pos,
+    _class_ii_beta2_cys1_mature_pos,
+    _gene_prefix,
     extract_groove,
     is_class_ii_alpha_gene,
     parse_class_ii_alpha,
@@ -146,6 +149,65 @@ def test_is_class_ii_alpha_gene_beta():
     assert is_class_ii_alpha_gene("DRB1") is False
     assert is_class_ii_alpha_gene("DQB1") is False
     assert is_class_ii_alpha_gene("DPB1") is False
+
+
+# ---------------------------------------------------------------------------
+# Gene-specific Cys1 positions
+# ---------------------------------------------------------------------------
+
+
+def test_gene_prefix_extraction():
+    assert _gene_prefix("DQA1") == "DQA"
+    assert _gene_prefix("DRB1") == "DRB"
+    assert _gene_prefix("DMA") == "DMA"
+    assert _gene_prefix("HLA-DQA1") == "DQA"
+    assert _gene_prefix("BoLA-DQA") == "DQA"
+    assert _gene_prefix("Mamu-DPB1") == "DPB"
+    assert _gene_prefix("DRA") == "DRA"
+    assert _gene_prefix("") == ""
+
+
+def test_class_ii_alpha_cys1_gene_specific():
+    """DQA and DMA should use gene-specific Cys1 positions."""
+    assert _class_ii_alpha_cys1_mature_pos("DQA1") == 109
+    assert _class_ii_alpha_cys1_mature_pos("HLA-DQA1") == 109
+    assert _class_ii_alpha_cys1_mature_pos("DMA") == 120
+    assert _class_ii_alpha_cys1_mature_pos("HLA-DMA") == 120
+    # Other genes use the default 106
+    assert _class_ii_alpha_cys1_mature_pos("DRA") == 106
+    assert _class_ii_alpha_cys1_mature_pos("DPA1") == 106
+    assert _class_ii_alpha_cys1_mature_pos("DOA") == 106
+
+
+def test_class_ii_beta2_cys1_gene_specific():
+    """DPB should use gene-specific Cys1 position."""
+    assert _class_ii_beta2_cys1_mature_pos("DPB1") == 114
+    assert _class_ii_beta2_cys1_mature_pos("HLA-DPB1") == 114
+    assert _class_ii_beta2_cys1_mature_pos("Mamu-DPB1") == 114
+    # Other genes use the default 116
+    assert _class_ii_beta2_cys1_mature_pos("DRB1") == 116
+    assert _class_ii_beta2_cys1_mature_pos("DQB1") == 116
+    assert _class_ii_beta2_cys1_mature_pos("DMB") == 116
+    assert _class_ii_beta2_cys1_mature_pos("DOB") == 116
+
+
+def test_dqa1_mature_start_with_sp():
+    """DQA1 with signal peptide should infer correct mature_start.
+
+    HLA-DQA1*01:01 (UniProt P01909): SP = 23 aa.
+    With the gene-specific constant of 109, the parser should infer
+    mature_start = raw_cys1 - 109 = 132 - 109 = 23.
+    """
+    # HLA-DQA1*01:01:01:01 full sequence (UniProt P01909)
+    hla_dqa1_full = (
+        "MILNKALLLGALALTTVMSPCGGEDIVADHVASCGVNLYQFYGPSGQYTHEFDGDEQFYVDLERKETAWRWPEFSKFGGFDPQGALR"
+        "NIATQKHNLNIVIKRSNSTAATNEVPEVTVFSKSPVTLGQPNILICFIDKFTPPVVNVTWLRNGKPVTTGVSETVFLPREDHLFRK"
+        "FHYLPFLPSTDDYDCRVEHWGLDQPLLKHWEAQEPIQMPETPENVVACLQNLMKLAQINRLNKEDPA"
+    )
+    result = parse_class_ii_alpha(hla_dqa1_full, allele="HLA-DQA1*01:01", gene="DQA1")
+    assert result.ok
+    assert result.mature_start == 23
+    assert result.groove1_len >= 80  # should be ~86, not ~83
 
 
 def test_class_ii_decomposition_complete():
