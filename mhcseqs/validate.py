@@ -393,8 +393,14 @@ def validate_build(
 def format_validation_report(
     warnings: List[str],
     stats: Dict[str, int],
+    *,
+    max_warnings_per_type: int | None = None,
 ) -> str:
-    """Format validation results as a human-readable report string."""
+    """Format validation results as a human-readable report string.
+
+    When *max_warnings_per_type* is ``None`` (the default), all warnings
+    are shown.  Set it to a positive integer to truncate each category.
+    """
     lines = []
     lines.append("Validation Summary")
     lines.append("=" * 60)
@@ -452,13 +458,12 @@ def format_validation_report(
         lines.append(f"Warnings: {len(warnings)} total")
         lines.append("-" * 40)
         for prefix, ws in sorted(by_type.items()):
-            if len(ws) <= 5:
-                for w in ws:
-                    lines.append(f"  {w}")
-            else:
-                for w in ws[:3]:
-                    lines.append(f"  {w}")
-                lines.append(f"  ... and {len(ws) - 3} more {prefix} warnings")
+            lines.append(f"  {prefix} ({len(ws)} warnings):")
+            limit = max_warnings_per_type if max_warnings_per_type is not None else len(ws)
+            for w in ws[:limit]:
+                lines.append(f"    {w}")
+            if limit < len(ws):
+                lines.append(f"    ... and {len(ws) - limit} more")
     else:
         lines.append("No warnings!")
 
