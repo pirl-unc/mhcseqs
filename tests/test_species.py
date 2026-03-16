@@ -69,9 +69,9 @@ def test_mhc_species_carnivore():
     assert normalize_mhc_species("Felis catus") == "carnivore"
 
 
-def test_mhc_species_cetacean():
-    assert normalize_mhc_species("Tursiops truncatus") == "cetacean"
-    assert normalize_mhc_species("Balaenoptera musculus") == "cetacean"
+def test_mhc_species_cetacean_merged_to_other_mammal():
+    assert normalize_mhc_species("Tursiops truncatus") == "other_mammal"
+    assert normalize_mhc_species("Balaenoptera musculus") == "other_mammal"
 
 
 def test_alouatta_is_nhp_not_pig():

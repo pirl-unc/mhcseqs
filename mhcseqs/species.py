@@ -2,7 +2,7 @@
 
 Provides a fine-grained species taxonomy with roll-up mappings
 to MHC species categories (human, nhp, murine, ungulate, carnivore,
-cetacean, other_mammal, bird, fish, other_vertebrate).
+other_mammal, bird, fish, other_vertebrate).
 
 Ported from presto/data/vocab.py.
 """
@@ -19,7 +19,6 @@ MHC_SPECIES_CATEGORIES = [
     "murine",
     "ungulate",
     "carnivore",
-    "cetacean",
     "other_mammal",
     "bird",
     "fish",
@@ -51,7 +50,7 @@ FINE_SPECIES = [
     "bat",
     "marsupial",
     "monotreme",
-    "cetacean",
+    "cetacean",  # fine-grained, maps to other_mammal
     "other_mammal",
     # Birds
     "chicken",
@@ -261,7 +260,7 @@ _SPECIES_PATTERNS: list[Tuple[Tuple[str, ...], str]] = [
             "phocoena",
             "pontoporia",
         ),
-        "cetacean",
+        "other_mammal",
     ),
     (("mammal",), "other_mammal"),
     # Birds
@@ -526,7 +525,7 @@ FINE_TO_MHC_SPECIES: Dict[str, Optional[str]] = {
     "bat": "other_mammal",
     "marsupial": "other_mammal",
     "monotreme": "other_mammal",
-    "cetacean": "cetacean",
+    "cetacean": "other_mammal",
     "other_mammal": "other_mammal",
     "chicken": "bird",
     "other_bird": "bird",
@@ -629,9 +628,9 @@ def normalize_species(raw: Optional[str]) -> Optional[str]:
 
 
 def normalize_mhc_species(raw: Optional[str]) -> Optional[str]:
-    """Normalize to 10-class MHC species category.
+    """Normalize to 9-class MHC species category.
 
-    Returns one of: human, nhp, murine, ungulate, carnivore, cetacean,
+    Returns one of: human, nhp, murine, ungulate, carnivore,
     other_mammal, bird, fish, other_vertebrate.
     Returns None for non-animal or unrecognizable inputs.
     """
