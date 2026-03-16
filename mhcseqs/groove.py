@@ -124,15 +124,40 @@ CLASS_I_ALPHA2_CYS1_RAW_MAX = 180
 CLASS_I_ALPHA3_CYS1_RAW_MIN = 180
 
 # Class II alpha constants – validated against UniProt (P01903 HLA-DRA*01:01)
-CLASS_II_ALPHA_IG_CYS1_MATURE_POS = 106  # α2 Ig-fold Cys1 at mature pos 106
+CLASS_II_ALPHA_IG_CYS1_MATURE_POS = 106  # α2 Ig-fold Cys1 at mature pos 106 (default)
 CLASS_II_ALPHA_GROOVE_END_BEFORE_IG_CYS = 23
 CLASS_II_ALPHA_CYS1_RAW_PRIMARY_MIN = 100
 CLASS_II_ALPHA_CYS1_RAW_MIN = 40  # lowered from 80 to catch DMA (Cys1 ~49)
 CLASS_II_ALPHA_CYS1_RAW_MAX = 160
 
+# Gene-specific Cys1 mature positions for class II alpha.
+# The α1 groove domain varies in length across gene families, shifting the
+# Ig-fold Cys1 position in the mature protein.
+# Verified against UniProt signal peptide annotations:
+#   DRA:  106 (P01903, SP=25)  – default
+#   DQA:  109 (P01909, SP=23)  – α1 domain 3 residues longer
+#   DMA:  120 (P28067, SP=26)  – α1 domain 14 residues longer; has α1 intra-domain Cys pair
+#   DPA:  106 (P20036, SP=31)  – matches default
+#   DOA:  106 (P06340, SP=26)  – matches default
+_CLASS_II_ALPHA_CYS1_MATURE_POS_BY_GENE: dict[str, int] = {
+    "DQA": 109,
+    "DMA": 120,
+}
+
 # Class II beta constants – validated against UniProt (P01911 HLA-DRB1*01:01)
 CLASS_II_BETA1_CYS1_MATURE_POS = 14  # β1 Ig-fold Cys1 at mature pos 14
-CLASS_II_BETA2_CYS1_MATURE_POS = 116  # β2 Ig-fold Cys1 at mature pos 116
+CLASS_II_BETA2_CYS1_MATURE_POS = 116  # β2 Ig-fold Cys1 at mature pos 116 (default)
+
+# Gene-specific Cys1 mature positions for class II beta.
+# Verified against UniProt signal peptide annotations:
+#   DRB:  116 (P01911, SP=29)  – default
+#   DQB:  116 (P01920, SP=32)  – matches default
+#   DPB:  114 (P04440, SP=29)  – β1 domain 2 residues shorter
+#   DMB:  116 (P28068, SP=18)  – matches default
+#   DOB:  116 (P13765, SP=26)  – matches default
+_CLASS_II_BETA2_CYS1_MATURE_POS_BY_GENE: dict[str, int] = {
+    "DPB": 114,
+}
 CLASS_II_BETA1_CYS1_RAW_MIN = 2  # lowered from 20 to catch SP-stripped entries
 CLASS_II_BETA1_CYS1_RAW_MAX = 95
 CLASS_II_BETA2_CYS1_RAW_MIN = 100
@@ -298,6 +323,30 @@ def _clean_seq(sequence: Optional[str]) -> str:
 
 def _infer_mature_start(cys1_raw: int, mature_pos: int) -> int:
     return max(0, int(cys1_raw) - int(mature_pos))
+
+
+def _gene_prefix(gene: str) -> str:
+    """Extract the 2–3 letter gene family prefix (e.g. 'DQA' from 'DQA1')."""
+    token = str(gene or "").strip().upper()
+    # Strip trailing digits: DQA1 → DQA, DRB3 → DRB
+    while token and token[-1].isdigit():
+        token = token[:-1]
+    # Strip species prefix if present: HLA-DQA → DQA, BoLA-DQA → DQA
+    if "-" in token:
+        token = token.rsplit("-", 1)[-1]
+    return token
+
+
+def _class_ii_alpha_cys1_mature_pos(gene: str) -> int:
+    """Return the gene-specific Ig Cys1 mature position for a class II alpha chain."""
+    prefix = _gene_prefix(gene)
+    return _CLASS_II_ALPHA_CYS1_MATURE_POS_BY_GENE.get(prefix, CLASS_II_ALPHA_IG_CYS1_MATURE_POS)
+
+
+def _class_ii_beta2_cys1_mature_pos(gene: str) -> int:
+    """Return the gene-specific β2 Ig Cys1 mature position for a class II beta chain."""
+    prefix = _gene_prefix(gene)
+    return _CLASS_II_BETA2_CYS1_MATURE_POS_BY_GENE.get(prefix, CLASS_II_BETA2_CYS1_MATURE_POS)
 
 
 def _flags_to_tuple(flags: Sequence[str]) -> tuple[str, ...]:
@@ -808,7 +857,8 @@ def parse_class_ii_alpha(
         )
 
     c1, c2, _ = min(candidates, key=lambda item: (abs(item[2] - 56), -item[0]))
-    mature_start = _infer_mature_start(c1, CLASS_II_ALPHA_IG_CYS1_MATURE_POS)
+    cys1_mature_pos = _class_ii_alpha_cys1_mature_pos(gene)
+    mature_start = _infer_mature_start(c1, cys1_mature_pos)
     if mature_start > MAX_PLAUSIBLE_SP:
         flags.append(f"suspect_mature_start({mature_start})")
         return AlleleRecord(
@@ -943,7 +993,8 @@ def parse_class_ii_beta(
 
     if beta2_pair is not None:
         c1, c2, _ = beta2_pair
-        mature_start = _infer_mature_start(c1, CLASS_II_BETA2_CYS1_MATURE_POS)
+        cys1_mature_pos = _class_ii_beta2_cys1_mature_pos(gene)
+        mature_start = _infer_mature_start(c1, cys1_mature_pos)
         if mature_start > MAX_PLAUSIBLE_SP:
             flags.append(f"suspect_mature_start({mature_start})")
             return AlleleRecord(
