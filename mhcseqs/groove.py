@@ -189,6 +189,33 @@ MAX_PLAUSIBLE_SP = 50
 # These are excluded from groove extraction in the pipeline.
 NON_GROOVE_GENES = frozenset({"MICA", "MICB", "MIC1", "MIC2", "HFE", "B2M", "MR1"})
 
+# Non-classical MHC class I lineages in teleost fish.  These genes have
+# MHC-like folds but do NOT form a classical peptide-binding groove.
+# See Grimholt et al. 2015 (BMC Evol Biol) and Malmstrøm et al. 2019.
+#   L lineage: highly variable, non-classical, some processed/intronless
+#   S lineage: lacks classical groove residues
+#   P lineage: extra Cys in α1, altered groove shape
+#   H lineage: α3 lost, α1/α2 often deteriorated or entirely absent
+NON_CLASSICAL_CLASS_I_GENE_PATTERNS = (
+    "MHC1L", "MHC1S", "MHC1P",  # zebrafish-style: mhc1laa, mhc1saa, etc.
+    "LLA", "LCA", "LDA", "LFA", "LGA", "LIA", "LJA",  # L lineage locus names
+    "MFSD",  # NOT MHC at all — lipid transporter contaminant
+)
+
+# Known non-MHC proteins that have leaked into curated datasets via automated
+# genome annotation.  Keyed by UniProt accession.
+NON_MHC_ACCESSIONS = frozenset({
+    "Q1LUQ4",   # Dare-mfsd6a, zebrafish lipid transporter
+    "B0UYT5",   # Dare-mfsd6b, zebrafish lipid transporter
+})
+
+# Minimum groove half length considered potentially functional for peptide
+# binding.  Below this, the α-helix + β-sheet architecture cannot form a
+# complete groove wall.  Set conservatively: 70 aa allows for genuine fish
+# variation while flagging molecules that almost certainly lack a functional
+# groove.
+MIN_FUNCTIONAL_GROOVE_HALF_LEN = 70
+
 # Gene prefix patterns for class II chain inference.
 # Covers mammalian D-series, chicken B-locus, fish (DA/DB/DC/DD/DE groups),
 # and ruminant-specific DY genes.
@@ -335,6 +362,47 @@ def _gene_prefix(gene: str) -> str:
     if "-" in token:
         token = token.rsplit("-", 1)[-1]
     return token
+
+
+def _is_non_classical_class_i(gene: str, allele: str) -> bool:
+    """Detect non-classical MHC class I lineages (teleost L/S/P/H, contaminants)."""
+    token = str(gene or allele or "").strip().upper()
+    # Strip species prefix
+    if "-" in token:
+        token = token.rsplit("-", 1)[-1]
+    return any(token.startswith(pat) for pat in NON_CLASSICAL_CLASS_I_GENE_PATTERNS)
+
+
+def _refine_status(result: AlleleRecord) -> AlleleRecord:
+    """Post-parse refinement: detect non-classical lineage and short grooves.
+
+    Applied after a successful parse to override status when the gene is
+    non-classical or the groove is too short to be functional.
+    """
+    if not result.ok:
+        return result
+
+    flags = list(result.flags)
+
+    # Non-classical class I detection
+    if result.mhc_class == "I" and _is_non_classical_class_i(result.gene, result.allele):
+        flags.append("non_classical_lineage")
+        return replace(result, status="non_classical", flags=_flags_to_tuple(flags))
+
+    # Short groove detection: groove half too small for functional peptide binding
+    g1 = result.groove1_len
+    g2 = result.groove2_len
+    if result.mhc_class == "I" and g1 > 0 and g1 < MIN_FUNCTIONAL_GROOVE_HALF_LEN:
+        flags.append(f"groove1_short({g1})")
+        return replace(result, status="short", flags=_flags_to_tuple(flags))
+    if result.mhc_class == "II" and result.chain == "alpha" and g1 > 0 and g1 < MIN_FUNCTIONAL_GROOVE_HALF_LEN:
+        flags.append(f"groove1_short({g1})")
+        return replace(result, status="short", flags=_flags_to_tuple(flags))
+    if result.mhc_class == "II" and result.chain == "beta" and g2 > 0 and g2 < MIN_FUNCTIONAL_GROOVE_HALF_LEN:
+        flags.append(f"groove2_short({g2})")
+        return replace(result, status="short", flags=_flags_to_tuple(flags))
+
+    return result
 
 
 def _class_ii_alpha_cys1_mature_pos(gene: str) -> int:
@@ -1114,7 +1182,7 @@ def extract_groove(
         result = parse_class_i(seq, allele=allele, gene=gene)
         if mutations and result.ok:
             result = apply_mutations(result, mutations)
-        return result
+        return _refine_status(result)
     if nc != "II":
         raise ValueError(f"Unsupported MHC class: {mhc_class!r}")
 
@@ -1176,7 +1244,7 @@ def extract_groove(
 
     if mutations and result.ok:
         result = apply_mutations(result, mutations)
-    return result
+    return _refine_status(result)
 
 
 def is_class_ii_alpha_gene(gene: str) -> bool:

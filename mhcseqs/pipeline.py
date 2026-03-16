@@ -22,6 +22,7 @@ from .alleles import (
 )
 from .groove import (
     NON_GROOVE_GENES,
+    NON_MHC_ACCESSIONS,
     AlleleRecord,
     is_class_ii_alpha_gene,
     parse_class_i,
@@ -369,6 +370,10 @@ def _load_diverse_mhc_references() -> List[dict]:
             length = len(seq)
 
             if not seq or length < MIN_MHC_SEQUENCE_LEN:
+                continue
+
+            # Skip known non-MHC contaminants
+            if accession in NON_MHC_ACCESSIONS:
                 continue
 
             # Use accession as the allele name (no standard nomenclature)

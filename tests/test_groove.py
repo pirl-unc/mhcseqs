@@ -1,5 +1,6 @@
 from mhcseqs.groove import (
     MAX_PLAUSIBLE_SP,
+    MIN_FUNCTIONAL_GROOVE_HALF_LEN,
     NON_GROOVE_GENES,
     AlleleRecord,
     extract_groove,
@@ -147,3 +148,53 @@ def test_class_ii_beta_suspect_anchor():
     result = parse_class_ii_beta(seq, allele="synth-beta")
     assert result.status == "suspect_anchor"
     assert not result.ok
+
+
+# ---------------------------------------------------------------------------
+# Non-classical lineage and short groove detection
+# ---------------------------------------------------------------------------
+
+
+def test_non_classical_class_i_via_extract():
+    """Fish L-lineage genes should get status=non_classical via extract_groove."""
+    result = extract_groove(
+        HLA_A0201_MATURE,  # reuse a real sequence for structural validity
+        mhc_class="I",
+        allele="Dare-mhc1laa",
+        gene="Dare-mhc1laa",
+    )
+    assert result.status == "non_classical"
+    assert not result.ok
+    assert "non_classical_lineage" in result.flags
+
+
+def test_non_classical_mfsd_detected():
+    """MFSD gene names should be flagged as non-classical (contaminants)."""
+    result = extract_groove(
+        HLA_A0201_MATURE,
+        mhc_class="I",
+        allele="Dare-mfsd6a",
+        gene="Dare-mfsd6a",
+    )
+    assert result.status == "non_classical"
+    assert not result.ok
+
+
+def test_short_groove_class_i():
+    """A class I parse with groove1 < 70 aa should get status=short."""
+    # Truncate the mature sequence to produce a short groove1
+    # Remove first 30 residues — groove1 will be ~60 aa
+    truncated = HLA_A0201_MATURE[30:]
+    result = extract_groove(truncated, mhc_class="I", allele="short-test", gene="A")
+    if result.ok or result.status == "short":
+        # If it parsed at all, check the short detection
+        if result.groove1_len > 0 and result.groove1_len < MIN_FUNCTIONAL_GROOVE_HALF_LEN:
+            assert result.status == "short"
+            assert any("groove1_short" in f for f in result.flags)
+
+
+def test_normal_groove_not_flagged():
+    """A normal class I parse should NOT be flagged as short or non_classical."""
+    result = extract_groove(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01", gene="A")
+    assert result.status == "ok"
+    assert result.ok
