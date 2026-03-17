@@ -23,21 +23,29 @@ Of the 1,034 entries:
 Two very common gene names appear across many unknown species but aren't
 in the mhcgnomes gene ontology:
 
-### F10 (79 entries across ~30 species)
+### F10 (79 entries in unknown species, ~625 total across all species)
 
-All class I alpha. Appears in fish (cichlids, catfish, milkfish, seahorse),
-reptiles (bearded dragon, gecko), and birds (kiwi, zebra finch, wire-tailed
-manakin). This is likely an MHC class I locus designation from genome
-annotation pipelines. Should be a Gnathostomata-level class I alpha gene.
+All class I alpha. Distribution: bony fish (351), birds (146), reptiles (95),
+amphibians (16), sharks (12), marsupials (5). **NOT in placental mammals.**
+Likely a genome annotation class I locus designation. Should be defined at
+multiple taxonomic nodes — NOT at Gnathostomata root since it doesn't appear
+in placental mammals. Suggested placement: Actinopterygii, Aves, Lepidosauria,
+Amphibia, and Marsupialia independently.
 
 Example species: *Neolamprologus brichardi*, *Oreochromis niloticus*,
-*Maylandia zebra*, *Pogona vitticeps*, *Apteryx mantelli*, *Gekko japonicus*
+*Pogona vitticeps*, *Apteryx mantelli*, *Gekko japonicus*
 
-### IA (23 entries across ~15 species)
+### IA (23 entries in unknown species, ~321 total)
 
-All class I alpha. Appears in fish (cod, tilapia, turbot), amphibians
-(toads, frogs), birds (grouse), and sharks. Short for "class I A" — a
-generic class I alpha designation. Should be a Gnathostomata-level gene.
+**CAUTION:** `IA` / `Ia` is already a mouse H2 haplotype name (I-region A,
+class II). In non-mammalian species it means "class I A" (class I alpha) — a
+naming collision. Distribution: amphibians (139), fish (128), birds (48),
+sharks (6). mhcgnomes already parses `IA` as mouse H2 haplotype.
+
+This needs careful handling: for mouse, `IA` should remain the I-A haplotype.
+For other vertebrates, it should be a class I alpha gene. The `species=`
+parameter would disambiguate, but the gene definition needs to be species-
+or clade-aware.
 
 Example species: *Gadus morhua*, *Bufo gargarizans*, *Pelophylax nigromaculatus*,
 *Tympanuchus cupido*, *Callorhinchus milii*
