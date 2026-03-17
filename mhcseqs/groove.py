@@ -330,6 +330,8 @@ class AlleleRecord(RawAllele):
         return self.status in {
             "ok",
             "alpha3_fallback",
+            "alpha1_only",
+            "alpha2_only",
             "beta1_only_fallback",
             "fragment_fallback",
         }
@@ -618,8 +620,34 @@ def _class_i_fragment_result(
     allele: str,
     gene: str,
 ) -> AlleleRecord:
-    """Return a fragment_fallback record for short class I sequences."""
+    """Return an alpha1_only or alpha2_only record for class I single-exon fragments.
+
+    Distinguishes which groove half the fragment represents by checking for
+    the α2 Ig-fold Cys pair (separation ~55–72):
+      - Present → exon 3 / α2 domain → groove2
+      - Absent  → exon 2 / α1 domain → groove1
+    """
     cleaned = _clean_seq(seq)
+    pairs = find_cys_pairs(cleaned)
+    has_alpha2_pair = any(55 <= sep <= 72 for _, _, sep in pairs)
+
+    if has_alpha2_pair:
+        return AlleleRecord(
+            allele=allele,
+            gene=gene,
+            mhc_class="I",
+            chain="alpha",
+            seq_len=len(cleaned),
+            mature_start=0,
+            groove_seq=cleaned,
+            groove1="",
+            groove2=cleaned,
+            groove1_len=0,
+            groove2_len=len(cleaned),
+            status="alpha2_only",
+            anchor_type="raw_fragment",
+            flags=("single_exon_fragment",),
+        )
     return AlleleRecord(
         allele=allele,
         gene=gene,
@@ -632,9 +660,9 @@ def _class_i_fragment_result(
         groove2="",
         groove1_len=len(cleaned),
         groove2_len=0,
-        status="fragment_fallback",
+        status="alpha1_only",
         anchor_type="raw_fragment",
-        flags=("fragment_fallback",),
+        flags=("single_exon_fragment",),
     )
 
 

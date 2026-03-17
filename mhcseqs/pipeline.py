@@ -45,6 +45,8 @@ _NUCLEOTIDE_LIKE_CHARS = set("ACGTUNWSMKRYBDHV")
 FUNCTIONAL_GROOVE_STATUSES = {
     "ok",
     "alpha3_fallback",
+    "alpha1_only",
+    "alpha2_only",
     "beta1_only_fallback",
     "fragment_fallback",
 }

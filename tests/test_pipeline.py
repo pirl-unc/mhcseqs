@@ -125,6 +125,8 @@ def test_full_fields():
 def test_functional_groove_statuses():
     assert "ok" in FUNCTIONAL_GROOVE_STATUSES
     assert "alpha3_fallback" in FUNCTIONAL_GROOVE_STATUSES
+    assert "alpha1_only" in FUNCTIONAL_GROOVE_STATUSES
+    assert "alpha2_only" in FUNCTIONAL_GROOVE_STATUSES
     assert "beta1_only_fallback" in FUNCTIONAL_GROOVE_STATUSES
     assert "fragment_fallback" in FUNCTIONAL_GROOVE_STATUSES
     assert "too_short" not in FUNCTIONAL_GROOVE_STATUSES
