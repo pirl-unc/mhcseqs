@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Benchmark mhcgnomes parsing against the mhcseqs diverse dataset.
 
-Tracks parse rates across mhcgnomes versions and generates a comparison
-report. Results are appended to data/mhcgnomes_benchmark.csv for
-historical tracking.
+Always parses with species= param (since mhcseqs always has the organism).
+Results are appended to data/mhcgnomes_benchmark.csv for historical tracking.
 
 Usage:
     python scripts/benchmark_mhcgnomes.py           # run and append
@@ -28,12 +27,10 @@ BENCHMARK_FIELDS = [
     "mhcgnomes_version",
     "mhcseqs_version",
     "total_gene_organism_pairs",
-    "parsed_as_is",
-    "parsed_with_species",
+    "parsed",
     "wrong_species",
     "failed_known_species",
     "failed_unknown_species",
-    "failed_doubled_prefix",
     "failed_other",
 ]
 
@@ -46,6 +43,18 @@ def extract_latin_binomial(organism: str) -> str:
     return binomial
 
 
+def strip_prefix(gene: str) -> str:
+    """Strip species prefix from gene name, handling doubled prefixes."""
+    if "-" not in gene:
+        return gene
+    prefix = gene.split("-")[0]
+    bare = gene.split("-", 1)[1]
+    # Handle doubled prefix: Crpo-Crpo94 → 94
+    if bare.lower().startswith(prefix.lower()):
+        bare = bare[len(prefix) :].lstrip("-_")
+    return bare
+
+
 def run_benchmark() -> dict:
     import mhcgnomes
 
@@ -53,13 +62,18 @@ def run_benchmark() -> dict:
 
     mhcgnomes_version = mhcgnomes.__version__
 
+    # Check if mhcgnomes supports the new species= param
+    import inspect
+
+    parse_params = inspect.signature(mhcgnomes.parse).parameters
+    use_species_param = "species" in parse_params
+    species_kwarg = "species" if use_species_param else "default_species"
+
     seen: set[tuple[str, str]] = set()
-    parsed_as_is = 0
-    parsed_default_sp = 0
+    parsed = 0
     wrong_species = 0
     failed_known_sp = 0
     failed_unknown_sp = 0
-    failed_doubled = 0
     failed_other = 0
 
     with open(DIVERSE_CSV, "r", encoding="utf-8") as f:
@@ -70,67 +84,46 @@ def run_benchmark() -> dict:
                 continue
             seen.add((gene, organism))
 
-            # Strategy 1: parse as-is
+            latin = extract_latin_binomial(organism)
+            bare = strip_prefix(gene)
+
+            # Always parse with species
             try:
-                r = mhcgnomes.parse(gene)
+                r = mhcgnomes.parse(bare, **{species_kwarg: latin})
                 tp = type(r).__name__
                 if tp in ("Gene", "Allele", "AlleleWithoutGene"):
                     sp = getattr(getattr(r, "species", None), "name", "")
                     if sp and sp.lower() in organism.lower():
-                        parsed_as_is += 1
+                        parsed += 1
                         continue
                     elif sp:
                         wrong_species += 1
                         continue
                     else:
-                        parsed_as_is += 1
+                        parsed += 1
                         continue
             except Exception:
                 pass
 
-            # Strategy 2: strip prefix, use species
-            if "-" in gene:
-                prefix = gene.split("-")[0]
-                bare = gene.split("-", 1)[1]
-                if bare.lower().startswith(prefix.lower()):
-                    bare = bare[len(prefix) :].lstrip("-_")
-
-                latin = extract_latin_binomial(organism)
-                if latin:
+            # Diagnose failure: is the species known?
+            prefix = gene.split("-")[0] if "-" in gene else ""
+            lp_parts = organism.split("(")[0].strip().split()
+            lp = f"{lp_parts[0][:5]}{lp_parts[1][:5].capitalize()}" if len(lp_parts) >= 2 else None
+            sp_known = False
+            for p in [lp, prefix]:
+                if p:
                     try:
-                        r2 = mhcgnomes.parse(bare, species=latin)
-                        tp2 = type(r2).__name__
-                        if tp2 in ("Gene", "Allele", "AlleleWithoutGene"):
-                            sp2 = getattr(getattr(r2, "species", None), "name", "")
-                            if sp2 and sp2.lower() in organism.lower():
-                                parsed_default_sp += 1
-                                continue
+                        sp_obj = mhcgnomes.Species.get(p)
+                        if sp_obj:
+                            sp_known = True
+                            break
                     except Exception:
                         pass
 
-                # Diagnose failure
-                if bare.lower().startswith(prefix.lower()):
-                    failed_doubled += 1
-                    continue
-
-                # Check if species known
-                lp_parts = organism.split("(")[0].strip().split()
-                lp = f"{lp_parts[0][:5]}{lp_parts[1][:5].capitalize()}" if len(lp_parts) >= 2 else None
-                sp_known = False
-                for p in [lp, prefix]:
-                    if p:
-                        try:
-                            sp_obj = mhcgnomes.Species.get(p)
-                            if sp_obj:
-                                sp_known = True
-                                break
-                        except Exception:
-                            pass
-
-                if sp_known:
-                    failed_known_sp += 1
-                else:
-                    failed_unknown_sp += 1
+            if sp_known:
+                failed_known_sp += 1
+            elif latin:
+                failed_unknown_sp += 1
             else:
                 failed_other += 1
 
@@ -139,26 +132,21 @@ def run_benchmark() -> dict:
         "mhcgnomes_version": mhcgnomes_version,
         "mhcseqs_version": mhcseqs_version,
         "total_gene_organism_pairs": len(seen),
-        "parsed_as_is": parsed_as_is,
-        "parsed_with_species": parsed_default_sp,
+        "parsed": parsed,
         "wrong_species": wrong_species,
         "failed_known_species": failed_known_sp,
         "failed_unknown_species": failed_unknown_sp,
-        "failed_doubled_prefix": failed_doubled,
         "failed_other": failed_other,
     }
 
     total = len(seen)
-    ok = parsed_as_is + parsed_default_sp
     print(f"mhcgnomes {mhcgnomes_version} | mhcseqs {mhcseqs_version}")
+    print(f"  Using: parse(gene, {species_kwarg}=species)")
     print(f"Total pairs:              {total:,}")
-    print(f"Parsed (as-is):           {parsed_as_is:,} ({parsed_as_is / total * 100:.1f}%)")
-    print(f"Parsed (species): {parsed_default_sp:,} ({parsed_default_sp / total * 100:.1f}%)")
-    print(f"Total parseable:          {ok:,} ({ok / total * 100:.1f}%)")
+    print(f"Parsed:                   {parsed:,} ({parsed / total * 100:.1f}%)")
     print(f"Wrong species:            {wrong_species:,}")
     print(f"Failed (known species):   {failed_known_sp:,}")
     print(f"Failed (unknown species): {failed_unknown_sp:,}")
-    print(f"Failed (doubled prefix):  {failed_doubled:,}")
     print(f"Failed (other):           {failed_other:,}")
 
     return result
@@ -166,33 +154,24 @@ def run_benchmark() -> dict:
 
 def append_result(result: dict):
     exists = BENCHMARK_CSV.exists()
-    # Check if this version already has an entry
     if exists:
         with open(BENCHMARK_CSV, "r", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                if row.get("mhcgnomes_version") == result["mhcgnomes_version"]:
-                    print(f"\nVersion {result['mhcgnomes_version']} already in benchmark — updating.")
-                    # Rewrite without the old entry
-                    rows = []
-                    f.seek(0)
-                    reader = csv.DictReader(f)
-                    for r in reader:
-                        if r.get("mhcgnomes_version") != result["mhcgnomes_version"]:
-                            rows.append(r)
-                    rows.append(result)
-                    with open(BENCHMARK_CSV, "w", encoding="utf-8", newline="") as wf:
-                        writer = csv.DictWriter(wf, fieldnames=BENCHMARK_FIELDS)
-                        writer.writeheader()
-                        for r in rows:
-                            writer.writerow(r)
-                    return
-
-    with open(BENCHMARK_CSV, "a", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=BENCHMARK_FIELDS)
-        if not exists:
+            reader = csv.DictReader(f)
+            rows = [r for r in reader if r.get("mhcgnomes_version") != result["mhcgnomes_version"]]
+        if len(rows) < sum(1 for _ in open(BENCHMARK_CSV)) - 1:
+            print(f"\nUpdating entry for version {result['mhcgnomes_version']}.")
+        rows.append(result)
+        with open(BENCHMARK_CSV, "w", encoding="utf-8", newline="") as wf:
+            writer = csv.DictWriter(wf, fieldnames=BENCHMARK_FIELDS)
             writer.writeheader()
-        writer.writerow(result)
-    print(f"\nAppended to {BENCHMARK_CSV}")
+            for r in rows:
+                writer.writerow(r)
+    else:
+        with open(BENCHMARK_CSV, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=BENCHMARK_FIELDS)
+            writer.writeheader()
+            writer.writerow(result)
+    print(f"Saved to {BENCHMARK_CSV}")
 
 
 def plot_benchmark():
@@ -202,7 +181,7 @@ def plot_benchmark():
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
-        print("matplotlib not installed — skipping plot. Install with: pip install matplotlib")
+        print("matplotlib not installed — skipping plot. Install with: uv add --dev matplotlib")
         return
 
     if not BENCHMARK_CSV.exists():
@@ -220,12 +199,10 @@ def plot_benchmark():
 
     versions = [r["mhcgnomes_version"] for r in rows]
     totals = [int(r["total_gene_organism_pairs"]) for r in rows]
-    as_is = [int(r["parsed_as_is"]) for r in rows]
-    with_ds = [int(r["parsed_with_species"]) for r in rows]
+    ok = [int(r["parsed"]) for r in rows]
     wrong = [int(r["wrong_species"]) for r in rows]
     failed_known = [int(r["failed_known_species"]) for r in rows]
     failed_unknown = [int(r["failed_unknown_species"]) for r in rows]
-    failed_doubled = [int(r["failed_doubled_prefix"]) for r in rows]
     failed_other = [int(r["failed_other"]) for r in rows]
 
     x = range(len(versions))
@@ -233,38 +210,21 @@ def plot_benchmark():
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={"height_ratios": [2, 1]})
 
     # Top: stacked bar of parse outcomes
-    ax1.bar(x, as_is, label="Parsed (as-is)", color="#2ecc71")
-    ax1.bar(x, with_ds, bottom=as_is, label="Parsed (species)", color="#27ae60")
-    ax1.bar(
-        x,
-        failed_known,
-        bottom=[a + d for a, d in zip(as_is, with_ds)],
-        label="Known species, unknown gene",
-        color="#f39c12",
-    )
+    ax1.bar(x, ok, label="Parsed", color="#2ecc71")
+    ax1.bar(x, failed_known, bottom=ok, label="Known species, unknown gene", color="#f39c12")
     ax1.bar(
         x,
         failed_unknown,
-        bottom=[a + d + k for a, d, k in zip(as_is, with_ds, failed_known)],
+        bottom=[o + k for o, k in zip(ok, failed_known)],
         label="Unknown species",
         color="#e74c3c",
     )
     ax1.bar(
         x,
-        [d + o for d, o in zip(failed_doubled, failed_other)],
-        bottom=[a + d + k + u for a, d, k, u in zip(as_is, with_ds, failed_known, failed_unknown)],
-        label="Data issues (ours)",
+        [fo + w for fo, w in zip(failed_other, wrong)],
+        bottom=[o + k + u for o, k, u in zip(ok, failed_known, failed_unknown)],
+        label="Wrong species / other",
         color="#95a5a6",
-    )
-    ax1.bar(
-        x,
-        wrong,
-        bottom=[
-            a + d + k + u + dd + o
-            for a, d, k, u, dd, o in zip(as_is, with_ds, failed_known, failed_unknown, failed_doubled, failed_other)
-        ],
-        label="Wrong species",
-        color="#8e44ad",
     )
 
     ax1.set_ylabel("Gene+organism pairs")
@@ -274,7 +234,7 @@ def plot_benchmark():
     ax1.legend(loc="upper left", fontsize=8)
 
     # Bottom: parse rate line
-    rates = [(a + d) / t * 100 for a, d, t in zip(as_is, with_ds, totals)]
+    rates = [o / t * 100 for o, t in zip(ok, totals)]
     wrong_rates = [w / t * 100 for w, t in zip(wrong, totals)]
 
     ax2.plot(list(x), rates, "o-", color="#2ecc71", linewidth=2, markersize=8, label="Parse rate %")
@@ -286,7 +246,7 @@ def plot_benchmark():
     ax2.set_xlabel("mhcgnomes version")
     ax2.set_xticks(list(x))
     ax2.set_xticklabels([f"v{v}" for v in versions], rotation=45, ha="right")
-    ax2.set_ylim(0, max(rates) * 1.3)
+    ax2.set_ylim(0, max(max(rates), 1) * 1.3)
     ax2.legend(loc="upper left", fontsize=8)
 
     plt.tight_layout()

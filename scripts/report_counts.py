@@ -7,6 +7,7 @@ Intended to run after `mhcseqs build` or in CI after merge to main.
 Usage:
     python scripts/report_counts.py
 """
+
 from __future__ import annotations
 
 import csv
@@ -74,38 +75,32 @@ def main():
                     continue
                 seen_genes.add(gene)
 
-                # Try as-is
-                try:
-                    r = mhcgnomes.parse(gene)
-                    tp = type(r).__name__
-                    if tp in ("Gene", "Allele", "AlleleWithoutGene"):
-                        sp = getattr(getattr(r, "species", None), "name", "")
-                        if sp and sp.lower() in organism.lower():
-                            parsed_ok += 1
-                            continue
-                except Exception:
-                    pass
+                # Parse with species (always available from UniProt metadata)
+                import inspect
 
-                # Try with species
-                if "-" in gene:
-                    bare = gene.split("-", 1)[1]
-                    prefix = gene.split("-")[0]
-                    if bare.lower().startswith(prefix.lower()):
-                        bare = bare[len(prefix):].lstrip("-_")
-                    latin = extract_latin_binomial(organism)
-                    if latin:
-                        try:
-                            r2 = mhcgnomes.parse(bare, species=latin)
-                            tp2 = type(r2).__name__
-                            if tp2 in ("Gene", "Allele", "AlleleWithoutGene"):
+                parse_params = inspect.signature(mhcgnomes.parse).parameters
+                sp_kwarg = "species" if "species" in parse_params else "default_species"
+
+                bare = gene.split("-", 1)[1] if "-" in gene else gene
+                prefix = gene.split("-")[0] if "-" in gene else ""
+                if bare.lower().startswith(prefix.lower()) and prefix:
+                    bare = bare[len(prefix) :].lstrip("-_")
+                latin = extract_latin_binomial(organism)
+                if latin:
+                    try:
+                        r = mhcgnomes.parse(bare, **{sp_kwarg: latin})
+                        tp = type(r).__name__
+                        if tp in ("Gene", "Allele", "AlleleWithoutGene"):
+                            sp = getattr(getattr(r, "species", None), "name", "")
+                            if sp and sp.lower() in organism.lower():
                                 parsed_ok += 1
-                        except Exception:
-                            pass
+                    except Exception:
+                        pass
 
     # Print report
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print("BUILD COUNTS")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Total alleles:          {total:,}")
     print(f"With signal peptide:    {with_sp:,}")
     print(f"B2M references:         {b2m_count}")
