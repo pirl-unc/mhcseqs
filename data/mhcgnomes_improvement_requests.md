@@ -14,11 +14,23 @@ to accept full latin binomials as `default_species` values.
 
 ## Parsing summary (mhcgnomes 3.7.0)
 
-| Result | Count | % |
+Tested 1,610 unique (gene, organism) pairs. mhcseqs always has the latin
+species name, so we tested both as-is parsing and a `default_species` strategy
+where we strip the prefix and pass the bare gene + organism.
+
+| Strategy | Count | % |
 |---|---|---|
-| Parsed correctly | 255 | 16.7% |
-| Wrong species (prefix collision) | 8 | 0.5% |
-| Failed | 1,263 | 82.8% |
+| Parsed correctly as-is | 267 | 16.6% |
+| Wrong species as-is, but `default_species` fixes it | 18 | 1.1% |
+| `default_species` recovers additional | 94 | 5.8% |
+| **Still fails with `default_species`** | **1,231** | **76.5%** |
+
+Of the 1,231 remaining failures:
+
+| Root cause | Count | Notes |
+|---|---|---|
+| Species not in ontology | 901 | Would be fixed by the `default_species` enhancement |
+| Species known, but gene name not recognized | 330 | Needs gene definitions added |
 
 Note: 3.7.0 fixed many issues from 3.5.0 — chicken MHC-Y, zebrafish lineage
 genes, opossum genes, tilapia DBA, and taxonomy aliases (Brre→Danio,
@@ -58,9 +70,42 @@ The species should still be required to be in the ontology — if there's a gene
 ontology check, the ad-hoc species should support standard MHC gene names
 (UA, DRA, DAB, etc.) even without species-specific gene definitions.
 
-## 2. Gene definitions needed for known species
+## 2. Gene definitions needed for known species (330 failures)
 
-mhcgnomes 3.7.0 recognizes the species but can't parse these gene names.
+Even when we pass the correct `default_species`, these bare gene names fail.
+mhcgnomes knows the species but doesn't accept the gene.
+
+### Standard MHC gene names that fail for some species
+
+These are gene names that work for some species but not others — the gene
+ontology is incomplete for certain species:
+
+| Bare gene | Fails for | Count | Expected |
+|---|---|---|---|
+| DRA | *Egretta eulophotes*, *Pelodiscus sinensis*, *Anas platyrhynchos* | 10 | class II alpha |
+| UAA | *Salmo trutta*, *Gopherus polyphemus*, *Pongo sp.* | 9 | class I alpha |
+| DAB | *Grampus griseus*, *Oryzias latipes*, *Egretta eulophotes* | 7 | class II beta |
+| UA | *Zhangixalus omeimontis*, *Grampus griseus*, *Cyprinus carpio* | 6 | class I alpha |
+| DRB | *Athene noctua*, *Papio hamadryas*, *Asio otus* | 6 | class II beta |
+| DAA | *Trichosurus vulpecula*, *Salvelinus alpinus*, *Nipponia nippon* | 5 | class II alpha |
+| DMB | *Chelydra serpentina*, *Sarcophilus harrisii*, *Monodelphis domestica* | 4 | class II beta |
+| I | *Sarcophilus harrisii*, *Monodelphis domestica*, *Anas platyrhynchos* | 4 | class I alpha |
+| DAB1 | *Danio rerio*, *Monodelphis domestica*, *Gorilla gorilla* | 4 | class II beta |
+| DBB | *Oryzias latipes*, *Trichosurus vulpecula*, *Nipponia nippon* | 3 | class II beta |
+| UCA | *Danio rerio*, *Oryzias latipes*, *Salvelinus alpinus* | 3 | class I alpha |
+| DMA | *Terrapene triunguis*, *Sarcophilus harrisii*, *Chrysemys picta* | 3 | class II alpha |
+| DCB | *Oryzias latipes*, *Nipponia nippon* | 2 | class II beta |
+| UE | *Monodelphis domestica* | 2 | class I alpha |
+
+**Advice**: These are universally recognized MHC gene names. If a species is
+in the ontology, standard gene names (DRA, DRB, DQA, DQB, DPA, DPB, DMA, DMB,
+UA, UAA, UBA, DAA, DAB, DBA, DBB, DCA, DCB) should be accepted for it
+regardless of whether species-specific gene definitions exist. This is the
+fish/reptile/marsupial equivalent of how `HLA-A` works for human — the gene
+names are universal across the MHC.
+
+### Species-specific gene patterns that need adding
+
 Grouped by what's needed:
 
 ### Quail (*Coturnix japonica*, Coja) — 38 genes
