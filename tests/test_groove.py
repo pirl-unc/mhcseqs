@@ -51,10 +51,12 @@ def test_parse_class_i_too_short():
 
 
 def test_parse_class_i_no_cys_short():
-    """Short class I with no Cys pairs gets fragment_fallback."""
+    """Short class I with no Cys pairs gets alpha1_only (no Cys = α1 fragment)."""
     result = parse_class_i("A" * 200, allele="no_cys")
     assert result.ok
-    assert result.status == "fragment_fallback"
+    assert result.status == "alpha1_only"
+    assert result.groove1_len == 200
+    assert result.groove2_len == 0
 
 
 def test_parse_class_i_no_cys_long():
@@ -91,17 +93,25 @@ def test_groove_result_fields():
 # ---------------------------------------------------------------------------
 
 
-def test_class_i_truncated_fragment():
-    """A class I fragment (< 200 aa) with no valid Cys pair should get
-    fragment_fallback, not a hard failure."""
-    # Take just the groove region (first 183 aa) but kill the Cys residues
-    # so no valid pair is found — simulates a truncated fragment without anchors
-    fragment = HLA_A0201_MATURE[:180].replace("C", "A")
-    assert len(fragment) <= 200
-    result = parse_class_i(fragment, allele="HLA-A*02:01-frag")
-    assert result.status == "fragment_fallback"
+def test_class_i_alpha1_only_fragment():
+    """A class I fragment with no Cys pair → alpha1_only (exon 2 / α1)."""
+    fragment = HLA_A0201_MATURE[:90].replace("C", "A")  # α1 domain, no Cys
+    result = parse_class_i(fragment, allele="HLA-A*02:01-a1frag")
+    assert result.status == "alpha1_only"
     assert result.ok
-    assert result.groove1 == fragment
+    assert result.groove1 == fragment.upper()
+    assert result.groove2 == ""
+
+
+def test_class_i_alpha2_only_fragment():
+    """A class I fragment with the α2 Cys pair → alpha2_only (exon 3 / α2)."""
+    # α2 domain from HLA-A*02:01 (positions 90-183), contains the Cys pair
+    fragment = HLA_A0201_MATURE[90:183]
+    result = parse_class_i(fragment, allele="HLA-A*02:01-a2frag")
+    assert result.status == "alpha2_only"
+    assert result.ok
+    assert result.groove1 == ""
+    assert result.groove2 == fragment.upper()
 
 
 def test_class_i_moderate_truncation_still_parses():

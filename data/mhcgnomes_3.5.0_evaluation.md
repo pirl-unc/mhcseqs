@@ -127,14 +127,14 @@ These are species mhcgnomes doesn't recognize at all. Top 25 by gene count:
 | Prefix | Count | Organism | Latin prefix (5+5) |
 |---|---|---|---|
 | Bain | 25 | *Labeobarbus intermedius* (Lake Tana barbs) | LabeoInter |
-| Char | 19 | *Channa argus* (snakehead) | ChanArgus |
+| Char | 19 | *Channa argus* (snakehead) | ChannArgus |
 | gamr | 19 | *Gadus morhua* (Atlantic cod) | GadusMorhu |
-| Phci | 19 | *Phascolarctos cinereus* (koala) | PhasCinere |
+| Phci | 19 | *Phascolarctos cinereus* (koala) | PhascCiner |
 | Asme | 18 | *Astyanax mexicanus* (blind cavefish) | AstyaMexic |
 | Cosp | 18 | *Coregonus sp.* (whitefish) | CoregSp |
 | Sppu | 16 | *Sphenodon punctatus* (tuatara) | SphenPunct |
 | Tuna | 16 | *Turdus naumanni* (dusky thrush) | TurduNauma |
-| Angr | 16 | *Anabarilius grahami* (Kanglang fish) | AnabGraha |
+| Angr | 16 | *Anabarilius grahami* (Kanglang fish) | AnabaGraha |
 | Sias | 14 | *Silurus asotus* (Amur catfish) | SilurAsotu |
 | Tueu | 13 | *Turdus eunomus* (dusky thrush) | TurduEunom |
 | Trsp | 12 | *Tropheus sp.* (cichlid) | TrophSp |
@@ -200,8 +200,8 @@ The 5+5 latin prefix feature in 3.5.0 recovered **14 additional genes** that fai
 |---|---|---|
 | `GaviGanget` | *Gavialis gangeticus* (gharial) | NOT KNOWN |
 | `ChrysPickt` | *Chrysemys picta* (painted turtle) | NOT KNOWN |
-| `ChelySerpn` | *Chelydra serpentina* (snapping turtle) | NOT KNOWN — but `Chse` works! |
-| `PhasCinere` | *Phascolarctos cinereus* (koala) | NOT KNOWN |
+| `ChelySerpe` | *Chelydra serpentina* (snapping turtle) | NOT KNOWN — but `Chse` works! |
+| `PhascCiner` | *Phascolarctos cinereus* (koala) | NOT KNOWN |
 | `SphenPunct` | *Sphenodon punctatus* (tuatara) | NOT KNOWN |
 | `CheloMyda` | *Chelonia mydas* (5+4 form) | NOT KNOWN — `CheloMydas` (5+5) works |
 
@@ -237,7 +237,7 @@ Top priority species not yet in mhcgnomes (by gene count in our dataset):
 6. *Meleagris gallopavo* (9 genes) — wild turkey
 
 ### Tier 5: Ensure all 5+5 latin forms work
-Several species are known by 4-letter prefix but their 5+5 form fails (e.g., `ChelySerpn` for snapping turtle). The 5+5 form should always work as a fallback.
+Several species are known by 4-letter prefix but their 5+5 form fails (e.g., `ChelySerpe` for snapping turtle). The 5+5 form should always work as a fallback.
 
 ## Appendix: Prefix provenance audit
 

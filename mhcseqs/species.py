@@ -651,6 +651,28 @@ def get_latin_name(raw: Optional[str]) -> str:
     return str(raw or "")
 
 
+def extract_latin_binomial(organism: Optional[str]) -> str:
+    """Extract the latin binomial from a UniProt organism string.
+
+    Handles formats like:
+      "Crocodylus porosus (Saltwater crocodile) (Estuarine crocodile)"
+      "Homo sapiens (Human)"
+      "Mus musculus"
+
+    Returns the genus + species epithet (e.g. "Crocodylus porosus"),
+    or the original string stripped if no parenthetical is found.
+    """
+    if not organism:
+        return ""
+    # Strip everything from first '(' onward, then clean up
+    binomial = str(organism).split("(")[0].strip()
+    # Take only genus + species (first two words) to drop subspecies
+    parts = binomial.split()
+    if len(parts) >= 2:
+        return f"{parts[0]} {parts[1]}"
+    return binomial
+
+
 def get_canonical_prefix(raw: Optional[str]) -> str:
     """Return the canonical MHC naming prefix for a species, or empty string."""
     fine = normalize_species(raw)

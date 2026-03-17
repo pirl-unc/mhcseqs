@@ -197,17 +197,27 @@ NON_GROOVE_GENES = frozenset({"MICA", "MICB", "MIC1", "MIC2", "HFE", "B2M", "MR1
 #   P lineage: extra Cys in α1, altered groove shape
 #   H lineage: α3 lost, α1/α2 often deteriorated or entirely absent
 NON_CLASSICAL_CLASS_I_GENE_PATTERNS = (
-    "MHC1L", "MHC1S", "MHC1P",  # zebrafish-style: mhc1laa, mhc1saa, etc.
-    "LLA", "LCA", "LDA", "LFA", "LGA", "LIA", "LJA",  # L lineage locus names
+    "MHC1L",
+    "MHC1S",
+    "MHC1P",  # zebrafish-style: mhc1laa, mhc1saa, etc.
+    "LLA",
+    "LCA",
+    "LDA",
+    "LFA",
+    "LGA",
+    "LIA",
+    "LJA",  # L lineage locus names
     "MFSD",  # NOT MHC at all — lipid transporter contaminant
 )
 
 # Known non-MHC proteins that have leaked into curated datasets via automated
 # genome annotation.  Keyed by UniProt accession.
-NON_MHC_ACCESSIONS = frozenset({
-    "Q1LUQ4",   # Dare-mfsd6a, zebrafish lipid transporter
-    "B0UYT5",   # Dare-mfsd6b, zebrafish lipid transporter
-})
+NON_MHC_ACCESSIONS = frozenset(
+    {
+        "Q1LUQ4",  # Dare-mfsd6a, zebrafish lipid transporter
+        "B0UYT5",  # Dare-mfsd6b, zebrafish lipid transporter
+    }
+)
 
 # Minimum groove half length considered potentially functional for peptide
 # binding.  Below this, the α-helix + β-sheet architecture cannot form a
@@ -319,7 +329,9 @@ class AlleleRecord(RawAllele):
     def ok(self) -> bool:
         return self.status in {
             "ok",
-            "alpha3_fallback",
+            "inferred_from_alpha3",
+            "alpha1_only",
+            "alpha2_only",
             "beta1_only_fallback",
             "fragment_fallback",
         }
@@ -608,8 +620,34 @@ def _class_i_fragment_result(
     allele: str,
     gene: str,
 ) -> AlleleRecord:
-    """Return a fragment_fallback record for short class I sequences."""
+    """Return an alpha1_only or alpha2_only record for class I single-exon fragments.
+
+    Distinguishes which groove half the fragment represents by checking for
+    the α2 Ig-fold Cys pair (separation ~55–72):
+      - Present → exon 3 / α2 domain → groove2
+      - Absent  → exon 2 / α1 domain → groove1
+    """
     cleaned = _clean_seq(seq)
+    pairs = find_cys_pairs(cleaned)
+    has_alpha2_pair = any(55 <= sep <= 72 for _, _, sep in pairs)
+
+    if has_alpha2_pair:
+        return AlleleRecord(
+            allele=allele,
+            gene=gene,
+            mhc_class="I",
+            chain="alpha",
+            seq_len=len(cleaned),
+            mature_start=0,
+            groove_seq=cleaned,
+            groove1="",
+            groove2=cleaned,
+            groove1_len=0,
+            groove2_len=len(cleaned),
+            status="alpha2_only",
+            anchor_type="raw_fragment",
+            flags=("single_exon_fragment",),
+        )
     return AlleleRecord(
         allele=allele,
         gene=gene,
@@ -622,9 +660,9 @@ def _class_i_fragment_result(
         groove2="",
         groove1_len=len(cleaned),
         groove2_len=0,
-        status="fragment_fallback",
+        status="alpha1_only",
         anchor_type="raw_fragment",
-        flags=("fragment_fallback",),
+        flags=("single_exon_fragment",),
     )
 
 
@@ -762,12 +800,12 @@ def parse_class_i(
                 chain="alpha",
                 seq_len=len(cleaned),
                 mature_start=mature_start,
-                status="alpha3_fallback_bad_boundaries",
+                status="inferred_from_alpha3_bad_boundaries",
                 anchor_type="alpha3_cys",
                 anchor_cys1=c1,
                 anchor_cys2=c2,
             )
-        flags.append("alpha3_fallback")
+        flags.append("inferred_from_alpha3")
         return AlleleRecord(
             allele=allele,
             gene=gene,
@@ -780,7 +818,7 @@ def parse_class_i(
             groove2=half_2,
             groove1_len=len(half_1),
             groove2_len=len(half_2),
-            status="alpha3_fallback",
+            status="inferred_from_alpha3",
             anchor_type="alpha3_cys",
             anchor_cys1=c1,
             anchor_cys2=c2,

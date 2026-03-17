@@ -44,7 +44,9 @@ _NUCLEOTIDE_LIKE_CHARS = set("ACGTUNWSMKRYBDHV")
 # Statuses considered functional for groove extraction
 FUNCTIONAL_GROOVE_STATUSES = {
     "ok",
-    "alpha3_fallback",
+    "inferred_from_alpha3",
+    "alpha1_only",
+    "alpha2_only",
     "beta1_only_fallback",
     "fragment_fallback",
 }

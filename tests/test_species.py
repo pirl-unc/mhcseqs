@@ -1,5 +1,6 @@
 from mhcseqs.species import (
     MHC_SPECIES_CATEGORIES,
+    extract_latin_binomial,
     get_canonical_prefix,
     get_latin_name,
     normalize_mhc_species,
@@ -83,6 +84,17 @@ def test_latin_name():
     assert get_latin_name("human") == "Homo sapiens"
     assert get_latin_name("Homo sapiens") == "Homo sapiens"
     assert get_latin_name("mouse") == "Mus musculus"
+
+
+def test_extract_latin_binomial():
+    croc = "Crocodylus porosus (Saltwater crocodile) (Estuarine crocodile)"
+    assert extract_latin_binomial(croc) == "Crocodylus porosus"
+    assert extract_latin_binomial("Homo sapiens (Human)") == "Homo sapiens"
+    assert extract_latin_binomial("Mus musculus") == "Mus musculus"
+    assert extract_latin_binomial("Gallus gallus (Chicken)") == "Gallus gallus"
+    assert extract_latin_binomial("Cyanistes caeruleus caeruleus") == "Cyanistes caeruleus"
+    assert extract_latin_binomial("") == ""
+    assert extract_latin_binomial(None) == ""
 
 
 def test_canonical_prefix():
