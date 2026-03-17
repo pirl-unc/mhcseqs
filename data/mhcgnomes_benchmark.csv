@@ -1,0 +1,2 @@
+date,mhcgnomes_version,mhcseqs_version,total_gene_organism_pairs,parsed_as_is,parsed_with_default_species,wrong_species,failed_known_species,failed_unknown_species,failed_doubled_prefix,failed_other
+2026-03-17,3.8.0,0.9.0,1592,283,17,18,520,754,0,0

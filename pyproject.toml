@@ -49,3 +49,8 @@ select = ["E", "F", "W", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.uv]
+dev-dependencies = [
+    "matplotlib>=3.10.8",
+]
