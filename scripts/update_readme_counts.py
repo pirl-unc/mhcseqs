@@ -40,15 +40,14 @@ _BASELINE = {
     ("murine", "I"): 59, ("murine", "II"): 29,
     ("ungulate", "I"): 638, ("ungulate", "II"): 1128,
     ("carnivore", "I"): 166, ("carnivore", "II"): 318,
-    ("cetacean", "I"): 3, ("cetacean", "II"): 98,
-    ("other_mammal", "I"): 0, ("other_mammal", "II"): 0,
+    ("other_mammal", "I"): 3, ("other_mammal", "II"): 98,
     ("bird", "I"): 28, ("bird", "II"): 0,
     ("fish", "I"): 90, ("fish", "II"): 85,
     ("other_vertebrate", "I"): 0, ("other_vertebrate", "II"): 0,
 }
 
 CATEGORIES = [
-    "human", "nhp", "murine", "ungulate", "carnivore", "cetacean",
+    "human", "nhp", "murine", "ungulate", "carnivore",
     "other_mammal", "bird", "fish", "other_vertebrate",
 ]
 
