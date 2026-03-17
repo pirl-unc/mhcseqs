@@ -197,17 +197,27 @@ NON_GROOVE_GENES = frozenset({"MICA", "MICB", "MIC1", "MIC2", "HFE", "B2M", "MR1
 #   P lineage: extra Cys in α1, altered groove shape
 #   H lineage: α3 lost, α1/α2 often deteriorated or entirely absent
 NON_CLASSICAL_CLASS_I_GENE_PATTERNS = (
-    "MHC1L", "MHC1S", "MHC1P",  # zebrafish-style: mhc1laa, mhc1saa, etc.
-    "LLA", "LCA", "LDA", "LFA", "LGA", "LIA", "LJA",  # L lineage locus names
+    "MHC1L",
+    "MHC1S",
+    "MHC1P",  # zebrafish-style: mhc1laa, mhc1saa, etc.
+    "LLA",
+    "LCA",
+    "LDA",
+    "LFA",
+    "LGA",
+    "LIA",
+    "LJA",  # L lineage locus names
     "MFSD",  # NOT MHC at all — lipid transporter contaminant
 )
 
 # Known non-MHC proteins that have leaked into curated datasets via automated
 # genome annotation.  Keyed by UniProt accession.
-NON_MHC_ACCESSIONS = frozenset({
-    "Q1LUQ4",   # Dare-mfsd6a, zebrafish lipid transporter
-    "B0UYT5",   # Dare-mfsd6b, zebrafish lipid transporter
-})
+NON_MHC_ACCESSIONS = frozenset(
+    {
+        "Q1LUQ4",  # Dare-mfsd6a, zebrafish lipid transporter
+        "B0UYT5",  # Dare-mfsd6b, zebrafish lipid transporter
+    }
+)
 
 # Minimum groove half length considered potentially functional for peptide
 # binding.  Below this, the α-helix + β-sheet architecture cannot form a
