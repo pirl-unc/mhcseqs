@@ -217,13 +217,13 @@ Top 15 by gene count, all literature-attested in UniProt:
 |---|---|---|---|
 | Dila | 62 | *Dicentrarchus labrax* (European seabass) | DicenLabra |
 | Bain | 25 | *Labeobarbus intermedius* (Lake Tana barbs) | LabeoInter |
-| Char | 19 | *Channa argus* (snakehead) | ChanArgus |
+| Char | 19 | *Channa argus* (snakehead) | ChannArgus |
 | gamr | 19 | *Gadus morhua* (Atlantic cod) | GadusMorhu |
-| Phci | 19 | *Phascolarctos cinereus* (koala) | PhasCinere |
+| Phci | 19 | *Phascolarctos cinereus* (koala) | PhascCiner |
 | Asme | 18 | *Astyanax mexicanus* (blind cavefish) | AstyaMexic |
 | Sppu | 16 | *Sphenodon punctatus* (tuatara) | SphenPunct |
 | Tuna | 16 | *Turdus naumanni* (dusky thrush) | TurduNauma |
-| Angr | 16 | *Anabarilius grahami* (kanglang fish) | AnabGraha |
+| Angr | 16 | *Anabarilius grahami* (kanglang fish) | AnabaGraha |
 | Sias | 14 | *Silurus asotus* (Amur catfish) | SilurAsotu |
 | Epco | 12 | *Epinephelus coioides* (orange-spotted grouper) | EpineCoioi |
 | Crmo | 10 | *Crocodylus moreletii* (Morelet's croc) | CrocoMorel |
@@ -252,7 +252,7 @@ Several species mhcgnomes knows by 4-letter prefix don't work with the
 
 | 4-letter (works) | 5+5 (fails) | Species |
 |---|---|---|
-| Chse | ChelySerpn | *Chelydra serpentina* |
+| Chse | ChelySerpe | *Chelydra serpentina* |
 | — | CheloMyda (5+4) | *Chelonia mydas* — only exact 5+5 `CheloMydas` works |
 
 3.7.0 fixed GophePolyp and TerraTriun.
@@ -278,5 +278,5 @@ exact 5+5. Any unambiguous prefix of the latin name should resolve.
    fish numbered U-loci, duck, Tasmanian devil — ~80 genes across known species.
 3. **Add ~328 species** to the ontology (all literature-attested, latin 5+5
    forms provided above).
-4. **Fix 5+5 latin gaps** — ChelySerpn, partial prefix matching.
+4. **Fix 5+5 latin gaps** — ChelySerpe, partial prefix matching.
 5. **Add Maeu taxonomy alias** for *Notamacropus eugenii*.
