@@ -23,49 +23,48 @@ Of the 1,034 entries:
 Two very common gene names appear across many unknown species but aren't
 in the mhcgnomes gene ontology:
 
-### F10 (79 entries in unknown species, ~625 total across all species)
+### F10 — NOT recommended for mhcgnomes (mhcseqs issue)
 
-All class I alpha. Distribution: bony fish (351), birds (146), reptiles (95),
-amphibians (16), sharks (12), marsupials (5). **NOT in placental mammals.**
-Likely a genome annotation class I locus designation. Should be defined at
-multiple taxonomic nodes — NOT at Gnathostomata root since it doesn't appear
-in placental mammals. Suggested placement: Actinopterygii, Aves, Lepidosauria,
-Amphibia, and Marsupialia independently.
+`F10` is an NCBI genome annotation locus designation extracted from UniProt
+protein descriptions like "Class I histocompatibility antigen, F10 alpha
+chain-like". The UniProt gene_names for these entries are all `LOC*` locus
+tags — `F10` appears only in the protein name, not as an actual gene symbol.
 
-Example species: *Neolamprologus brichardi*, *Oreochromis niloticus*,
-*Pogona vitticeps*, *Apteryx mantelli*, *Gekko japonicus*
+Our curation script (`_infer_gene_from_protein_name`) extracts it from the
+protein description and treats it as a gene name. This is an mhcseqs bug:
+F10 should be treated as an opaque annotation label, not passed to mhcgnomes.
 
-### IA (23 entries in unknown species, ~321 total)
+**No action needed from mhcgnomes.** We will fix this in our curation pipeline.
 
-**CAUTION:** `IA` / `Ia` is already a mouse H2 haplotype name (I-region A,
-class II). In non-mammalian species it means "class I A" (class I alpha) — a
-naming collision. Distribution: amphibians (139), fish (128), birds (48),
-sharks (6). mhcgnomes already parses `IA` as mouse H2 haplotype.
+### IA — NOT recommended for mhcgnomes (naming collision)
 
-This needs careful handling: for mouse, `IA` should remain the I-A haplotype.
-For other vertebrates, it should be a class I alpha gene. The `species=`
-parameter would disambiguate, but the gene definition needs to be species-
-or clade-aware.
+`IA` / `Ia` is already an H2 haplotype in mouse (I-region A, class II).
+In non-mammalian species (frogs, fish, birds, sharks — 321 entries), `IA`
+means "class I A" informally. Adding it as a gene would collide with the
+mouse haplotype.
 
-Example species: *Gadus morhua*, *Bufo gargarizans*, *Pelophylax nigromaculatus*,
-*Tympanuchus cupido*, *Callorhinchus milii*
+The non-mammalian uses of `IA` are shorthand for a class I alpha locus —
+the actual gene is `UA` or `A`. mhcseqs should map `IA` → `UA` before
+passing to mhcgnomes.
+
+**No action needed from mhcgnomes.** We will fix this in our curation pipeline.
 
 ### Other gene names to add at root level
 
 | Gene | Count | Class | Description |
 |---|---|---|---|
-| B2ML | 3 | I | B2M-like, class I alpha |
-| B2MG | 3 | I | B2M gene (alternate name) |
-| MHC | 9 | varies | Generic MHC label |
-| MHCI | 2 | I | Generic class I |
-| MHCIA | 1 | I | Generic class I alpha |
-| MHCBETA | 1 | II | Generic class II beta |
-| MHCIIA | 1 | II | Generic class II alpha |
-| ZAA | 4 | I | Z-lineage class I alpha |
-| U | 1 | I | U-lineage (short form of UA) |
-| DDA | 1 | II | D-series class II alpha |
-| BLB | 1 | II | B-LB (chicken-style class II beta, no number) |
-| UIA | 1 | I | U-lineage I-A locus |
+| ZAA | 4 | I | Z-lineage class I alpha — legitimate gene, add at Gnathostomata |
+| U | 1 | I | U-lineage (short form of UA) — add as alias for UA |
+| DDA | 1 | II | D-series class II alpha — add at Gnathostomata |
+| BLB | 1 | II | B-LB (chicken-style class II beta, no number) — add at Galliformes |
+| UIA | 1 | I | U-lineage I-A locus — add at Actinopterygii |
+| B2ML | 3 | I | B2M-like — mhcseqs should map to B2M |
+| B2MG | 3 | I | B2M alternate name — mhcseqs should map to B2M |
+| MHC | 9 | varies | Too generic — mhcseqs should treat as opaque |
+| MHCI | 2 | I | Too generic — mhcseqs should treat as opaque |
+| MHCIA | 1 | I | Too generic — mhcseqs should map to UA |
+| MHCBETA | 1 | II | Too generic — mhcseqs should map to DAB |
+| MHCIIA | 1 | II | Too generic — mhcseqs should map to DAA |
 
 ## Top 50 species to add
 
