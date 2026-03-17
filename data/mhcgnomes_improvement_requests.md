@@ -1,103 +1,128 @@
 # mhcgnomes Improvement Requests from mhcseqs v0.9.0
 
 Generated: 2026-03-17
-Tested against: mhcgnomes 3.7.0
-Dataset: 15,861 diverse MHC entries (1,526 unique gene names)
+Tested against: mhcgnomes 3.8.0
+Dataset: 15,861 diverse MHC entries (1,610 unique gene+organism pairs)
 
 ## Context
 
 mhcseqs curates MHC sequences from UniProt for species underrepresented in
 IMGT/HLA and IPD-MHC. For every entry, we have the organism name from UniProt
 metadata. We plan to pass the organism as `default_species` when calling
-mhcgnomes, which eliminates prefix collision issues — but requires mhcgnomes
-to accept full latin binomials as `default_species` values.
+mhcgnomes, which eliminates prefix collision issues.
 
-## Parsing summary (mhcgnomes 3.7.0)
+## Parsing summary (mhcgnomes 3.8.0)
 
-Tested 1,610 unique (gene, organism) pairs. mhcseqs always has the latin
-species name, so we tested both as-is parsing and a `default_species` strategy
-where we strip the prefix and pass the bare gene + organism.
+Tested 1,610 unique (gene, organism) pairs with both as-is and
+bare-gene + `default_species` strategies.
 
 | Strategy | Count | % |
 |---|---|---|
 | Parsed correctly as-is | 267 | 16.6% |
-| Wrong species as-is, but `default_species` fixes it | 18 | 1.1% |
-| `default_species` recovers additional | 94 | 5.8% |
-| **Still fails with `default_species`** | **1,231** | **76.5%** |
+| Fixed by `default_species` | 112 | 7.0% |
+| **Still fails** | **1,231** | **76.5%** |
 
 Of the 1,231 remaining failures:
 
 | Root cause | Count | Notes |
 |---|---|---|
-| Species not in ontology | 901 | Would be fixed by the `default_species` enhancement |
-| Species known, but gene name not recognized | 330 | Needs gene definitions added |
+| Species not in ontology | 758 | Need species added |
+| Species known, gene not recognized | 330 | Need gene definitions |
+| Doubled prefix (our data bug) | 143 | mhcseqs issue, not mhcgnomes |
 
-Note: 3.7.0 fixed many issues from 3.5.0 — chicken MHC-Y, zebrafish lineage
-genes, opossum genes, tilapia DBA, and taxonomy aliases (Brre→Danio,
-Trsi→Pelodiscus) now all parse correctly.
+## 1. Hierarchical gene definitions (primary recommendation)
 
-## 1. Primary request: accept full latin binomials in `default_species`
+Of the 758 unknown-species failures, we tested what would happen if those
+species were added. **398 (53%) would immediately parse** because the gene
+names (DAB, UA, DRB, etc.) are already known to mhcgnomes for other species.
+**360 (47%) would still fail** because the gene names aren't recognized for
+any species.
 
-This is the single most impactful change. Currently:
+This suggests that MHC gene names should be defined at higher taxonomic
+levels and inherited by species:
 
-```python
-# Works (species in ontology):
-mhcgnomes.parse("UA", default_species="CrocoPoros")
-# → Gene(species='Crocodylus porosus', name='UA')
+### Tier 1: Vertebrate-wide gene names
 
-# Fails (species not in ontology):
-mhcgnomes.parse("UA", default_species="Cyclura carinata")
-# → ERROR: Could not parse 'UA'
-```
+These genes appear across fish, amphibians, reptiles, birds, and mammals.
+They should be accepted for **any** vertebrate species in the ontology:
 
-**Request**: When `default_species` is a full latin binomial (or long prefix)
-that isn't in the ontology, create an ad-hoc `Species` from it rather than
-failing. mhcseqs has the organism from UniProt for every entry — if mhcgnomes
-accepted it, we could always disambiguate:
+| Gene | Class | Chain | Count in our data | Example species using it |
+|---|---|---|---|---|
+| UA | I | alpha | 36 | *Agalychnis callidryas* (frog), *Sphenodon punctatus* (tuatara) |
+| UAA | I | alpha | 14 | *Andrias davidianus* (salamander), *Clarias batrachus* (catfish) |
+| UBA | I | alpha | 6 | *Acipenser sinensis* (sturgeon), *Chroicocephalus scopulinus* (gull) |
+| UCA | I | alpha | 2 | *Chroicocephalus scopulinus*, *Clarias batrachus* |
+| UDA | I | alpha | 3 | *Chroicocephalus scopulinus*, *Oryzias dancena* (ricefish) |
+| DAB | II | beta | 53 | *Acipenser dabryanus* (sturgeon), *Agelaius phoeniceus* (blackbird) |
+| DAB1 | II | beta | 42 | *Abramis brama* (bream), *Falco cherrug* (falcon) |
+| DAB2 | II | beta | 16 | *Amblyrhynchus cristatus* (iguana), *Ardea alba* (egret) |
+| DAA | II | alpha | 15 | *Andrias davidianus*, *Nipponia nippon* (ibis) |
+| DRA | II | alpha | 8 | *Laticauda laticaudata* (sea krait), *Naja naja* (cobra) |
+| DRB | II | beta | 24 | *Aegypius monachus* (vulture), *Astur gentilis* (goshawk) |
+| DRB1 | II | beta | 7 | *Alca torda* (razorbill), *Brachyramphus marmoratus* (murrelet) |
+| DMA | II | alpha | 7 | *Ciconia boyciana* (stork), *Gopherus evgoodei* (tortoise) |
+| DMB | II | beta | 6 | *Eudyptes chrysocome* (penguin), *Eudyptula minor* (penguin) |
+| DMB1 | II | beta | 2 | *Ciconia boyciana*, *Tympanuchus cupido* (grouse) |
+| DMB2 | II | beta | 2 | *Ciconia boyciana*, *Tympanuchus cupido* |
+| DBA | II | alpha | 3 | *Ciconia boyciana*, *Oceanodroma leucorhoa* (petrel) |
+| DBB | II | beta | 2 | *Ciconia boyciana*, *Rhinella marina* (toad) |
+| DXB | II | beta | 25 | *Coregonus* sp. (whitefish) — standard fish class II |
+| MHCIIB | II | beta | 25 | *Alcedo atthis* (kingfisher), *Ardea cinerea* (heron) |
+| B | I | alpha | 5 | *Chrysolophus amherstiae* (pheasant), *Pavo cristatus* (peafowl) |
+| BF | I | alpha | 4 | *Lophura nycthemera* (pheasant), *Syrmaticus ellioti* (pheasant) |
+| BLB2 | II | beta | 3 | *Lagopus scotica* (grouse), *Lyrurus tetrix* (grouse) |
+| F | I | alpha | 5 | *Carduelis carduelis* (goldfinch), *Ophiophagus hannah* (king cobra) |
+| A | I | alpha | 2 | *Anser indicus* (goose), *Ophiophagus hannah* |
 
-```python
-# Desired:
-mhcgnomes.parse("UA", default_species="Cyclura carinata")
-# → Gene(species=Species(name='Cyclura carinata'), name='UA')
-```
+### Tier 2: Order-level gene definitions
 
-This solves prefix collisions (`Cyca` = carp vs iguana vs blue tit) without
-needing every species in the ontology first. It also makes `MHC-B` on turkeys
-and mammalian-prefix-on-wrong-species issues irrelevant, since we'd strip the
-prefix and pass the bare gene with the correct `default_species`.
+These genes are specific to particular taxonomic orders:
 
-The species should still be required to be in the ontology — if there's a gene
-ontology check, the ad-hoc species should support standard MHC gene names
-(UA, DRA, DAB, etc.) even without species-specific gene definitions.
+**Crocodylia — DB-series (class II beta)**
 
-## 2. Gene definitions needed for known species (330 failures)
+| Gene | Count | Species |
+|---|---|---|
+| DB01 | 4 | *C. porosus*, *C. niloticus*, *O. tetraspis*, *M. cataphractus* |
+| DB02 | 4 | same |
+| DB03 | 4 | same |
+| DB04 | 4 | same |
+| DB05 | 4 | same |
+| DB06 | 4 | same |
+| DB07 | 3 | *C. porosus*, *O. tetraspis*, *M. cataphractus* |
+| DB08 | 3 | *C. porosus*, *O. tetraspis*, *M. cataphractus* |
 
-Even when we pass the correct `default_species`, these bare gene names fail.
-mhcgnomes knows the species but doesn't accept the gene.
+From Jaratlerdsiri et al. 2014. Trans-specific class II beta lineages
+across all Crocodylia. Any crocodilian species should accept DB01–DB08.
 
-### Standard MHC gene names that fail for some species
+**Galliformes — BF/BLB workshop and serological variants**
 
-These are gene names that work for some species but not others — the gene
-ontology is incomplete for certain species:
+Already partly handled for chicken (Gaga-BF works), but workshop alleles
+(BFw-NN), z-series (BFz-NN), and serological types (B-F-SNN) don't parse.
+These should work for all galliform species (chicken, quail, turkey,
+pheasant, grouse).
 
-| Bare gene | Fails for | Count | Expected |
-|---|---|---|---|
-| DRA | *Egretta eulophotes*, *Pelodiscus sinensis*, *Anas platyrhynchos* | 10 | class II alpha |
-| UAA | *Salmo trutta*, *Gopherus polyphemus*, *Pongo sp.* | 9 | class I alpha |
-| DAB | *Grampus griseus*, *Oryzias latipes*, *Egretta eulophotes* | 7 | class II beta |
-| UA | *Zhangixalus omeimontis*, *Grampus griseus*, *Cyprinus carpio* | 6 | class I alpha |
-| DRB | *Athene noctua*, *Papio hamadryas*, *Asio otus* | 6 | class II beta |
-| DAA | *Trichosurus vulpecula*, *Salvelinus alpinus*, *Nipponia nippon* | 5 | class II alpha |
-| DMB | *Chelydra serpentina*, *Sarcophilus harrisii*, *Monodelphis domestica* | 4 | class II beta |
-| I | *Sarcophilus harrisii*, *Monodelphis domestica*, *Anas platyrhynchos* | 4 | class I alpha |
-| DAB1 | *Danio rerio*, *Monodelphis domestica*, *Gorilla gorilla* | 4 | class II beta |
-| DBB | *Oryzias latipes*, *Trichosurus vulpecula*, *Nipponia nippon* | 3 | class II beta |
-| UCA | *Danio rerio*, *Oryzias latipes*, *Salvelinus alpinus* | 3 | class I alpha |
-| DMA | *Terrapene triunguis*, *Sarcophilus harrisii*, *Chrysemys picta* | 3 | class II alpha |
-| DCB | *Oryzias latipes*, *Nipponia nippon* | 2 | class II beta |
-| UE | *Monodelphis domestica* | 2 | class I alpha |
+### Tier 3: Genus-level gene definitions
 
-Gene acceptance matrix (tested with `parse(gene, default_species=species)`):
+**Turdus — PFA alleles (class I)**
+
+| Gene | Count |
+|---|---|
+| PFA01–PFA30 | 47 entries across *T. naumanni*, *T. eunomus*, *T. ruficollis*, *T. atrogularis* |
+
+Published thrush MHC class I nomenclature. Pattern: `PFA\d+`.
+
+**Coturnix — numbered class II**
+
+| Gene | Count |
+|---|---|
+| II-01 through II-17 | 17 entries for *Coturnix japonica* |
+
+Hosomichi et al. 2006. Pattern: `II-\d+`. Quail-specific.
+
+## 2. Standard genes that fail for known species (330 failures)
+
+Even with correct `default_species`, standard gene names fail for many
+species mhcgnomes already knows:
 
 ```
                UA   UAA  UBA  DAB  DAA  DRA  DRB  DMA  DMB  DBB  DBA
@@ -119,97 +144,25 @@ Xenopus trop.   -   OK   OK   OK   OK    -    -   OK    -    -    -
 **Sea turtle, snapping turtle, ostrich, and kiwi accept ZERO standard MHC
 gene names** despite being in the species ontology. Croc only accepts 2/11.
 
-Also note: `parse("MHCIIB", default_species="Struthio camelus")` returns
-*Tyto alba* (barn owl) instead of ostrich — wrong species.
+With hierarchical gene definitions (Tier 1 above), all species in the
+ontology would automatically accept the vertebrate-wide gene names.
 
-**Advice**: These are universally recognized MHC gene names. If a species is
-in the ontology, standard gene names (DRA, DRB, DQA, DQB, DPA, DPB, DMA, DMB,
-UA, UAA, UBA, DAA, DAB, DBA, DBB, DCA, DCB) should be accepted for it
-regardless of whether species-specific gene definitions exist. This is the
-fish/reptile/marsupial equivalent of how `HLA-A` works for human — the gene
-names are universal across the MHC.
+## 3. Bug: `default_species` ignored
 
-The `default_species` parameter should take priority over any species inferred
-from the gene name. When a caller passes `default_species`, the parse should
-never return a different species.
-
-### Species-specific gene patterns that need adding
-
-Grouped by what's needed:
-
-### Quail (*Coturnix japonica*, Coja) — 38 genes
-
-```
-Coja-II-17*01  → FAIL   (expected: class II beta allele)
-Coja-DMB1      → FAIL   (expected: class II beta, DM gene)
-Coja-B1        → FAIL   (expected: class I alpha)
-Coja-D2        → FAIL   (expected: class II beta)
+```python
+mhcgnomes.parse("MHCIIB", default_species="Struthio camelus")
+# Returns: Gene(species='Tyto alba', name='DAB')
+# Expected: Gene(species='Struthio camelus', name='MHCIIB')
 ```
 
-The `Coja-II-NN` format is quail-specific MHC class II nomenclature from
-Hosomichi et al. 2006. A pattern rule for `II-\d+` would cover 17 genes.
-DM genes (DMB1, DMB2, DMA1) and single-letter loci (B1, C, D, E) are standard.
+`default_species` should always take priority over any species inferred
+from the gene string.
 
-### Crocodilian class II beta (DB01–DB08) — 26 genes across 4 species
+## 4. Unknown species (328 prefixes, 758 gene entries)
 
-```
-Crpo-DB01  → FAIL   (expected: class II beta)
-Oste-DB06  → FAIL   (expected: class II beta)
-Meca-DB03  → FAIL   (expected: class II beta)
-Crni-DB01  → FAIL   (expected: class II beta)
-```
-
-`DB01`–`DB08` are trans-specific class II beta lineages from Jaratlerdsiri
-et al. 2014 (Immunogenetics 66:175–187). Should be defined as class II beta
-gene patterns for all crocodilian species that mhcgnomes already knows
-(Crpo, Crni, Meca, Oste).
-
-### Fish U-lineage numbered loci — scattered
-
-```
-Orni-UAA1  → FAIL   (expected: class I alpha, locus UAA1)
-Ctid-UAI02 → FAIL   (expected: class I alpha, locus UAI02)
-```
-
-Some fish species have numbered U-lineage loci (UAA1, UBA1, UAI01, etc.)
-that aren't recognized. The base forms (UAA, UBA) parse for some species
-but the numbered variants don't.
-
-### Duck (*Anas platyrhynchos*, Anpl) — 6 genes
-
-```
-Anpl-DRA  → FAIL   (expected: class II alpha)
-Anpl-UEA  → FAIL   (expected: class I alpha)
-Anpl-UBA  → FAIL   (expected: class I alpha)
-```
-
-Standard MHC gene names that parse for other species but not duck.
-
-### Tasmanian devil (*Sarcophilus harrisii*, Saha) — 5 genes
-
-```
-Saha-I-01   → FAIL   (expected: class I alpha)
-Saha-UC-01  → FAIL   (expected: class I alpha)
-```
-
-Numbered format unique to Tasmanian devil MHC nomenclature.
-
-### Sea turtle scaffold gene IDs
-
-```
-Chmy-UY3_17009  → FAIL   (expected: class I alpha)
-```
-
-These are genome assembly scaffold gene identifiers, not standard MHC names.
-Probably not worth adding as gene definitions — better handled by the
-`default_species` approach where we pass the bare gene name.
-
-## 3. Unknown species (328 unique prefixes)
-
-These species are not in the mhcgnomes ontology at all. With the
-`default_species` enhancement, many of these would work immediately for
-standard gene names (UA, DRA, DAB, etc.). But adding them to the ontology
-would also enable 4-letter prefix parsing.
+These species are not in the ontology. With hierarchical gene definitions,
+adding a species would immediately give it access to all vertebrate-wide
+and order/genus-level gene names.
 
 Top 15 by gene count, all literature-attested in UniProt:
 
@@ -231,52 +184,55 @@ Top 15 by gene count, all literature-attested in UniProt:
 | Mega | 9 | *Meleagris gallopavo* (wild turkey) | MeleaGallo |
 | Ocle | 9 | *Oceanodroma leucorhoa* (Leach's petrel) | OceanLeuco |
 
-Notable archosaurs and other phylogenetically important species:
+Notable phylogenetically important species:
 
-| Prefix | Organism | Notes |
+| Organism | Prefix | Notes |
 |---|---|---|
-| Sppu | *Sphenodon punctatus* (tuatara) | Only living rhynchocephalian |
-| Crmo + 5 others | *Crocodylus* spp. | Literature prefixes from Jaratlerdsiri 2014 |
-| Mega | *Meleagris gallopavo* (turkey) | Economically important poultry |
-| Oran | *Ornithorhynchus anatinus* (platypus) | Monotreme |
-| Taac | *Tachyglossus aculeatus* (echidna) | Monotreme |
-| Amcr | *Amblyrhynchus cristatus* (marine iguana) | Galapagos endemic |
-| Haal | *Haliaeetus albicilla* (white-tailed eagle) | Raptor |
+| *Sphenodon punctatus* (tuatara) | Sppu | Only living rhynchocephalian |
+| *Crocodylus moreletii* + 5 spp. | Crmo etc. | Literature prefixes, Jaratlerdsiri 2014 |
+| *Meleagris gallopavo* (turkey) | Mega | Economically important poultry |
+| *Ornithorhynchus anatinus* (platypus) | Oran | Monotreme |
+| *Tachyglossus aculeatus* (echidna) | Taac | Monotreme |
+| *Amblyrhynchus cristatus* (marine iguana) | Amcr | Galapagos endemic |
 
-Full list of 328 prefixes with organisms is in `data/mhcgnomes_3.5.0_evaluation.md`.
+Full list of 328 prefixes with organisms in `data/mhcgnomes_3.5.0_evaluation.md`.
 
-## 4. 5+5 latin prefix gaps
+## 5. Entries that will never parse (not mhcgnomes issues)
 
-Several species mhcgnomes knows by 4-letter prefix don't work with the
-5+5 latin form:
+These bare gene names can't be meaningfully parsed:
+
+| Category | Count | Example | Why |
+|---|---|---|---|
+| Scaffold/genome gene IDs | 49 | `C0J50_7051`, `EXN66_Car000162` | Not MHC names, NCBI locus tags |
+| Bare numbers | 6 | `01`, `94`, `134` | Allele IDs without locus name |
+| Single letters | 4 | `r`, `l`, `I` | Too ambiguous |
+
+These need to be handled by mhcseqs (pass full context via `default_species`
+and accept that the gene name is opaque).
+
+## 6. Minor issues
+
+### 5+5 latin prefix gaps
 
 | 4-letter (works) | 5+5 (fails) | Species |
 |---|---|---|
 | Chse | ChelySerpe | *Chelydra serpentina* |
-| — | CheloMyda (5+4) | *Chelonia mydas* — only exact 5+5 `CheloMydas` works |
 
-3.7.0 fixed GophePolyp and TerraTriun.
+### Taxonomy alias
 
-**Suggestion**: Support prefix matching against the full binomial, not just
-exact 5+5. Any unambiguous prefix of the latin name should resolve.
-
-## 5. Remaining taxonomy alias
-
-| Old prefix | Current binomial | Status in 3.7.0 |
+| Old prefix | Current binomial | Status in 3.8.0 |
 |---|---|---|
-| Maeu | *Notamacropus eugenii* (wallaby) | NOT KNOWN — old genus *Macropus* |
-
-3.7.0 fixed Brre→Danio and Trsi→Pelodiscus. Only Maeu remains.
+| Maeu | *Notamacropus eugenii* (wallaby) | NOT KNOWN |
 
 ## Summary of asks (prioritized)
 
-1. **Accept full latin binomials in `default_species`** — our primary request.
-   Lets mhcseqs pass organism metadata to disambiguate collisions and handle
-   unknown species. Species should still be in ontology, but standard gene
-   names (UA, DRA, DAB, B2M, etc.) should work with an ad-hoc species.
-2. **Add gene definitions** for quail (Coja-II-NN, DM), crocodilian (DB01–DB08),
-   fish numbered U-loci, duck, Tasmanian devil — ~80 genes across known species.
-3. **Add ~328 species** to the ontology (all literature-attested, latin 5+5
-   forms provided above).
-4. **Fix 5+5 latin gaps** — ChelySerpe, partial prefix matching.
-5. **Add Maeu taxonomy alias** for *Notamacropus eugenii*.
+1. **Hierarchical gene definitions** — define standard MHC gene names at
+   vertebrate/order/genus level so species inherit them automatically.
+   This fixes 398 unknown-species entries immediately when species are added,
+   and fixes 330 known-species entries that currently fail on standard genes.
+2. **Fix `default_species` priority** — when caller passes `default_species`,
+   never return a different species.
+3. **Add 328 species** to the ontology (all literature-attested, latin 5+5
+   forms provided).
+4. **Add order/genus gene patterns** — croc DB01–DB08, quail II-NN, thrush PFA-NN.
+5. **Fix 5+5 gaps and taxonomy alias** (ChelySerpe, Maeu).
