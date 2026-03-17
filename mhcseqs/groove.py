@@ -329,7 +329,7 @@ class AlleleRecord(RawAllele):
     def ok(self) -> bool:
         return self.status in {
             "ok",
-            "alpha3_fallback",
+            "inferred_from_alpha3",
             "alpha1_only",
             "alpha2_only",
             "beta1_only_fallback",
@@ -800,12 +800,12 @@ def parse_class_i(
                 chain="alpha",
                 seq_len=len(cleaned),
                 mature_start=mature_start,
-                status="alpha3_fallback_bad_boundaries",
+                status="inferred_from_alpha3_bad_boundaries",
                 anchor_type="alpha3_cys",
                 anchor_cys1=c1,
                 anchor_cys2=c2,
             )
-        flags.append("alpha3_fallback")
+        flags.append("inferred_from_alpha3")
         return AlleleRecord(
             allele=allele,
             gene=gene,
@@ -818,7 +818,7 @@ def parse_class_i(
             groove2=half_2,
             groove1_len=len(half_1),
             groove2_len=len(half_2),
-            status="alpha3_fallback",
+            status="inferred_from_alpha3",
             anchor_type="alpha3_cys",
             anchor_cys1=c1,
             anchor_cys2=c2,
