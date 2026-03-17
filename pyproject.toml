@@ -6,7 +6,7 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = [
-    "mhcgnomes>=3.5.0",
+    "mhcgnomes>=3.7.0",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
