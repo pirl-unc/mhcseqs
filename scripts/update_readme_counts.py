@@ -33,45 +33,32 @@ _GROUP_TO_CATEGORY = {
     "bat": "other_mammal",
 }
 
-# Baseline IMGT/IPD-MHC counts (from last full build)
-_BASELINE = {
-    ("human", "I"): 17462, ("human", "II"): 7878,
-    ("nhp", "I"): 4639, ("nhp", "II"): 2486,
-    ("murine", "I"): 59, ("murine", "II"): 29,
-    ("ungulate", "I"): 638, ("ungulate", "II"): 1128,
-    ("carnivore", "I"): 166, ("carnivore", "II"): 318,
-    ("other_mammal", "I"): 3, ("other_mammal", "II"): 98,
-    ("bird", "I"): 28, ("bird", "II"): 0,
-    ("fish", "I"): 90, ("fish", "II"): 85,
-    ("other_vertebrate", "I"): 0, ("other_vertebrate", "II"): 0,
-}
-
 CATEGORIES = [
     "human", "nhp", "murine", "ungulate", "carnivore",
     "other_mammal", "bird", "fish", "other_vertebrate",
 ]
 
-# Try to read counts from a real build first
 BUILT_CSV = Path.home() / ".cache" / "mhcseqs" / "mhc-full-seqs.csv"
 
 
 def load_built_counts() -> Counter:
-    """Load counts from built CSV if available, else use baseline."""
-    if BUILT_CSV.exists():
-        counts: Counter = Counter()
-        with open(BUILT_CSV, "r", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                cat = row.get("species_category", "")
-                mc = row.get("mhc_class", "")
-                src = row.get("source", "")
-                # Exclude diverse entries (counted separately from the shipped CSV)
-                if src == "uniprot_diverse":
-                    continue
-                if cat and mc in ("I", "II"):
-                    counts[(cat, mc)] += 1
-        if counts:
-            return counts
-    return Counter(_BASELINE)
+    """Load counts from built CSV. Raises if no build exists."""
+    if not BUILT_CSV.exists():
+        raise FileNotFoundError(f"No built CSV at {BUILT_CSV} — run `mhcseqs build` first.")
+    counts: Counter = Counter()
+    with open(BUILT_CSV, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            cat = row.get("species_category", "")
+            mc = row.get("mhc_class", "")
+            src = row.get("source", "")
+            # Exclude diverse entries (counted separately from the shipped CSV)
+            if src == "uniprot_diverse":
+                continue
+            if cat and mc in ("I", "II"):
+                counts[(cat, mc)] += 1
+    if not counts:
+        raise ValueError(f"Built CSV at {BUILT_CSV} has no valid entries.")
+    return counts
 
 
 def load_diverse_counts() -> tuple[Counter, int]:
