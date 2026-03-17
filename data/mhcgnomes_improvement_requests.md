@@ -97,12 +97,41 @@ ontology is incomplete for certain species:
 | DCB | *Oryzias latipes*, *Nipponia nippon* | 2 | class II beta |
 | UE | *Monodelphis domestica* | 2 | class I alpha |
 
+Gene acceptance matrix (tested with `parse(gene, default_species=species)`):
+
+```
+               UA   UAA  UBA  DAB  DAA  DRA  DRB  DMA  DMB  DBB  DBA
+Croc. porosus  OK    -    -    -   OK    -    -    -    -    -    -
+Chelonia mydas  -    -    -    -    -    -    -    -    -    -    -
+Chelydra serp.  -    -    -    -    -    -    -    -    -    -    -
+Struthio cam.   -    -    -    -    -    -    -    -    -    -    -
+Apteryx owen.   -    -    -    -    -    -    -    -    -    -    -
+Danio rerio     -    -   OK   OK   OK    -    -    -    -   OK    -
+Oreochromis n.  -   OK   OK   OK   OK    -    -    -    -   OK   OK
+Salmo salar     -    -   OK   OK   OK    -    -    -    -    -    -
+Monodelphis d. OK    -    -   OK   OK   OK    -    -    -   OK   OK
+Sarcophilus h. OK    -    -   OK    -    -    -    -    -    -    -
+Gallus gallus   -    -    -    -    -    -    -   OK    -    -    -
+Anas platyrh.   -   OK    -    -    -    -    -    -    -    -    -
+Xenopus trop.   -   OK   OK   OK   OK    -    -   OK    -    -    -
+```
+
+**Sea turtle, snapping turtle, ostrich, and kiwi accept ZERO standard MHC
+gene names** despite being in the species ontology. Croc only accepts 2/11.
+
+Also note: `parse("MHCIIB", default_species="Struthio camelus")` returns
+*Tyto alba* (barn owl) instead of ostrich — wrong species.
+
 **Advice**: These are universally recognized MHC gene names. If a species is
 in the ontology, standard gene names (DRA, DRB, DQA, DQB, DPA, DPB, DMA, DMB,
 UA, UAA, UBA, DAA, DAB, DBA, DBB, DCA, DCB) should be accepted for it
 regardless of whether species-specific gene definitions exist. This is the
 fish/reptile/marsupial equivalent of how `HLA-A` works for human — the gene
 names are universal across the MHC.
+
+The `default_species` parameter should take priority over any species inferred
+from the gene name. When a caller passes `default_species`, the parse should
+never return a different species.
 
 ### Species-specific gene patterns that need adding
 
