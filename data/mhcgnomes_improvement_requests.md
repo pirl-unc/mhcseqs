@@ -189,10 +189,39 @@ Also, partial latin forms like `CheloMyda` (5+4) fail even though `CheloMydas` (
 
 **Advice**: Every species in the ontology should be addressable by any unambiguous prefix of its latin binomial, not just exactly 5+5. Prefix matching would make the system more robust.
 
+## 6. Enhancement: accept full latin binomials in `default_species`
+
+`mhcgnomes.parse("UA", default_species="CrocoPoros")` works when the species is in the ontology, which lets callers disambiguate collisions like `Cyca-UA`. But it fails for species not yet added:
+
+```python
+# Works (Crocodylus porosus is in ontology):
+mhcgnomes.parse("UA", default_species="CrocoPoros")
+# → Gene(species='Crocodylus porosus', name='UA')
+
+# Fails (Cyclura carinata is not in ontology):
+mhcgnomes.parse("UA", default_species="Cyclura carinata")
+# → ERROR: Could not parse 'UA'
+```
+
+**Suggestion**: When `default_species` is a full latin binomial (contains a space) or a long prefix (>6 chars), and mhcgnomes doesn't recognize it, create an ad-hoc `Species` object from the binomial rather than failing. This would let callers like mhcseqs always pass the organism from their metadata:
+
+```python
+# Desired behavior:
+mhcgnomes.parse("UA", default_species="Cyclura carinata")
+# → Gene(species=Species(name='Cyclura carinata', mhc_prefix='CycluCarin'), name='UA')
+```
+
+This solves two problems at once:
+1. **Prefix collisions vanish** — the caller provides the authoritative species, the prefix is just a gene name
+2. **Unknown species work immediately** — no need to add every species to the ontology before sequences can be parsed
+
+mhcseqs has the organism name from UniProt metadata for every entry. If mhcgnomes accepted it via `default_species`, we could stop embedding 4-letter prefixes in gene names entirely and just pass `parse("UA", default_species="Cyclura carinata")`.
+
 ## Summary of asks (prioritized)
 
-1. **Fix 3 prefix collisions** (`Cyca`, `MHC-B` default, `ORLA` → orangutan)
-2. **Add ~120 gene definitions** for already-known species (chicken MHC-Y, quail numbered loci, fish D-series, marsupial U-genes, crocodilian DB01-DB08)
-3. **Add ~328 species** (all literature-attested, latin 5+5 forms provided above)
-4. **Add 6 taxonomy aliases** for reclassified genera
-5. **Ensure all 5+5 latin forms work** for existing species + support partial prefix matching
+1. **Accept full latin binomials in `default_species`** — eliminates prefix collisions and lets unknown species work immediately
+2. **Fix 3 prefix collisions** (`Cyca`, `MHC-B` default, `ORLA` → orangutan)
+3. **Add ~120 gene definitions** for already-known species (chicken MHC-Y, quail numbered loci, fish D-series, marsupial U-genes, crocodilian DB01-DB08)
+4. **Add ~328 species** (all literature-attested, latin 5+5 forms provided above)
+5. **Add 6 taxonomy aliases** for reclassified genera
+6. **Ensure all 5+5 latin forms work** for existing species + support partial prefix matching
