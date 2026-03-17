@@ -100,7 +100,7 @@ Pre-built CSVs are also attached to each
 
 ## Current data summary
 
-All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and 16,208
+All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and 15,860
 diverse MHC sequences from UniProt) are merged into a single dataset:
 
 | Category | Class I | Class II | Total |
@@ -110,14 +110,13 @@ diverse MHC sequences from UniProt) are merged into a single dataset:
 | murine | 59 | 29 | 88 |
 | ungulate | 638 | 1,128 | 1,766 |
 | carnivore | 166 | 318 | 484 |
-| cetacean | 3 | 98 | 101 |
-| other_mammal | 483 | 288 | 771 |
-| bird | 6,135 | 3,351 | 9,486 |
-| fish | 1,416 | 3,569 | 4,985 |
-| other_vertebrate | 502 | 666 | 1,168 |
-| **total** | **31,503** | **19,811** | **51,314** |
+| other_mammal | 469 | 386 | 855 |
+| bird | 5,961 | 3,351 | 9,312 |
+| fish | 1,292 | 3,569 | 4,861 |
+| other_vertebrate | 470 | 666 | 1,136 |
+| **total** | **31,156** | **19,811** | **50,967** |
 
-Covering 614+ species prefixes. Groove parse success rate on IMGT/IPD-MHC
+Covering 419+ species prefixes. Groove parse success rate on IMGT/IPD-MHC
 entries: 99.6%.
 
 ## Structural decomposition
