@@ -29,7 +29,7 @@ BENCHMARK_FIELDS = [
     "mhcseqs_version",
     "total_gene_organism_pairs",
     "parsed_as_is",
-    "parsed_with_default_species",
+    "parsed_with_species",
     "wrong_species",
     "failed_known_species",
     "failed_unknown_species",
@@ -88,7 +88,7 @@ def run_benchmark() -> dict:
             except Exception:
                 pass
 
-            # Strategy 2: strip prefix, use default_species
+            # Strategy 2: strip prefix, use species
             if "-" in gene:
                 prefix = gene.split("-")[0]
                 bare = gene.split("-", 1)[1]
@@ -98,7 +98,7 @@ def run_benchmark() -> dict:
                 latin = extract_latin_binomial(organism)
                 if latin:
                     try:
-                        r2 = mhcgnomes.parse(bare, default_species=latin)
+                        r2 = mhcgnomes.parse(bare, species=latin)
                         tp2 = type(r2).__name__
                         if tp2 in ("Gene", "Allele", "AlleleWithoutGene"):
                             sp2 = getattr(getattr(r2, "species", None), "name", "")
@@ -140,7 +140,7 @@ def run_benchmark() -> dict:
         "mhcseqs_version": mhcseqs_version,
         "total_gene_organism_pairs": len(seen),
         "parsed_as_is": parsed_as_is,
-        "parsed_with_default_species": parsed_default_sp,
+        "parsed_with_species": parsed_default_sp,
         "wrong_species": wrong_species,
         "failed_known_species": failed_known_sp,
         "failed_unknown_species": failed_unknown_sp,
@@ -153,7 +153,7 @@ def run_benchmark() -> dict:
     print(f"mhcgnomes {mhcgnomes_version} | mhcseqs {mhcseqs_version}")
     print(f"Total pairs:              {total:,}")
     print(f"Parsed (as-is):           {parsed_as_is:,} ({parsed_as_is / total * 100:.1f}%)")
-    print(f"Parsed (default_species): {parsed_default_sp:,} ({parsed_default_sp / total * 100:.1f}%)")
+    print(f"Parsed (species): {parsed_default_sp:,} ({parsed_default_sp / total * 100:.1f}%)")
     print(f"Total parseable:          {ok:,} ({ok / total * 100:.1f}%)")
     print(f"Wrong species:            {wrong_species:,}")
     print(f"Failed (known species):   {failed_known_sp:,}")
@@ -221,7 +221,7 @@ def plot_benchmark():
     versions = [r["mhcgnomes_version"] for r in rows]
     totals = [int(r["total_gene_organism_pairs"]) for r in rows]
     as_is = [int(r["parsed_as_is"]) for r in rows]
-    with_ds = [int(r["parsed_with_default_species"]) for r in rows]
+    with_ds = [int(r["parsed_with_species"]) for r in rows]
     wrong = [int(r["wrong_species"]) for r in rows]
     failed_known = [int(r["failed_known_species"]) for r in rows]
     failed_unknown = [int(r["failed_unknown_species"]) for r in rows]
@@ -234,7 +234,7 @@ def plot_benchmark():
 
     # Top: stacked bar of parse outcomes
     ax1.bar(x, as_is, label="Parsed (as-is)", color="#2ecc71")
-    ax1.bar(x, with_ds, bottom=as_is, label="Parsed (default_species)", color="#27ae60")
+    ax1.bar(x, with_ds, bottom=as_is, label="Parsed (species)", color="#27ae60")
     ax1.bar(
         x,
         failed_known,

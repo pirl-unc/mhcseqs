@@ -86,7 +86,7 @@ def main():
                 except Exception:
                     pass
 
-                # Try with default_species
+                # Try with species
                 if "-" in gene:
                     bare = gene.split("-", 1)[1]
                     prefix = gene.split("-")[0]
@@ -95,7 +95,7 @@ def main():
                     latin = extract_latin_binomial(organism)
                     if latin:
                         try:
-                            r2 = mhcgnomes.parse(bare, default_species=latin)
+                            r2 = mhcgnomes.parse(bare, species=latin)
                             tp2 = type(r2).__name__
                             if tp2 in ("Gene", "Allele", "AlleleWithoutGene"):
                                 parsed_ok += 1
