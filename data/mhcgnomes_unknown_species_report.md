@@ -58,13 +58,13 @@ passing to mhcgnomes.
 | DDA | 1 | II | D-series class II alpha — add at Gnathostomata |
 | BLB | 1 | II | B-LB (chicken-style class II beta, no number) — add at Galliformes |
 | UIA | 1 | I | U-lineage I-A locus — add at Actinopterygii |
-| B2ML | 3 | I | B2M-like — mhcseqs should map to B2M |
-| B2MG | 3 | I | B2M alternate name — mhcseqs should map to B2M |
-| MHC | 9 | varies | Too generic — mhcseqs should treat as opaque |
-| MHCI | 2 | I | Too generic — mhcseqs should treat as opaque |
-| MHCIA | 1 | I | Too generic — mhcseqs should map to UA |
-| MHCBETA | 1 | II | Too generic — mhcseqs should map to DAB |
-| MHCIIA | 1 | II | Too generic — mhcseqs should map to DAA |
+| B2ML | 5 | I | B2M-like paralog in fish — NOT canonical B2M, keep as B2ML |
+| B2MG | 7 | I | B2M alternate name in fish — may be canonical B2M or paralog |
+| MHC | 537 | I/II | Generic label, mostly axolotl (400+) and birds. Locus unspecified but class/chain known. Keep as-is — means "MHC sequence for this species, no specific locus name" |
+| MHCI | 2 | I | Generic class I, locus unspecified. Keep as-is |
+| MHCIA | 2 | I | Generic class I alpha in catfish/tilapia. Keep — we don't know the actual locus |
+| MHCBETA | 3 | II | Generic class II beta in sturgeon. Keep — locus unspecified |
+| MHCIIA | 1 | II | Generic class II alpha in sleeper goby. Keep — locus unspecified |
 
 ## Top 50 species to add
 
