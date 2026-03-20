@@ -8,18 +8,18 @@ Dataset: 15,861 diverse MHC entries (1,610 unique gene+organism pairs)
 
 mhcseqs curates MHC sequences from UniProt for species underrepresented in
 IMGT/HLA and IPD-MHC. For every entry, we have the organism name from UniProt
-metadata. We plan to pass the organism as `default_species` when calling
+metadata. We plan to pass the organism as `species` when calling
 mhcgnomes, which eliminates prefix collision issues.
 
 ## Parsing summary (mhcgnomes 3.8.0)
 
 Tested 1,610 unique (gene, organism) pairs with both as-is and
-bare-gene + `default_species` strategies.
+bare-gene + `species` strategies.
 
 | Strategy | Count | % |
 |---|---|---|
 | Parsed correctly as-is | 267 | 16.6% |
-| Fixed by `default_species` | 112 | 7.0% |
+| Fixed by `species` | 112 | 7.0% |
 | **Still fails** | **1,231** | **76.5%** |
 
 Of the 1,231 remaining failures:
@@ -121,7 +121,7 @@ Hosomichi et al. 2006. Pattern: `II-\d+`. Quail-specific.
 
 ## 2. Standard genes that fail for known species (330 failures)
 
-Even with correct `default_species`, standard gene names fail for many
+Even with correct `species`, standard gene names fail for many
 species mhcgnomes already knows:
 
 ```
@@ -147,16 +147,17 @@ gene names** despite being in the species ontology. Croc only accepts 2/11.
 With hierarchical gene definitions (Tier 1 above), all species in the
 ontology would automatically accept the vertebrate-wide gene names.
 
-## 3. Bug: `default_species` ignored
+## 3. Verify `species` param is authoritative
+
+With the new `species` parameter (replacing `default_species`), the parser
+should never return a different species than the one passed. Previously:
 
 ```python
 mhcgnomes.parse("MHCIIB", default_species="Struthio camelus")
-# Returns: Gene(species='Tyto alba', name='DAB')
-# Expected: Gene(species='Struthio camelus', name='MHCIIB')
+# Returned: Gene(species='Tyto alba', name='DAB') — WRONG
 ```
 
-`default_species` should always take priority over any species inferred
-from the gene string.
+The new `species` param should make this impossible by design.
 
 ## 4. Unknown species (328 prefixes, 758 gene entries)
 
@@ -207,7 +208,7 @@ These bare gene names can't be meaningfully parsed:
 | Bare numbers | 6 | `01`, `94`, `134` | Allele IDs without locus name |
 | Single letters | 4 | `r`, `l`, `I` | Too ambiguous |
 
-These need to be handled by mhcseqs (pass full context via `default_species`
+These need to be handled by mhcseqs (pass full context via `species`
 and accept that the gene name is opaque).
 
 ## 6. Minor issues
@@ -230,8 +231,8 @@ and accept that the gene name is opaque).
    vertebrate/order/genus level so species inherit them automatically.
    This fixes 398 unknown-species entries immediately when species are added,
    and fixes 330 known-species entries that currently fail on standard genes.
-2. **Fix `default_species` priority** — when caller passes `default_species`,
-   never return a different species.
+2. **Verify new `species` param** — confirm it's authoritative and can't
+   return a different species than passed.
 3. **Add 328 species** to the ontology (all literature-attested, latin 5+5
    forms provided).
 4. **Add order/genus gene patterns** — croc DB01–DB08, quail II-NN, thrush PFA-NN.

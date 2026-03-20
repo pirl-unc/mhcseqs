@@ -7,6 +7,7 @@ Intended to run after `mhcseqs build` or in CI after merge to main.
 Usage:
     python scripts/report_counts.py
 """
+
 from __future__ import annotations
 
 import csv
@@ -60,58 +61,51 @@ def main():
         with open(B2M_CSV, "r", encoding="utf-8") as f:
             b2m_count = sum(1 for _ in csv.DictReader(f))
 
-    # Diverse parse rate
+    # Diverse parse rate (deduplicate by gene+organism, not gene alone)
     diverse_total = 0
-    seen_genes = set()
+    seen_pairs = set()
     parsed_ok = 0
     if DIVERSE_CSV.exists() and mhcgnomes_version != "not installed":
+        import inspect
+
+        parse_params = inspect.signature(mhcgnomes.parse).parameters
+        sp_kwarg = "species" if "species" in parse_params else "default_species"
+
         with open(DIVERSE_CSV, "r", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 diverse_total += 1
                 gene = row.get("gene", "")
                 organism = row.get("organism", "")
-                if not gene or gene in seen_genes:
+                if not gene or (gene, organism) in seen_pairs:
                     continue
-                seen_genes.add(gene)
+                seen_pairs.add((gene, organism))
 
-                # Try as-is
-                try:
-                    r = mhcgnomes.parse(gene)
-                    tp = type(r).__name__
-                    if tp in ("Gene", "Allele", "AlleleWithoutGene"):
-                        sp = getattr(getattr(r, "species", None), "name", "")
-                        if sp and sp.lower() in organism.lower():
-                            parsed_ok += 1
-                            continue
-                except Exception:
-                    pass
-
-                # Try with default_species
-                if "-" in gene:
-                    bare = gene.split("-", 1)[1]
-                    prefix = gene.split("-")[0]
-                    if bare.lower().startswith(prefix.lower()):
-                        bare = bare[len(prefix):].lstrip("-_")
-                    latin = extract_latin_binomial(organism)
-                    if latin:
-                        try:
-                            r2 = mhcgnomes.parse(bare, default_species=latin)
-                            tp2 = type(r2).__name__
-                            if tp2 in ("Gene", "Allele", "AlleleWithoutGene"):
+                bare = gene.split("-", 1)[1] if "-" in gene else gene
+                prefix = gene.split("-")[0] if "-" in gene else ""
+                if bare.lower().startswith(prefix.lower()) and prefix:
+                    bare = bare[len(prefix) :].lstrip("-_")
+                latin = extract_latin_binomial(organism)
+                if latin:
+                    try:
+                        r = mhcgnomes.parse(bare, **{sp_kwarg: latin})
+                        tp = type(r).__name__
+                        if tp in ("Gene", "Allele", "AlleleWithoutGene"):
+                            sp = getattr(getattr(r, "species", None), "name", "")
+                            if sp and sp.lower() in organism.lower():
                                 parsed_ok += 1
-                        except Exception:
-                            pass
+                    except Exception:
+                        pass
 
     # Print report
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print("BUILD COUNTS")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Total alleles:          {total:,}")
     print(f"With signal peptide:    {with_sp:,}")
     print(f"B2M references:         {b2m_count}")
     print(f"Diverse MHC entries:    {diverse_total:,}")
-    if seen_genes:
-        print(f"Diverse parse rate:     {parsed_ok}/{len(seen_genes)} ({parsed_ok / len(seen_genes) * 100:.1f}%)")
+    if seen_pairs:
+        print(f"Diverse parse rate:     {parsed_ok}/{len(seen_pairs)} ({parsed_ok / len(seen_pairs) * 100:.1f}%)")
 
     cats = [k for k, _ in species_cat.most_common() if k]
     print(f"\nSpecies categories ({len(cats)}):")
