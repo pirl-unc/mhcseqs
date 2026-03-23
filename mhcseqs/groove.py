@@ -643,7 +643,7 @@ def apply_mutations(result: AlleleRecord, mutations: Sequence[object]) -> Allele
     then re-sliced into the same domain boundaries.
 
     >>> from mhcseqs.groove import parse_class_i, apply_mutations
-    >>> wt = parse_class_i("G" * 400, allele="test")  # doctest: +SKIP
+    >>> wt = decompose_class_i("G" * 400, allele="test")  # doctest: +SKIP
     """
     if not result.ok:
         raise ValueError(f"Cannot apply mutations to failed result (status={result.status!r})")
@@ -867,7 +867,7 @@ def _class_ii_fragment_result(
 # ---------------------------------------------------------------------------
 
 
-def parse_class_i(
+def decompose_class_i(
     seq: str,
     *,
     allele: str = "",
@@ -1067,7 +1067,7 @@ def parse_class_i(
 # ---------------------------------------------------------------------------
 
 
-def parse_class_ii_alpha(
+def decompose_class_ii_alpha(
     seq: str,
     *,
     allele: str = "",
@@ -1185,7 +1185,7 @@ def parse_class_ii_alpha(
 # ---------------------------------------------------------------------------
 
 
-def parse_class_ii_beta(
+def decompose_class_ii_beta(
     seq: str,
     *,
     allele: str = "",
@@ -1351,7 +1351,7 @@ def parse_class_ii_beta(
 # ---------------------------------------------------------------------------
 
 
-def extract_groove(
+def decompose_domains(
     seq: str,
     *,
     mhc_class: str,
@@ -1370,7 +1370,7 @@ def extract_groove(
     """
     nc = normalize_mhc_class(mhc_class)
     if nc == "I":
-        result = parse_class_i(seq, allele=allele, gene=gene)
+        result = decompose_class_i(seq, allele=allele, gene=gene)
         if mutations and result.ok:
             result = apply_mutations(result, mutations)
         return _refine_status(result)
@@ -1380,22 +1380,22 @@ def extract_groove(
     chain_token = str(chain or "").strip().lower()
     result: Optional[AlleleRecord] = None
     if chain_token in {"a", "alpha", "mhc_a"}:
-        result = parse_class_ii_alpha(seq, allele=allele, gene=gene)
+        result = decompose_class_ii_alpha(seq, allele=allele, gene=gene)
     elif chain_token in {"b", "beta", "mhc_b"}:
-        result = parse_class_ii_beta(seq, allele=allele, gene=gene)
+        result = decompose_class_ii_beta(seq, allele=allele, gene=gene)
     elif chain_token:
         raise ValueError(f"Unsupported class-II chain token: {chain!r}")
     else:
         # Infer chain from gene name
         name_chain = _class_ii_chain_from_name(gene=gene, allele=allele)
         if name_chain == "alpha":
-            result = parse_class_ii_alpha(seq, allele=allele, gene=gene)
+            result = decompose_class_ii_alpha(seq, allele=allele, gene=gene)
         elif name_chain == "beta":
-            result = parse_class_ii_beta(seq, allele=allele, gene=gene)
+            result = decompose_class_ii_beta(seq, allele=allele, gene=gene)
         else:
             # Last resort: try both parsers
-            alpha_r = parse_class_ii_alpha(seq, allele=allele, gene=gene)
-            beta_r = parse_class_ii_beta(seq, allele=allele, gene=gene)
+            alpha_r = decompose_class_ii_alpha(seq, allele=allele, gene=gene)
+            beta_r = decompose_class_ii_beta(seq, allele=allele, gene=gene)
             if alpha_r.ok and not beta_r.ok:
                 result = alpha_r
             elif beta_r.ok and not alpha_r.ok:
@@ -1448,3 +1448,10 @@ def is_class_ii_alpha_gene(gene: str) -> bool:
     """
     token = str(gene or "").strip().upper()
     return token.startswith(CLASS_II_ALPHA_GENE_PREFIXES) or token.endswith("A")
+
+
+# Backward compatibility aliases
+extract_groove = decompose_domains
+parse_class_i = decompose_class_i
+parse_class_ii_alpha = decompose_class_ii_alpha
+parse_class_ii_beta = decompose_class_ii_beta

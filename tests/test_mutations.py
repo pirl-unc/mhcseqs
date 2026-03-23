@@ -2,7 +2,7 @@
 
 import pytest
 
-from mhcseqs.groove import apply_mutations, extract_groove, parse_class_i
+from mhcseqs.groove import apply_mutations, decompose_class_i, decompose_domains
 
 # HLA-A*02:01 mature sequence (UniProt P01892, 341 aa)
 HLA_A0201_MATURE = (
@@ -37,7 +37,7 @@ HLA_DRB10101_FULL = (
 
 def test_apply_mutation_string_class_i():
     """HLA-A*02:01 K66A: lysine at mature pos 66 -> alanine."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     assert wt.ok
     assert wt.groove1[65] == "K"  # mature pos 66, 0-indexed = 65
 
@@ -52,7 +52,7 @@ def test_apply_mutation_string_class_i():
 
 def test_apply_mutation_d77s():
     """HLA-A*02:01 D77S: aspartate at mature pos 77 -> serine."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     assert wt.groove1[76] == "D"
 
     mut = apply_mutations(wt, ["D77S"])
@@ -62,7 +62,7 @@ def test_apply_mutation_d77s():
 
 def test_apply_mutation_y84a():
     """HLA-A*02:01 Y84A: tyrosine at mature pos 84 -> alanine."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     assert wt.groove1[83] == "Y"
 
     mut = apply_mutations(wt, ["Y84A"])
@@ -71,7 +71,7 @@ def test_apply_mutation_y84a():
 
 def test_apply_mutation_in_groove2():
     """HLA-A*02:01 Y116A: tyrosine at mature pos 116 (alpha2 domain) -> alanine."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     # Mature pos 116 is at index 115, which is in groove2 at offset 115 - 90 = 25
     assert wt.groove2[25] == "Y"
 
@@ -82,7 +82,7 @@ def test_apply_mutation_in_groove2():
 
 def test_apply_multiple_mutations():
     """Apply K66A and D77S simultaneously."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
 
     mut = apply_mutations(wt, ["K66A", "D77S"])
     assert mut.groove1[65] == "A"  # K66A
@@ -99,7 +99,7 @@ def test_apply_multiple_mutations():
 
 def test_h2kb_k66a():
     """H-2-Kb K66A."""
-    wt = parse_class_i(H2KB_MATURE, allele="H-2-Kb")
+    wt = decompose_class_i(H2KB_MATURE, allele="H-2-Kb")
     assert wt.ok
     assert wt.groove1[65] == "K"
 
@@ -109,7 +109,7 @@ def test_h2kb_k66a():
 
 def test_h2kb_d77s():
     """H-2-Kb D77S: aspartate at mature pos 77 -> serine (pocket F)."""
-    wt = parse_class_i(H2KB_MATURE, allele="H-2-Kb")
+    wt = decompose_class_i(H2KB_MATURE, allele="H-2-Kb")
     assert wt.ok
     assert wt.groove1[76] == "D"
 
@@ -124,7 +124,7 @@ def test_h2kb_d77s():
 
 def test_apply_mutation_tuple_3():
     """Mutation as (pos, original, mutant) tuple."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     mut = apply_mutations(wt, [(66, "K", "A")])
     assert mut.groove1[65] == "A"
     assert mut.mutations == ("K66A",)
@@ -132,7 +132,7 @@ def test_apply_mutation_tuple_3():
 
 def test_apply_mutation_tuple_2():
     """Mutation as (pos, mutant) tuple — no original AA check."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     mut = apply_mutations(wt, [(66, "A")])
     assert mut.groove1[65] == "A"
     assert mut.mutations == ("K66A",)  # original discovered from sequence
@@ -145,14 +145,14 @@ def test_apply_mutation_tuple_2():
 
 def test_wrong_original_aa_raises():
     """Providing wrong original AA should raise ValueError."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     with pytest.raises(ValueError, match="expected R.*found K"):
         apply_mutations(wt, ["R66A"])  # position 66 is K, not R
 
 
 def test_out_of_range_raises():
     """Mutation position beyond mature sequence should raise ValueError."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     with pytest.raises(ValueError, match="out of range"):
         apply_mutations(wt, ["K999A"])
 
@@ -168,19 +168,19 @@ def test_failed_result_raises():
 
 def test_bad_mutation_string_raises():
     """Unparseable mutation string should raise ValueError."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     with pytest.raises(ValueError, match="Cannot parse"):
         apply_mutations(wt, ["66A"])  # missing original
 
 
 # ---------------------------------------------------------------------------
-# extract_groove with mutations parameter
+# decompose_domains with mutations parameter
 # ---------------------------------------------------------------------------
 
 
-def test_extract_groove_with_mutations():
-    """extract_groove should accept mutations parameter."""
-    result = extract_groove(
+def test_decompose_domains_with_mutations():
+    """decompose_domains should accept mutations parameter."""
+    result = decompose_domains(
         HLA_A0201_MATURE,
         mhc_class="I",
         allele="HLA-A*02:01",
@@ -191,10 +191,10 @@ def test_extract_groove_with_mutations():
     assert result.mutations == ("K66A",)
 
 
-def test_extract_groove_empty_mutations():
+def test_decompose_domains_empty_mutations():
     """Empty mutations list should return wild-type result."""
-    wt = extract_groove(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01")
-    mut = extract_groove(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01", mutations=[])
+    wt = decompose_domains(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01")
+    mut = decompose_domains(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01", mutations=[])
     assert wt.groove_seq == mut.groove_seq
     assert mut.mutations == ()
 
@@ -206,7 +206,7 @@ def test_extract_groove_empty_mutations():
 
 def test_class_ii_beta_mutation():
     """Apply mutation to class II beta chain groove."""
-    wt = extract_groove(
+    wt = decompose_domains(
         HLA_DRB10101_FULL,
         mhc_class="II",
         chain="beta",
@@ -216,7 +216,7 @@ def test_class_ii_beta_mutation():
     assert wt.ok
     # Pick a known residue in the beta1 groove
     pos1_aa = wt.groove2[0]  # mature position 1 of beta chain
-    mut = extract_groove(
+    mut = decompose_domains(
         HLA_DRB10101_FULL,
         mhc_class="II",
         chain="beta",
@@ -236,7 +236,7 @@ def test_class_ii_beta_mutation():
 
 def test_mutation_preserves_domain_lengths():
     """Mutation should not change domain lengths."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     mut = apply_mutations(wt, ["K66A", "D77S", "Y84A"])
 
     assert mut.groove1_len == wt.groove1_len
@@ -249,7 +249,7 @@ def test_mutation_preserves_domain_lengths():
 
 def test_mutation_roundtrip_reconstruction():
     """Mutated domain parts should reconstruct the mutated mature sequence."""
-    wt = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     mut = apply_mutations(wt, ["K66A"])
 
     # Reconstruct mature from parts
@@ -288,7 +288,7 @@ IEDB_SPOT_CHECKS = [
 )
 def test_iedb_mutant(allele, seq, mutation_str, check_idx, expected_aa):
     """Verify IEDB mutant alleles produce the expected mutated groove."""
-    result = extract_groove(seq, mhc_class="I", allele=allele, mutations=[mutation_str])
+    result = decompose_domains(seq, mhc_class="I", allele=allele, mutations=[mutation_str])
     assert result.ok
     # Figure out which domain the check_idx falls in
     if check_idx < result.groove1_len:

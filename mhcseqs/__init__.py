@@ -38,11 +38,11 @@ from .groove import (
     AlleleRecord,
     RawAllele,
     apply_mutations,
-    extract_groove,
+    decompose_class_i,
+    decompose_class_ii_alpha,
+    decompose_class_ii_beta,
+    decompose_domains,
     find_cys_pairs,
-    parse_class_i,
-    parse_class_ii_alpha,
-    parse_class_ii_beta,
 )
 from .imgt import (
     CONSERVED_CYS_POSITIONS,
@@ -237,10 +237,10 @@ def lookup(
     """Look up a single allele and return a fully parsed AlleleRecord.
 
     Finds the allele in the built full-sequences CSV, then runs
-    ``extract_groove()`` on it to produce a complete record with all
+    ``decompose_domains()`` on it to produce a complete record with all
     fields populated (including anchor Cys positions).
 
-    Optionally applies mutations (same format as ``extract_groove()``).
+    Optionally applies mutations (same format as ``decompose_domains()``).
 
     >>> r = mhcseqs.lookup("HLA-A*02:01")           # doctest: +SKIP
     >>> r.groove1[:10]                               # doctest: +SKIP
@@ -289,7 +289,7 @@ def lookup(
     allele_name = hit.get("two_field_allele", "")
     full_allele_name = hit.get("representative_allele", "")
 
-    result = extract_groove(
+    result = decompose_domains(
         seq,
         mhc_class=mhc_class,
         chain=chain,
@@ -324,10 +324,10 @@ __all__ = [
     "build_raw_index",
     "build_full_seqs",
     "apply_mutations",
-    "extract_groove",
-    "parse_class_i",
-    "parse_class_ii_alpha",
-    "parse_class_ii_beta",
+    "decompose_domains",
+    "decompose_class_i",
+    "decompose_class_ii_alpha",
+    "decompose_class_ii_beta",
     "find_cys_pairs",
     "RawAllele",
     "AlleleRecord",

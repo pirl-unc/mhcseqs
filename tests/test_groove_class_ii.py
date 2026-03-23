@@ -2,10 +2,10 @@ from mhcseqs.groove import (
     _class_ii_alpha_cys1_mature_pos,
     _class_ii_beta2_cys1_mature_pos,
     _gene_prefix,
-    extract_groove,
+    decompose_class_ii_alpha,
+    decompose_class_ii_beta,
+    decompose_domains,
     is_class_ii_alpha_gene,
-    parse_class_ii_alpha,
-    parse_class_ii_beta,
 )
 
 # HLA-DRA*01:01 mature sequence (from UniProt P01903, no signal peptide)
@@ -26,8 +26,8 @@ HLA_DRB10101_FULL = (
 )
 
 
-def test_parse_class_ii_alpha_dra0101():
-    result = parse_class_ii_alpha(HLA_DRA0101_MATURE, allele="HLA-DRA*01:01")
+def test_decompose_class_ii_alpha_dra0101():
+    result = decompose_class_ii_alpha(HLA_DRA0101_MATURE, allele="HLA-DRA*01:01")
     assert result.ok
     assert result.status == "ok"
     assert result.mhc_class == "II"
@@ -42,8 +42,8 @@ def test_parse_class_ii_alpha_dra0101():
     assert 70 <= result.groove1_len <= 95
 
 
-def test_parse_class_ii_beta_drb10101():
-    result = parse_class_ii_beta(HLA_DRB10101_FULL, allele="HLA-DRB1*01:01")
+def test_decompose_class_ii_beta_drb10101():
+    result = decompose_class_ii_beta(HLA_DRB10101_FULL, allele="HLA-DRB1*01:01")
     assert result.ok
     assert result.status == "ok"
     assert result.mhc_class == "II"
@@ -58,37 +58,37 @@ def test_parse_class_ii_beta_drb10101():
     assert 80 <= result.groove2_len <= 105
 
 
-def test_parse_class_ii_alpha_too_short():
-    result = parse_class_ii_alpha("ACDEFGH" * 5, allele="short")
+def test_decompose_class_ii_alpha_too_short():
+    result = decompose_class_ii_alpha("ACDEFGH" * 5, allele="short")
     assert not result.ok
     assert result.status == "too_short"
 
 
-def test_parse_class_ii_beta_too_short():
-    result = parse_class_ii_beta("ACDEFGH" * 5, allele="short")
+def test_decompose_class_ii_beta_too_short():
+    result = decompose_class_ii_beta("ACDEFGH" * 5, allele="short")
     assert not result.ok
     assert result.status == "too_short"
 
 
-def test_parse_class_ii_alpha_fragment():
+def test_decompose_class_ii_alpha_fragment():
     # A short sequence should trigger fragment fallback
     fragment = HLA_DRA0101_MATURE[:85]
-    result = parse_class_ii_alpha(fragment, allele="fragment")
+    result = decompose_class_ii_alpha(fragment, allele="fragment")
     assert result.ok
     assert result.status == "fragment_fallback"
     assert result.groove1 == fragment.upper()
 
 
-def test_parse_class_ii_beta_fragment():
+def test_decompose_class_ii_beta_fragment():
     fragment = HLA_DRB10101_FULL[29:124]  # ~95 aa from within the mature region
-    result = parse_class_ii_beta(fragment, allele="fragment")
+    result = decompose_class_ii_beta(fragment, allele="fragment")
     assert result.ok
     assert result.status == "fragment_fallback"
     assert result.groove2 == fragment.upper()
 
 
-def test_extract_groove_class_ii_alpha():
-    result = extract_groove(
+def test_decompose_domains_class_ii_alpha():
+    result = decompose_domains(
         HLA_DRA0101_MATURE,
         mhc_class="II",
         chain="alpha",
@@ -100,8 +100,8 @@ def test_extract_groove_class_ii_alpha():
     assert result.chain == "alpha"
 
 
-def test_extract_groove_class_ii_beta():
-    result = extract_groove(
+def test_decompose_domains_class_ii_beta():
+    result = decompose_domains(
         HLA_DRB10101_FULL,
         mhc_class="II",
         chain="beta",
@@ -113,9 +113,9 @@ def test_extract_groove_class_ii_beta():
     assert result.chain == "beta"
 
 
-def test_extract_groove_class_ii_infer_chain_alpha():
+def test_decompose_domains_class_ii_infer_chain_alpha():
     # Without explicit chain, gene name "DRA" should infer alpha
-    result = extract_groove(
+    result = decompose_domains(
         HLA_DRA0101_MATURE,
         mhc_class="II",
         gene="DRA",
@@ -125,9 +125,9 @@ def test_extract_groove_class_ii_infer_chain_alpha():
     assert result.chain == "alpha"
 
 
-def test_extract_groove_class_ii_infer_chain_beta():
+def test_decompose_domains_class_ii_infer_chain_beta():
     # Without explicit chain, gene name "DRB1" should infer beta
-    result = extract_groove(
+    result = decompose_domains(
         HLA_DRB10101_FULL,
         mhc_class="II",
         gene="DRB1",
@@ -204,7 +204,7 @@ def test_dqa1_mature_start_with_sp():
         "NIATQKHNLNIVIKRSNSTAATNEVPEVTVFSKSPVTLGQPNILICFIDKFTPPVVNVTWLRNGKPVTTGVSETVFLPREDHLFRK"
         "FHYLPFLPSTDDYDCRVEHWGLDQPLLKHWEAQEPIQMPETPENVVACLQNLMKLAQINRLNKEDPA"
     )
-    result = parse_class_ii_alpha(hla_dqa1_full, allele="HLA-DQA1*01:01", gene="DQA1")
+    result = decompose_class_ii_alpha(hla_dqa1_full, allele="HLA-DQA1*01:01", gene="DQA1")
     assert result.ok
     assert result.mature_start == 23
     assert result.groove1_len >= 80  # should be ~86, not ~83
@@ -213,14 +213,14 @@ def test_dqa1_mature_start_with_sp():
 def test_class_ii_decomposition_complete():
     """Verify that groove + ig_domain + tail covers the inferred mature sequence for class II."""
     # Alpha chain
-    alpha = parse_class_ii_alpha(HLA_DRA0101_MATURE, allele="HLA-DRA*01:01")
+    alpha = decompose_class_ii_alpha(HLA_DRA0101_MATURE, allele="HLA-DRA*01:01")
     assert alpha.ok
     reconstructed_alpha = alpha.groove1 + alpha.ig_domain + alpha.tail
     mature_alpha = HLA_DRA0101_MATURE[alpha.mature_start :].upper()
     assert reconstructed_alpha == mature_alpha
 
     # Beta chain (full sequence with SP)
-    beta = parse_class_ii_beta(HLA_DRB10101_FULL, allele="HLA-DRB1*01:01")
+    beta = decompose_class_ii_beta(HLA_DRB10101_FULL, allele="HLA-DRB1*01:01")
     assert beta.ok
     reconstructed_beta = beta.groove2 + beta.ig_domain + beta.tail
     inferred_mature = HLA_DRB10101_FULL[beta.mature_start :].upper()

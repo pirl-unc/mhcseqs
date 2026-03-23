@@ -3,11 +3,11 @@ from mhcseqs.groove import (
     MIN_FUNCTIONAL_GROOVE_HALF_LEN,
     NON_GROOVE_GENES,
     AlleleRecord,
-    extract_groove,
+    decompose_class_i,
+    decompose_class_ii_alpha,
+    decompose_class_ii_beta,
+    decompose_domains,
     find_cys_pairs,
-    parse_class_i,
-    parse_class_ii_alpha,
-    parse_class_ii_beta,
 )
 
 # HLA-A*02:01 mature sequence (from UniProt P01892, no signal peptide)
@@ -30,8 +30,8 @@ def test_find_cys_pairs_no_pairs():
     assert find_cys_pairs("AAAAAAA") == []
 
 
-def test_parse_class_i_a0201():
-    result = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+def test_decompose_class_i_a0201():
+    result = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     assert result.ok
     assert result.status == "ok"
     assert result.mhc_class == "I"
@@ -44,30 +44,30 @@ def test_parse_class_i_a0201():
     assert result.tail_len > 0
 
 
-def test_parse_class_i_too_short():
-    result = parse_class_i("ACDEFGH" * 5, allele="short")
+def test_decompose_class_i_too_short():
+    result = decompose_class_i("ACDEFGH" * 5, allele="short")
     assert not result.ok
     assert result.status == "too_short"
 
 
-def test_parse_class_i_no_cys_short():
+def test_decompose_class_i_no_cys_short():
     """Short class I with no Cys pairs gets alpha1_only (no Cys = α1 fragment)."""
-    result = parse_class_i("A" * 200, allele="no_cys")
+    result = decompose_class_i("A" * 200, allele="no_cys")
     assert result.ok
     assert result.status == "alpha1_only"
     assert result.groove1_len == 200
     assert result.groove2_len == 0
 
 
-def test_parse_class_i_no_cys_long():
+def test_decompose_class_i_no_cys_long():
     """Long class I with no Cys pairs still gets no_cys_pairs failure."""
-    result = parse_class_i("A" * 300, allele="no_cys")
+    result = decompose_class_i("A" * 300, allele="no_cys")
     assert not result.ok
     assert result.status == "no_cys_pairs"
 
 
-def test_extract_groove_class_i():
-    result = extract_groove(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01")
+def test_decompose_domains_class_i():
+    result = decompose_domains(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01")
     assert result.ok
     assert result.mhc_class == "I"
 
@@ -96,7 +96,7 @@ def test_groove_result_fields():
 def test_class_i_alpha1_only_fragment():
     """A class I fragment with no Cys pair → alpha1_only (exon 2 / α1)."""
     fragment = HLA_A0201_MATURE[:90].replace("C", "A")  # α1 domain, no Cys
-    result = parse_class_i(fragment, allele="HLA-A*02:01-a1frag")
+    result = decompose_class_i(fragment, allele="HLA-A*02:01-a1frag")
     assert result.status == "alpha1_only"
     assert result.ok
     assert result.groove1 == fragment.upper()
@@ -107,7 +107,7 @@ def test_class_i_alpha2_only_fragment():
     """A class I fragment with the α2 Cys pair → alpha2_only (exon 3 / α2)."""
     # α2 domain from HLA-A*02:01 (positions 90-183), contains the Cys pair
     fragment = HLA_A0201_MATURE[90:183]
-    result = parse_class_i(fragment, allele="HLA-A*02:01-a2frag")
+    result = decompose_class_i(fragment, allele="HLA-A*02:01-a2frag")
     assert result.status == "alpha2_only"
     assert result.ok
     assert result.groove1 == ""
@@ -117,7 +117,7 @@ def test_class_i_alpha2_only_fragment():
 def test_class_i_moderate_truncation_still_parses():
     """A class I sequence missing only the signal peptide (SP-stripped)
     should still parse correctly with status=ok."""
-    result = parse_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    result = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
     assert result.ok
     assert result.status == "ok"
     assert result.groove1_len >= 80
@@ -133,7 +133,7 @@ def test_class_i_suspect_anchor():
     or a failure status, not a silently wrong parse."""
     # Replace the alpha2 Cys pair with alanines
     seq = HLA_A0201_MATURE.replace("C", "A", 2)  # kill first two Cys
-    result = parse_class_i(seq, allele="mutant")
+    result = decompose_class_i(seq, allele="mutant")
     # Should not silently succeed with a wrong mature_start
     if result.status == "ok":
         # If it does parse, mature_start must be plausible
@@ -145,7 +145,7 @@ def test_class_ii_alpha_suspect_anchor():
     # Class II alpha CYS1_RAW range is [40, 160], mature_pos = 106.
     # Place Cys1 at position 158 → mature_start = 158 - 106 = 52 > MAX_PLAUSIBLE_SP
     seq = "A" * 158 + "C" + "A" * 55 + "C" + "A" * 50
-    result = parse_class_ii_alpha(seq, allele="synth-alpha")
+    result = decompose_class_ii_alpha(seq, allele="synth-alpha")
     assert result.status == "suspect_anchor"
     assert not result.ok
 
@@ -155,7 +155,7 @@ def test_class_ii_beta_suspect_anchor():
     # Class II beta2 CYS1_RAW range is [100, 180], mature_pos = 116.
     # Place Cys1 at position 178 → mature_start = 178 - 116 = 62 > MAX_PLAUSIBLE_SP
     seq = "A" * 178 + "C" + "A" * 55 + "C" + "A" * 50
-    result = parse_class_ii_beta(seq, allele="synth-beta")
+    result = decompose_class_ii_beta(seq, allele="synth-beta")
     assert result.status == "suspect_anchor"
     assert not result.ok
 
@@ -166,8 +166,8 @@ def test_class_ii_beta_suspect_anchor():
 
 
 def test_non_classical_class_i_via_extract():
-    """Fish L-lineage genes should get status=non_classical via extract_groove."""
-    result = extract_groove(
+    """Fish L-lineage genes should get status=non_classical via decompose_domains."""
+    result = decompose_domains(
         HLA_A0201_MATURE,  # reuse a real sequence for structural validity
         mhc_class="I",
         allele="Dare-mhc1laa",
@@ -180,7 +180,7 @@ def test_non_classical_class_i_via_extract():
 
 def test_non_classical_mfsd_detected():
     """MFSD gene names should be flagged as non-classical (contaminants)."""
-    result = extract_groove(
+    result = decompose_domains(
         HLA_A0201_MATURE,
         mhc_class="I",
         allele="Dare-mfsd6a",
@@ -195,7 +195,7 @@ def test_short_groove_class_i():
     # Truncate the mature sequence to produce a short groove1
     # Remove first 30 residues — groove1 will be ~60 aa
     truncated = HLA_A0201_MATURE[30:]
-    result = extract_groove(truncated, mhc_class="I", allele="short-test", gene="A")
+    result = decompose_domains(truncated, mhc_class="I", allele="short-test", gene="A")
     if result.ok or result.status == "short":
         # If it parsed at all, check the short detection
         if result.groove1_len > 0 and result.groove1_len < MIN_FUNCTIONAL_GROOVE_HALF_LEN:
@@ -205,6 +205,6 @@ def test_short_groove_class_i():
 
 def test_normal_groove_not_flagged():
     """A normal class I parse should NOT be flagged as short or non_classical."""
-    result = extract_groove(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01", gene="A")
+    result = decompose_domains(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01", gene="A")
     assert result.status == "ok"
     assert result.ok

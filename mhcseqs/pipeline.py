@@ -24,10 +24,11 @@ from .groove import (
     NON_GROOVE_GENES,
     NON_MHC_ACCESSIONS,
     AlleleRecord,
+    decompose_class_i,
+    decompose_class_ii_alpha,
+    decompose_class_ii_beta,
     is_class_ii_alpha_gene,
-    parse_class_i,
-    parse_class_ii_alpha,
-    parse_class_ii_beta,
+    refine_signal_peptide,
 )
 from .species import get_latin_name, normalize_mhc_species
 
@@ -290,8 +291,9 @@ def _load_mouse_h2_references() -> List[dict]:
             is_fragment = row.get("is_fragment", "False") == "True"
 
             # Groove parse to infer signal peptide / mature start
-            groove = _try_groove_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
+            groove = _try_domain_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
+            mature_start = refine_signal_peptide(seq, mature_start, "murine")
             has_sp = mature_start >= 15 and seq[:1].upper() == "M"
             sp_seq = seq[:mature_start] if has_sp else ""
 
@@ -394,9 +396,10 @@ def _load_diverse_mhc_references() -> List[dict]:
                     chain = "beta"
 
             # Groove parse for signal peptide detection
-            groove = _try_groove_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
+            groove = _try_domain_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
             has_sp = mature_start >= 15 and seq[:1].upper() == "M"
+            mature_start = refine_signal_peptide(seq, mature_start, species_category)
             sp_seq = seq[:mature_start] if has_sp else ""
 
             rows.append(
@@ -481,10 +484,11 @@ def build_raw_index(
             # groove parser (useful for alignment even when no true SP is
             # present).  has_signal_peptide is only True when the sequence
             # actually begins with Met and the offset is plausible.
-            groove = _try_groove_parse(seq, mhc_class=mhc_class, gene=gene or "", allele=normalized)
+            groove = _try_domain_parse(seq, mhc_class=mhc_class, gene=gene or "", allele=normalized)
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
             has_sp = mature_start >= 15 and seq[:1].upper() == "M"
             sp_seq = seq[:mature_start] if has_sp else ""
+            mature_start = refine_signal_peptide(seq, mature_start, species_category)
 
             suffix = allele_suffix_flags(normalized)
 
@@ -568,7 +572,7 @@ def build_raw_index(
     return dict(stats)
 
 
-def _try_groove_parse(
+def _try_domain_parse(
     seq: str,
     *,
     mhc_class: str,
@@ -582,11 +586,11 @@ def _try_groove_parse(
             return None
         nc = normalize_mhc_class(mhc_class)
         if nc == "I":
-            return parse_class_i(seq, allele=allele, gene=gene)
+            return decompose_class_i(seq, allele=allele, gene=gene)
         if nc == "II":
             if is_class_ii_alpha_gene(gene):
-                return parse_class_ii_alpha(seq, allele=allele, gene=gene)
-            return parse_class_ii_beta(seq, allele=allele, gene=gene)
+                return decompose_class_ii_alpha(seq, allele=allele, gene=gene)
+            return decompose_class_ii_beta(seq, allele=allele, gene=gene)
     except Exception:
         pass
     return None
@@ -695,7 +699,7 @@ def _try_assemble_overlap(
         consensus = merged
 
     # Verify the assembled sequence produces a valid groove
-    groove = _try_groove_parse(
+    groove = _try_domain_parse(
         consensus,
         mhc_class=anchor.get("mhc_class", ""),
         gene=anchor.get("gene", ""),
@@ -709,7 +713,7 @@ def _try_assemble_overlap(
 
 def _groove_signature(row: dict) -> Optional[Tuple[str, str]]:
     """Compute groove signature for a raw record (parses on the fly)."""
-    groove = _try_groove_parse(
+    groove = _try_domain_parse(
         row["sequence"],
         mhc_class=row.get("mhc_class", ""),
         gene=row.get("gene", ""),
@@ -888,6 +892,7 @@ def _emit_full_row(
 ) -> dict:
     """Build a row for mhc-full-seqs.csv (includes groove decomposition)."""
     mature_start = groove.mature_start if groove and groove.ok else 0
+    mature_start = refine_signal_peptide(seq, mature_start, representative.get("species_category", ""))
     mature_seq = seq[mature_start:] if mature_start > 0 else seq
 
     gene = representative.get("gene", "")
@@ -1098,7 +1103,7 @@ def build_full_seqs(
         if rep is not None:
             # Use the assembled sequence if available, otherwise the rep's own
             seq = assembled_seq if assembled_seq else rep["sequence"]
-            groove = _try_groove_parse(
+            groove = _try_domain_parse(
                 seq,
                 mhc_class=rep.get("mhc_class", ""),
                 gene=rep.get("gene", ""),
@@ -1112,7 +1117,7 @@ def build_full_seqs(
             sorted_members = sorted(members, key=lambda r: -len(r["sequence"]))
             fallback = sorted_members[0]
             seq = fallback["sequence"]
-            groove = _try_groove_parse(
+            groove = _try_domain_parse(
                 seq,
                 mhc_class=fallback.get("mhc_class", ""),
                 gene=fallback.get("gene", ""),
