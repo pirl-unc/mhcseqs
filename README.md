@@ -12,7 +12,7 @@ pip install mhcseqs
 For development:
 
 ```bash
-git clone https://github.com/openvax/mhcseqs.git
+git clone https://github.com/pirl-unc/mhcseqs.git
 cd mhcseqs
 ./develop.sh          # uv pip install -e ".[dev]"
 ./test.sh             # pytest
@@ -72,6 +72,38 @@ df = mhcseqs.load_sequences_dataframe()
 rows = mhcseqs.load_sequences_dict()
 ```
 
+## Current data summary
+
+Three sources are merged into a single dataset:
+
+| Source | Entries | Species | Notes |
+|---|---:|---|---|
+| IMGT/HLA | 44,630 | Human | Downloaded at build time |
+| IPD-MHC | 12,380 | Non-human mammals, birds, fish | Downloaded at build time |
+| UniProt | 20,566 | 500+ species | Curated diverse MHC, B2M, H-2 references (shipped in package) |
+| **Total raw** | **77,576** | | |
+| **After merge/dedup** | **55,658** | | One representative per two-field allele |
+| **Groove OK** | **54,121** | | 97.2% of representatives |
+
+### By species category
+
+| Category | Count |
+|---|---:|
+| human | 25,364 |
+| bird | 9,312 |
+| nhp | 7,125 |
+| fish | 4,859 |
+| ungulate | 1,768 |
+| murine | 1,587 |
+| other_vertebrate | 1,137 |
+| other_mammal | 943 |
+| carnivore | 484 |
+
+Species categories: human, nhp (non-human primates), murine (mice, rats, rodents),
+ungulate (cattle, pig, horse, sheep, goat), carnivore (dog, cat),
+other_mammal (marsupials, monotremes, bats, cetaceans, rabbit),
+bird, fish, other_vertebrate (reptiles, amphibians).
+
 ## Data directory
 
 By default, `mhcseqs build` downloads FASTA files and writes output CSVs to
@@ -88,37 +120,6 @@ By default, `mhcseqs build` downloads FASTA files and writes output CSVs to
 └── mhc-validation-report.txt  # Sanity checks
 ```
 
-Pre-built CSVs are also attached to each
-[GitHub release](https://github.com/openvax/mhcseqs/releases).
-
-## Output files
-
-| File | Description |
-|---|---|
-| `mhc-seqs-raw.csv` | Every protein entry from all sources |
-| `mhc-full-seqs.csv` | One representative per two-field allele: full sequence, groove decomposition, and metadata |
-
-## Current data summary
-
-All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and 15,860
-diverse MHC sequences from UniProt) are merged into a single dataset:
-
-| Category | Class I | Class II | Total |
-|---|---:|---:|---:|
-| human | 17,462 | 7,878 | 25,340 |
-| nhp | 4,639 | 2,486 | 7,125 |
-| murine | 59 | 29 | 88 |
-| ungulate | 638 | 1,128 | 1,766 |
-| carnivore | 166 | 318 | 484 |
-| other_mammal | 469 | 386 | 855 |
-| bird | 5,961 | 3,351 | 9,312 |
-| fish | 1,292 | 3,569 | 4,861 |
-| other_vertebrate | 470 | 666 | 1,136 |
-| **total** | **31,156** | **19,811** | **50,967** |
-
-Covering 466+ species prefixes. Groove parse success rate on IMGT/IPD-MHC
-entries: 99.6%.
-
 ## Structural decomposition
 
 Each protein chain is decomposed into four contiguous regions:
@@ -132,108 +133,67 @@ Each protein chain is decomposed into four contiguous regions:
 
 For a class I chain: `mature_protein = groove1 + groove2 + ig_domain + tail`
 
-## Key columns
-
-Both CSVs share: `gene`, `mhc_class`, `chain`, `species`,
-`species_category`, `species_prefix`, `source`, `source_id`.
-
-`source` is one of: `imgt`, `ipd_mhc`, `uniprot_curated`, `uniprot_reference`,
-`uniprot_diverse`.
-
-`source_id` is the database accession for provenance tracking (e.g.,
-`HLA00001` for IMGT, `NHP00001` for IPD-MHC, `P01901` for UniProt).
-
-`species_category` is one of: `human`, `nhp`, `murine`, `ungulate`,
-`carnivore`, `cetacean`, `other_mammal`, `bird`, `fish`, `other_vertebrate`.
-
-## Data sources
-
-| Source | `source` value | Species | Data |
-|---|---|---|---|
-| IMGT/HLA | `imgt` | Human | Downloaded at build time |
-| IPD-MHC | `ipd_mhc` | Non-human | Downloaded at build time |
-| UniProt | `uniprot_reference` | Multi-species | B2M references (shipped in package) |
-| UniProt | `uniprot_curated` | Mouse | 30 H-2 alleles (shipped in package) |
-| UniProt | `uniprot_diverse` | 614 species | 16,208 diverse MHC sequences (shipped in package) |
-
-IMGT/HLA and IPD-MHC FASTA files are downloaded on first `build` and cached.
-The UniProt curated CSVs (`b2m_sequences.csv`, `mouse_h2_sequences.csv`,
-`diverse_mhc_sequences.csv`) ship inside the `mhcseqs` package — no download needed.
-
-To refresh the diverse MHC dataset from UniProt:
-
-```bash
-python scripts/fetch_diverse_mhc.py    # Download raw data → data/diverse_mhc_raw.csv
-python scripts/curate_diverse_mhc.py   # Curate → mhcseqs/diverse_mhc_sequences.csv
-```
-
-## Species prefixes
-
-| Species | Latin name | MHC prefix |
-|---|---|---|
-| human | *Homo sapiens* | HLA |
-| macaque | *Macaca mulatta* | Mamu |
-| chimpanzee | *Pan troglodytes* | Patr |
-| gorilla | *Gorilla gorilla* | Gogo |
-| mouse | *Mus musculus* | H2 |
-| rat | *Rattus norvegicus* | RT1 |
-| cattle | *Bos taurus* | BoLA |
-| pig | *Sus scrofa* | SLA |
-| horse | *Equus caballus* | ELA |
-| sheep | *Ovis aries* | OLA |
-| dog | *Canis lupus familiaris* | DLA |
-| cat | *Felis catus* | FLA |
-| chicken | *Gallus gallus* | Gaga |
-| salmon | *Salmo salar* | Sasa |
-| zebrafish | *Danio rerio* | Dare |
-
 ## Groove extraction algorithm
 
 The groove parser is **alignment-free** — it uses conserved Cys-Cys disulfide
 pairs in Ig-fold domains as structural landmarks to slice domain boundaries
 without multiple sequence alignment.
 
+### Signal peptide inference
+
+Signal peptide length is inferred from the Cys pair position, not from
+sequence motifs. The conserved Ig-fold Cys has a known position in the
+mature protein (e.g., position 100 for class I α2). The offset between the
+raw sequence position and the expected mature position gives the signal
+peptide length:
+
+```
+mature_start = raw_cys_position - expected_mature_cys_position
+```
+
+Gene-specific constants account for groove domain length variation:
+DQA (109), DMA (120), DPB (114). All others use the defaults (class I: 100,
+class II alpha: 106, class II beta: 116).
+
+### Groove status values
+
+| Status | Meaning |
+|---|---|
+| `ok` | Full decomposition: groove1 + groove2 + ig_domain + tail |
+| `alpha1_only` | Single-exon class I fragment — α1 domain (no Cys pair) |
+| `alpha2_only` | Single-exon class I fragment — α2 domain (has Cys pair) |
+| `beta1_only_fallback` | Class II beta with β1 pair only (no β2 Ig pair) |
+| `fragment_fallback` | Short fragment used as raw groove sequence |
+| `inferred_from_alpha3` | Groove boundaries estimated from α3 Cys pair |
+| `not_applicable` | Non-groove gene (B2M, MICA, MICB, HFE, MR1) |
+| `non_classical` | Non-classical MHC lineage (fish L/S/P/H) |
+| `short` | Groove half < 70 aa — unlikely to be functional |
+| `suspect_anchor` | Cys mutation produced implausible mature_start |
+
 See [groove.py](mhcseqs/groove.py) module docstring for detailed algorithm
 documentation with ASCII structural diagrams.
+
+## Key columns
+
+| Column | Description |
+|---|---|
+| `two_field_allele` | Allele name at two-field resolution |
+| `gene` | MHC gene (e.g., A, DRB1, BF, UA) |
+| `mhc_class` | I or II |
+| `chain` | alpha, beta, or B2M |
+| `species` | Latin binomial from source |
+| `species_category` | One of 9 categories above |
+| `source` | `imgt`, `ipd_mhc`, or `uniprot` |
+| `source_id` | Database accession for provenance |
+| `groove_status` | See table above |
+| `is_functional` | True if groove parsed and not null/pseudogene |
 
 ## Dependencies
 
 - **Python 3.10+**
-- **[mhcgnomes](https://github.com/openvax/mhcgnomes) >= 3.1.0** — allele name parsing
+- **[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.14.0** — allele name parsing with species-directed disambiguation
 
 No alignment tools, BLAST, or structure databases are required.
-
-## Repository structure
-
-```
-mhcseqs/
-├── mhcseqs/
-│   ├── __init__.py        # Public API
-│   ├── __main__.py        # CLI entry point
-│   ├── version.py         # Package version
-│   ├── download.py        # FASTA source downloading
-│   ├── species.py         # Species taxonomy (29-class → 10-class)
-│   ├── alleles.py         # Allele name parsing (mhcgnomes wrapper)
-│   ├── groove.py          # Binding groove extraction + mutation support
-│   ├── imgt.py            # IMGT G-DOMAIN position numbering
-│   ├── pipeline.py        # Two-step build pipeline
-│   ├── validate.py        # Post-build validation
-│   ├── b2m_sequences.csv                # Reference B2M sequences (UniProt)
-│   ├── mouse_h2_sequences.csv          # Mouse H-2 sequences (UniProt)
-│   └── diverse_mhc_sequences.csv      # 16k diverse MHC sequences (UniProt)
-├── tests/                 # pytest test suite
-├── scripts/
-│   ├── fetch_diverse_mhc.py      # Download diverse MHC from UniProt
-│   ├── curate_diverse_mhc.py     # Curate into shipped CSV
-│   └── validate_signal_peptides.py
-├── data/                          # Intermediate data (not shipped)
-├── build.py               # Convenience shim
-├── pyproject.toml         # Package metadata
-├── develop.sh             # Install in dev mode
-├── lint.sh                # Run ruff
-├── test.sh                # Run pytest
-└── deploy.sh              # Build + publish to PyPI
-```
 
 ## License
 
