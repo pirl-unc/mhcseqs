@@ -366,33 +366,28 @@ def _infer_mature_start(cys1_raw: int, mature_pos: int) -> int:
 
 # Signal peptide cleavage site residues.
 #
-# UniProt annotation analysis (March 2026) shows the -1 cleavage residue
-# is A/G/S across all jawed vertebrates: sharks 96%, mammals 98%, birds 100%,
-# fish 88%, reptiles 84%.  Amphibians additionally use C at -1 (25% of SPs).
+# The -1 position (last residue of the SP) is A/G/S/C across all jawed
+# vertebrates: sharks 96%, mammals 98%, birds 100%, fish 88%, reptiles 84%,
+# amphibians 95% (including C at 25%).
 #
-# These are from UniProt's unreviewed (TrEMBL) entries with SignalP-predicted
-# Signal features — thousands of entries per clade.  Our earlier analysis
-# showing fish/reptile -1 ≠ A/G/S was an artifact of wrong predicted
-# positions from the Cys-pair heuristic, not different cleavage biology.
+# Validated against UniProt Signal features (SignalP predictions) for
+# thousands of MHC entries per clade (March 2026).  Our earlier analysis
+# showing poor fish/reptile -1 agreement was an artifact of wrong Cys-pair
+# predicted positions, not different cleavage biology.
 _SP_CLEAVAGE_RESIDUES = frozenset("AGSC")
-
-# Scan window: ±5 residues covers >95% of offsets across all clades.
-# Mammals are tighter (±1-2) but using a uniform window is simpler and
-# the wider window doesn't hurt — A/G/S/C are distinctive enough that
-# false matches are rare within ±5 residues of the real site.
-_SP_SCAN_WINDOW = 5
 
 
 def refine_signal_peptide(sequence: str, mature_start: int) -> int:
-    """Refine signal peptide cleavage site using sequence features.
+    """Refine signal peptide cleavage site by scanning for a canonical -1 residue.
 
-    The Cys-pair heuristic gets ``mature_start`` within ~5 residues of
-    the true cleavage site.  This function scans a ±5 window for the
-    canonical -1 cleavage residue (A/G/S/C) and shifts the boundary
-    to the nearest match.
+    The Cys-pair heuristic gets ``mature_start`` within ~2 residues of the
+    true cleavage site.  This function nudges the boundary to the nearest
+    A/G/S/C at the -1 position within ±2 residues.
 
-    Works across all jawed vertebrates — the A/G/S/C motif at -1 is
-    conserved from sharks to mammals (84–100% across all clades).
+    The ±2 window is deliberately tight: wider windows (±5) find false
+    A/G residues inside the hydrophobic core of the signal peptide.
+    At ±2, 86–100% of entries across all vertebrate clades land on a
+    valid cleavage residue.
 
     Parameters
     ----------
@@ -404,8 +399,8 @@ def refine_signal_peptide(sequence: str, mature_start: int) -> int:
     Returns
     -------
     int
-        Refined mature_start (may be unchanged if already at a valid
-        cleavage residue).
+        Refined mature_start (unchanged if already valid or no candidate
+        found within ±2).
     """
     if mature_start <= 0 or not sequence:
         return mature_start
@@ -414,20 +409,14 @@ def refine_signal_peptide(sequence: str, mature_start: int) -> int:
     if mature_start >= len(seq):
         return mature_start
 
-    # Already at a valid cleavage residue?
     if seq[mature_start - 1] in _SP_CLEAVAGE_RESIDUES:
         return mature_start
 
-    # Scan ±window for nearest cleavage residue at -1 position.
-    # Prefer +delta (longer SP) over -delta (shorter SP) since the
-    # Cys-pair heuristic tends to underestimate SP length by 1-2 residues.
-    for delta in range(1, _SP_SCAN_WINDOW + 1):
-        for d in [delta, -delta]:
-            candidate = mature_start + d
-            if candidate < 5 or candidate >= len(seq):
-                continue
-            if seq[candidate - 1] in _SP_CLEAVAGE_RESIDUES:
-                return candidate
+    # Scan ±2, preferring +delta (slightly longer SP).
+    for delta in (1, -1, 2, -2):
+        candidate = mature_start + delta
+        if 5 <= candidate < len(seq) and seq[candidate - 1] in _SP_CLEAVAGE_RESIDUES:
+            return candidate
 
     return mature_start
 
