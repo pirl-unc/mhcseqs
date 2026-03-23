@@ -393,14 +393,10 @@ _MATURE_MOTIFS_CLASS_I = (
 
 # Species categories considered mammalian (tighter SP length distribution,
 # use simple ±2 scan which is 99.7–100% accurate).
-_MAMMAL_CATEGORIES = frozenset(
-    {"human", "nhp", "murine", "ungulate", "carnivore", "other_mammal"}
-)
+_MAMMAL_CATEGORIES = frozenset({"human", "nhp", "murine", "ungulate", "carnivore", "other_mammal"})
 
 
-def _score_nonmammal_candidate(
-    seq: str, pos: int, cys_pred: int
-) -> float:
+def _score_nonmammal_candidate(seq: str, pos: int, cys_pred: int) -> float:
     """Score a candidate SP cleavage site for a non-mammalian sequence.
 
     Combines multiple noisy signals:
