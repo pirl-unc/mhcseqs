@@ -38,6 +38,8 @@ MIN_MHC_SEQUENCE_LEN = 70
 # Curated reference CSVs (shipped with this repo)
 _B2M_CSV = Path(__file__).resolve().parent / "b2m_sequences.csv"
 _MOUSE_H2_CSV = Path(__file__).resolve().parent / "mouse_h2_sequences.csv"
+# Legacy filename: this is the curated supplemental UniProt bundle for
+# underrepresented taxa outside the IMGT/IPD downloads.
 _DIVERSE_MHC_CSV = Path(__file__).resolve().parent / "diverse_mhc_sequences.csv"
 
 _NUCLEOTIDE_LIKE_CHARS = set("ACGTUNWSMKRYBDHV")
@@ -293,9 +295,7 @@ def _load_mouse_h2_references() -> List[dict]:
             # Groove parse to infer signal peptide / mature start
             groove = _try_domain_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
-            mature_start = refine_signal_peptide(seq, mature_start, "murine")
-            has_sp = mature_start >= 15 and seq[:1].upper() == "M"
-            sp_seq = seq[:mature_start] if has_sp else ""
+            mature_start, has_sp, sp_seq = _signal_peptide_fields(seq, mature_start, "murine")
 
             rows.append(
                 {
@@ -335,6 +335,18 @@ def _infer_chain(gene: str, mhc_class: str) -> str:
     return ""
 
 
+def _signal_peptide_fields(
+    seq: str,
+    mature_start: int,
+    species_category: str = "",
+) -> Tuple[int, bool, str]:
+    """Return refined signal peptide metadata for a raw sequence row."""
+    refined_start = refine_signal_peptide(seq, mature_start, species_category)
+    has_sp = refined_start >= 15 and seq[:1].upper() == "M"
+    sp_seq = seq[:refined_start] if has_sp else ""
+    return refined_start, has_sp, sp_seq
+
+
 # Source group → species_category mapping (for diverse_mhc_sequences.csv)
 _DIVERSE_GROUP_TO_CATEGORY = {
     "reptile_lepidosauria": "other_vertebrate",
@@ -352,11 +364,12 @@ _DIVERSE_GROUP_TO_CATEGORY = {
 
 
 def _load_diverse_mhc_references() -> List[dict]:
-    """Load curated diverse MHC sequences from diverse_mhc_sequences.csv.
+    """Load curated supplemental UniProt MHC sequences.
 
-    These are UniProt sequences from taxonomic groups underrepresented in
-    IMGT/HLA and IPD-MHC: reptiles, amphibians, birds, fish, sharks,
-    marsupials, monotremes, and bats.
+    The CSV keeps its historical ``diverse_mhc_sequences.csv`` filename, but
+    today it serves as the curated supplemental UniProt bundle for taxa
+    underrepresented in IMGT/HLA and IPD-MHC: reptiles, amphibians, birds,
+    fish, sharks, marsupials, monotremes, and bats.
     """
     if not _DIVERSE_MHC_CSV.exists():
         return []
@@ -398,9 +411,7 @@ def _load_diverse_mhc_references() -> List[dict]:
             # Groove parse for signal peptide detection
             groove = _try_domain_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
-            has_sp = mature_start >= 15 and seq[:1].upper() == "M"
-            mature_start = refine_signal_peptide(seq, mature_start, species_category)
-            sp_seq = seq[:mature_start] if has_sp else ""
+            mature_start, has_sp, sp_seq = _signal_peptide_fields(seq, mature_start, species_category)
 
             rows.append(
                 {
@@ -486,9 +497,7 @@ def build_raw_index(
             # actually begins with Met and the offset is plausible.
             groove = _try_domain_parse(seq, mhc_class=mhc_class, gene=gene or "", allele=normalized)
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
-            has_sp = mature_start >= 15 and seq[:1].upper() == "M"
-            sp_seq = seq[:mature_start] if has_sp else ""
-            mature_start = refine_signal_peptide(seq, mature_start, species_category)
+            mature_start, has_sp, sp_seq = _signal_peptide_fields(seq, mature_start, species_category)
 
             suffix = allele_suffix_flags(normalized)
 
@@ -553,7 +562,7 @@ def build_raw_index(
             stats["parsed"] += 1
             stats["h2_references"] = stats.get("h2_references", 0) + 1
 
-    # Inject diverse MHC sequences (reptiles, amphibians, birds, fish, etc.)
+    # Inject curated supplemental UniProt MHC sequences for underrepresented taxa.
     diverse_rows = _load_diverse_mhc_references()
     for dr in diverse_rows:
         key = dr["allele_normalized"]

@@ -42,7 +42,11 @@ from .groove import (
     decompose_class_ii_alpha,
     decompose_class_ii_beta,
     decompose_domains,
+    extract_groove,
     find_cys_pairs,
+    parse_class_i,
+    parse_class_ii_alpha,
+    parse_class_ii_beta,
 )
 from .imgt import (
     CONSERVED_CYS_POSITIONS,
@@ -328,7 +332,11 @@ __all__ = [
     "decompose_class_i",
     "decompose_class_ii_alpha",
     "decompose_class_ii_beta",
+    "extract_groove",
     "find_cys_pairs",
+    "parse_class_i",
+    "parse_class_ii_alpha",
+    "parse_class_ii_beta",
     "RawAllele",
     "AlleleRecord",
     "NON_GROOVE_GENES",

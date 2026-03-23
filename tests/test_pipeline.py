@@ -1,3 +1,6 @@
+import csv
+
+from mhcseqs.groove import AlleleRecord
 from mhcseqs.pipeline import (
     FULL_FIELDS,
     FUNCTIONAL_GROOVE_STATUSES,
@@ -6,8 +9,10 @@ from mhcseqs.pipeline import (
     _extract_source_id,
     _infer_chain,
     _load_b2m_references,
+    _load_diverse_mhc_references,
     _load_mouse_h2_references,
     _looks_like_nucleotide,
+    build_raw_index,
 )
 
 
@@ -219,3 +224,49 @@ def test_b2m_has_source_id():
         assert r.get("source_id"), f"B2M entry {r['allele_normalized']} missing source_id"
     human = [r for r in rows if "human" in r["allele_normalized"]]
     assert human[0]["source_id"] == "P61769"
+
+
+def test_load_diverse_references_signal_peptide_metadata_is_consistent():
+    rows = _load_diverse_mhc_references()
+    assert rows
+    for row in rows:
+        sp_len = int(row["signal_peptide_len"] or "0")
+        has_sp = row["has_signal_peptide"] == "True"
+        expected_has_sp = sp_len >= 15 and row["sequence"][:1].upper() == "M"
+        assert has_sp == expected_has_sp
+        if has_sp:
+            assert row["signal_peptide_seq"] == row["sequence"][:sp_len]
+        else:
+            assert row["signal_peptide_seq"] == ""
+
+
+def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, tmp_path):
+    seq = "M" + "A" * 80
+    fasta_path = tmp_path / "synthetic.fasta"
+    out_csv = tmp_path / "raw.csv"
+    fasta_path.write_text(">synthetic\n" + seq + "\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "mhcseqs.pipeline._resolve_header_allele",
+        lambda header: ("HLA-A*02:01", "A", "I", "Homo sapiens", "HLA-A*02:01"),
+    )
+    monkeypatch.setattr("mhcseqs.pipeline._extract_source_id", lambda header, source_label: "SYN001")
+    monkeypatch.setattr(
+        "mhcseqs.pipeline._try_domain_parse",
+        lambda seq, *, mhc_class, gene, allele: AlleleRecord(status="ok", mature_start=27),
+    )
+    monkeypatch.setattr("mhcseqs.pipeline.refine_signal_peptide", lambda seq, mature_start, species_category: 29)
+    monkeypatch.setattr("mhcseqs.pipeline._load_b2m_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline._load_mouse_h2_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline._load_diverse_mhc_references", lambda: [])
+
+    build_raw_index([(fasta_path, "synthetic")], out_csv)
+
+    with open(out_csv, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["has_signal_peptide"] == "True"
+    assert row["signal_peptide_len"] == "29"
+    assert row["signal_peptide_seq"] == seq[:29]
