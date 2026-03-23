@@ -94,24 +94,63 @@ def _coerce_allele_name(allele: Optional[str]) -> str:
     return token
 
 
-def parse_allele_name(allele: Optional[str]) -> Optional[Any]:
-    """Parse an allele string with mhcgnomes."""
+def parse_allele_name(allele: Optional[str], *, species: Optional[str] = None) -> Optional[Any]:
+    """Parse an allele string with mhcgnomes.
+
+    Parameters
+    ----------
+    allele : str
+        Allele name to parse (e.g. "HLA-A*02:01", "Crpo-UA", "H2-Kb").
+    species : str, optional
+        Latin binomial of the species (e.g. "Homo sapiens", "Crocodylus porosus").
+        When provided, passed to mhcgnomes as the ``species`` parameter so the
+        parser can validate and disambiguate the allele for that organism.
+    """
     if not allele:
         return None
-    parse_fn = _require_mhcgnomes().parse
+    mhcgnomes = _require_mhcgnomes()
+    parse_fn = mhcgnomes.parse
     raw = str(allele).strip()
     if not raw:
         return None
+
+    # Build kwargs: use species= if mhcgnomes supports it, else default_species
+    import inspect
+
+    parse_params = inspect.signature(parse_fn).parameters
+    kwargs: dict = {}
+    if species:
+        if "species" in parse_params:
+            kwargs["species"] = species
+        elif "default_species" in parse_params:
+            kwargs["default_species"] = species
+
     coerced = _coerce_allele_name(raw)
     candidates = []
     if coerced:
         candidates.append(coerced)
     if raw not in candidates:
         candidates.append(raw)
+
     for candidate in candidates:
-        parsed = parse_fn(candidate)
+        try:
+            parsed = parse_fn(candidate, **kwargs)
+        except Exception:
+            parsed = None
         if parsed is not None:
             return parsed
+
+    # Fallback: try without species constraint (for IMGT/IPD alleles
+    # that already embed the species prefix in the name)
+    if kwargs:
+        for candidate in candidates:
+            try:
+                parsed = parse_fn(candidate)
+            except Exception:
+                parsed = None
+            if parsed is not None:
+                return parsed
+
     return None
 
 

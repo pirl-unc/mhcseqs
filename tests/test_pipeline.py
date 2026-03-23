@@ -210,7 +210,7 @@ def test_mouse_h2_metadata():
         assert r["species"] == "Mus musculus"
         assert r["species_category"] == "murine"
         assert r["species_prefix"] == "H2"
-        assert r["source"] == "uniprot_curated"
+        assert r["source"] == "uniprot"
 
 
 def test_b2m_has_source_id():
