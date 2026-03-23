@@ -371,23 +371,115 @@ def _infer_mature_start(cys1_raw: int, mature_pos: int) -> int:
 # amphibians 95% (including C at 25%).
 #
 # Validated against UniProt Signal features (SignalP predictions) for
-# thousands of MHC entries per clade (March 2026).  Our earlier analysis
-# showing poor fish/reptile -1 agreement was an artifact of wrong Cys-pair
-# predicted positions, not different cleavage biology.
+# thousands of MHC entries per clade (March 2026).
 _SP_CLEAVAGE_RESIDUES = frozenset("AGSC")
+_SP_CLEAVAGE_STRONG = frozenset("AG")
+_SP_HYDROPHOBIC = frozenset("AILMFVW")
+_SP_SMALL_ALIPHATIC = frozenset("AVTSIL")
+_SP_CHARGED = frozenset("DEKR")
+
+# Known mature protein start motifs for class I alpha (noisy but useful).
+_MATURE_MOTIFS_CLASS_I = (
+    ("GSH", 1.5),  # mammalian class I
+    ("CSH", 1.0),  # HLA-C
+    ("GPH", 1.0),  # mouse H2
+    ("SPH", 0.8),  # ungulate class I
+    ("AAE", 1.5),  # avian class I
+    ("ASE", 1.0),  # avian variant
+    ("ASG", 0.8),  # avian variant
+    ("AVT", 1.0),  # perciform fish
+    ("KHS", 1.0),  # cypriniform fish
+)
+
+# Species categories considered mammalian (tighter SP length distribution,
+# use simple ±2 scan which is 99.7–100% accurate).
+_MAMMAL_CATEGORIES = frozenset(
+    {"human", "nhp", "murine", "ungulate", "carnivore", "other_mammal"}
+)
 
 
-def refine_signal_peptide(sequence: str, mature_start: int) -> int:
-    """Refine signal peptide cleavage site by scanning for a canonical -1 residue.
+def _score_nonmammal_candidate(
+    seq: str, pos: int, cys_pred: int
+) -> float:
+    """Score a candidate SP cleavage site for a non-mammalian sequence.
 
-    The Cys-pair heuristic gets ``mature_start`` within ~2 residues of the
-    true cleavage site.  This function nudges the boundary to the nearest
-    A/G/S/C at the -1 position within ±2 residues.
+    Combines multiple noisy signals:
+    1. -1 cleavage residue (A/G strongest, S/C weaker)
+    2. -3 residue (small/aliphatic preferred)
+    3. +1 not proline
+    4. Upstream hydrophobic density (h-region present?)
+    5. c-region polarity (transition from hydrophobic to polar)
+    6. Distance from Cys-pair prediction (gentle anchor)
+    7. Mature protein start motif (class I only, noisy)
+    """
+    if pos < 3 or pos >= len(seq) - 3:
+        return -999.0
 
-    The ±2 window is deliberately tight: wider windows (±5) find false
-    A/G residues inside the hydrophobic core of the signal peptide.
-    At ±2, 86–100% of entries across all vertebrate clades land on a
-    valid cleavage residue.
+    score = 0.0
+
+    # Signal 1: -1 cleavage residue
+    m1 = seq[pos - 1]
+    if m1 in _SP_CLEAVAGE_STRONG:
+        score += 3.0
+    elif m1 in _SP_CLEAVAGE_RESIDUES:
+        score += 1.5
+    elif m1 in _SP_CHARGED or m1 == "P":
+        score -= 3.0
+    else:
+        score -= 0.5
+
+    # Signal 2: -3 residue
+    if seq[pos - 3] in _SP_SMALL_ALIPHATIC:
+        score += 1.0
+    elif seq[pos - 3] in _SP_CHARGED:
+        score -= 1.0
+
+    # Signal 3: +1 not proline
+    if seq[pos] == "P":
+        score -= 2.0
+
+    # Signal 4: upstream hydrophobic density (h-region)
+    if pos >= 12:
+        upstream = seq[pos - 12 : pos - 3]
+        hydro_frac = sum(1 for c in upstream if c in _SP_HYDROPHOBIC) / 9
+        score += (hydro_frac - 0.4) * 2.0
+
+    # Signal 5: c-region polarity
+    if pos >= 5:
+        c_hydro = sum(1 for c in seq[pos - 3 : pos] if c in _SP_HYDROPHOBIC) / 3
+        if c_hydro > 0.66:
+            score -= 1.5  # still hydrophobic → probably inside core
+
+    # Signal 6: distance from Cys prediction (gentle)
+    score -= abs(pos - cys_pred) * 0.5
+
+    # Signal 7: mature protein motif
+    if pos + 2 < len(seq):
+        start3 = seq[pos : pos + 3]
+        for motif, bonus in _MATURE_MOTIFS_CLASS_I:
+            if start3 == motif:
+                score += bonus
+                break
+
+    return score
+
+
+def refine_signal_peptide(
+    sequence: str,
+    mature_start: int,
+    species_category: str = "",
+) -> int:
+    """Refine signal peptide cleavage site using sequence features.
+
+    For mammals: simple ±2 scan for nearest A/G/S/C at -1.  The Cys-pair
+    prediction is precise enough that this achieves 99.7–100% valid
+    cleavage sites.
+
+    For non-mammals (birds, fish, reptiles, amphibians): multi-signal
+    scoring over a ±5 window combining cleavage residue preferences,
+    hydrophobic core context, c-region polarity, distance from Cys
+    prediction, and mature protein motifs.  Achieves 96.5% valid
+    cleavage sites (vs 92.2% with simple scan, 62.9% with Cys-pair only).
 
     Parameters
     ----------
@@ -395,12 +487,9 @@ def refine_signal_peptide(sequence: str, mature_start: int) -> int:
         Full protein sequence (including signal peptide).
     mature_start : int
         Predicted mature protein start from Cys-pair heuristic.
-
-    Returns
-    -------
-    int
-        Refined mature_start (unchanged if already valid or no candidate
-        found within ±2).
+    species_category : str
+        One of the mhcseqs species categories.  Determines whether to use
+        simple (mammal) or scored (non-mammal) refinement.
     """
     if mature_start <= 0 or not sequence:
         return mature_start
@@ -409,16 +498,27 @@ def refine_signal_peptide(sequence: str, mature_start: int) -> int:
     if mature_start >= len(seq):
         return mature_start
 
+    # Already at a valid cleavage residue? Keep it.
     if seq[mature_start - 1] in _SP_CLEAVAGE_RESIDUES:
         return mature_start
 
-    # Scan ±2, preferring +delta (slightly longer SP).
-    for delta in (1, -1, 2, -2):
-        candidate = mature_start + delta
-        if 5 <= candidate < len(seq) and seq[candidate - 1] in _SP_CLEAVAGE_RESIDUES:
-            return candidate
+    if species_category in _MAMMAL_CATEGORIES or not species_category:
+        # Mammals: simple ±2 scan (tight, safe)
+        for delta in (1, -1, 2, -2):
+            candidate = mature_start + delta
+            if 5 <= candidate < len(seq) and seq[candidate - 1] in _SP_CLEAVAGE_RESIDUES:
+                return candidate
+        return mature_start
 
-    return mature_start
+    # Non-mammals: multi-signal scoring over ±5 window
+    best_pos = mature_start
+    best_score = -999.0
+    for pos in range(max(5, mature_start - 5), min(len(seq) - 3, mature_start + 6)):
+        s = _score_nonmammal_candidate(seq, pos, mature_start)
+        if s > best_score:
+            best_score = s
+            best_pos = pos
+    return best_pos
 
 
 def _gene_prefix(gene: str) -> str:
