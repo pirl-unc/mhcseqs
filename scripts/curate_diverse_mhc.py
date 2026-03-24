@@ -170,15 +170,44 @@ def derive_prefix(organism: str) -> str:
 # Gene name normalization
 # ---------------------------------------------------------------------------
 
+_BARE_GENE_RE = (
+    r"^(BF|BLB|BLA|YF|"
+    r"DAB|DAA|DRB|DRA|DQA|DQB|DPA|DPB|DMA|DMB|DOA|DOB|DXB|DXA|DYA|DYB|DNA|"
+    r"DBA|DBB|DCA|DCB|DDA|DDB|DEA|DEB|"
+    r"UBA|UAA|UCA|UDA|UEA|UFA|UGA|UHA|ULA|"
+    r"ZAA|ZBA|ZCA|ZDA|SAA)"
+)
+
+
+def _is_opaque_numbering(tok: str, organism_prefix: str) -> bool:
+    """Detect species-specific numbering like Crpo94 (prefix + digits only)."""
+    if not organism_prefix:
+        return False
+    # Extract gene part after any prefix separator
+    gene_part = tok.split("-", 1)[-1] if "-" in tok else tok
+    gene_part = gene_part.split("_", 1)[-1] if "_" in gene_part else gene_part
+    gp_upper = gene_part.upper()
+    prefix_upper = organism_prefix.upper()
+    if gp_upper.startswith(prefix_upper):
+        rest = gp_upper[len(prefix_upper):]
+        if rest and rest.isdigit():
+            return True
+    return False
+
 
 def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> str:
     """Extract and normalize the MHC gene name.
 
     Handles:
-    - Standard Prefix-Gene format (Acsc-UA) → returns as-is
-    - Concatenated prefix+gene (XimuDAB, SahaI, PochUA) → Ximu-DAB, Saha-I, Poch-UA
+    - Standard Prefix-Gene format (Acsc-UA, orni-dba) → Acsc-UA, Orni-DBA
+    - Transferred HLA prefixes (hla-dqa1 on non-human) → Xetr-DQA1
+    - Concatenated prefix+gene (XimuDAB, SahaI) → Ximu-DAB, Saha-I
+    - Concatenated HLA+gene (HLADRB1) → Spto-DRB1
+    - Literature prefixes (PochUA with different organism) → Poch-UA
+    - Underscore separator (Hyam_DAB1) → Hyam-DAB1
     - Bare gene with no prefix (DAB1*06) → Prefix-DAB1*06 using organism_prefix
-    - Genomic loci (si:xxx, LOC123) → returns empty string (filtered)
+    - Opaque species numbering (Crpo94) → empty string (filtered)
+    - Genomic loci (si:xxx, LOC123) → empty string (filtered)
 
     Returns the normalized gene name, or empty string if unusable.
     """
@@ -187,26 +216,40 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
 
     tokens = gene_names.replace(";", " ").split() if gene_names else []
 
-    # Pass 1: find a token in standard Prefix-Gene format
+    # Pass 1: find a token in Prefix-Gene format (hyphen or underscore separator)
     for tok in tokens:
-        if re.match(r"^[A-Za-z]{2,5}-[A-Z]", tok):
-            # Skip HLA- gene names on non-human organisms (UniProt uses human gene
-            # names as homolog identifiers for non-human species)
-            if tok.startswith("HLA-") and organism_prefix and organism_prefix != "Hosa":
-                # Re-prefix with organism prefix: HLA-DRA → Sppu-DRA
-                gene_part = tok[4:]
-                return f"{organism_prefix}-{gene_part}"
-            return tok
+        if _is_opaque_numbering(tok, organism_prefix):
+            continue
+
+        m = re.match(r"^([A-Za-z]{2,5})([-_])([A-Za-z].*)$", tok)
+        if m:
+            tok_prefix, _sep, gene_part = m.group(1), m.group(2), m.group(3)
+            # Check if the gene part is opaque numbering
+            if _is_opaque_numbering(gene_part, organism_prefix):
+                continue
+            # HLA- on non-human organisms → re-prefix with organism prefix
+            if tok_prefix.upper() == "HLA" and organism_prefix and organism_prefix.upper() != "HOSA":
+                return f"{organism_prefix}-{gene_part.upper()}"
+            return f"{tok_prefix.capitalize()}-{gene_part.upper()}"
 
     # Pass 2: find a known MHC gene token and normalize it
     for tok in tokens:
-        # Skip genomic loci
         if GENOMIC_LOCUS_RE.match(tok):
+            continue
+        if _is_opaque_numbering(tok, organism_prefix):
             continue
 
         tok_stripped = tok.strip()
         if not tok_stripped:
             continue
+
+        # Concatenated HLA + gene (HLADRB1 → DRB1)
+        if tok_stripped.upper().startswith("HLA") and len(tok_stripped) > 3:
+            gene_part = tok_stripped[3:]
+            if re.match(_BARE_GENE_RE, gene_part, re.IGNORECASE):
+                if organism_prefix and organism_prefix.upper() != "HOSA":
+                    return f"{organism_prefix}-{gene_part.upper()}"
+                return f"HLA-{gene_part.upper()}"
 
         # Concatenated prefix+gene: 4-letter prefix (matching organism) + gene
         # E.g., XimuDAB → Ximu-DAB, MaeuDBB → Maeu-DBB, SahaI → Saha-I
@@ -216,18 +259,19 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
                 gene_part = tok_stripped[4:]
                 return f"{candidate_prefix}-{gene_part}"
 
+        # Literature prefix: 3-4 letter capitalized prefix + uppercase gene,
+        # where prefix differs from organism (PochUA on Zhch → Poch-UA)
+        m = re.match(r"^([A-Z][a-z]{2,3})([A-Z][A-Za-z0-9*]+)$", tok_stripped)
+        if m:
+            lit_prefix, gene_part = m.group(1), m.group(2)
+            if lit_prefix != (organism_prefix or ""):
+                return f"{lit_prefix}-{gene_part}"
+
         # Bare MHC gene name (no prefix): DAB1*06, UBA*01, BF1, DRB1, etc.
-        bare_gene_re = (
-            r"^(BF|BLB|BLA|YF|"
-            r"DAB|DAA|DRB|DRA|DQA|DQB|DPA|DPB|DMA|DMB|DOA|DOB|DXB|DXA|DYA|DYB|DNA|"
-            r"DBA|DBB|DCA|DCB|DDA|DDB|DEA|DEB|"
-            r"UBA|UAA|UCA|UDA|UEA|UFA|UGA|UHA|ULA|"
-            r"ZAA|ZBA|ZCA|ZDA|SAA)"
-        )
-        if re.match(bare_gene_re, tok_stripped, re.IGNORECASE):
+        if re.match(_BARE_GENE_RE, tok_stripped, re.IGNORECASE):
             if organism_prefix:
-                return f"{organism_prefix}-{tok_stripped}"
-            return tok_stripped
+                return f"{organism_prefix}-{tok_stripped.upper()}"
+            return tok_stripped.upper()
 
         # Single-letter or short gene names that look MHC-ish: UA, I, B2m, Mhc, etc.
         if re.match(r"^(UA|UB|UC|UD|UE|UF|UG|UM|I|II|Ia|Ib|Mhc|B2[Mm]|DRB|beta|alpha)\d*$", tok_stripped):
@@ -237,20 +281,177 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
 
         # Gene names ending in standard class II A/B pattern
         if re.match(r"^[A-Z][a-z]{1,5}[AB]\d*$", tok_stripped):
-            # Could be concatenated prefix, but prefix doesn't match organism
-            # Still usable as a gene name
             return tok_stripped
 
-    # Pass 3: fall back to first non-locus token if nothing else matched
+    # Pass 3: fall back to first non-locus, non-opaque token
     for tok in tokens:
-        if not GENOMIC_LOCUS_RE.match(tok):
-            # If it looks like a gene name at all (starts with letter, no weird chars)
-            if re.match(r"^[A-Za-z][\w.*:-]*$", tok) and len(tok) <= 30:
-                if organism_prefix:
-                    return f"{organism_prefix}-{tok}"
-                return tok
+        if GENOMIC_LOCUS_RE.match(tok):
+            continue
+        if _is_opaque_numbering(tok, organism_prefix):
+            continue
+        if re.match(r"^[A-Za-z][\w.*:-]*$", tok) and len(tok) <= 30:
+            if organism_prefix:
+                return f"{organism_prefix}-{tok}"
+            return tok
 
     return ""
+
+
+def resolve_gene_annotation(
+    gene_names: str, protein_name: str, organism_prefix: str
+) -> tuple[str, str, str]:
+    """Resolve gene annotation with provenance tracking.
+
+    Returns (normalized_gene, raw_label, gene_status) where:
+    - normalized_gene: clean gene name or ""
+    - raw_label: original gene identifier (for provenance)
+    - gene_status: "ok", "opaque_unassigned", "inferred", "missing"
+    """
+    if not gene_names:
+        if B2M_PATTERN.search(protein_name or ""):
+            return ("B2M", "", "inferred")
+        return ("", "", "missing")
+
+    tokens = gene_names.replace(";", " ").split()
+
+    # Check if all non-locus tokens are opaque numbering
+    opaque_label = ""
+    all_opaque_or_locus = True
+    for tok in tokens:
+        if GENOMIC_LOCUS_RE.match(tok):
+            continue
+        if _is_opaque_numbering(tok, organism_prefix):
+            # Preserve the raw identifier (gene part after organism prefix)
+            gene_part = tok.split("-", 1)[-1] if "-" in tok else tok
+            opaque_label = opaque_label or gene_part
+            continue
+        all_opaque_or_locus = False
+
+    if all_opaque_or_locus and (opaque_label or tokens):
+        return ("", opaque_label, "opaque_unassigned")
+
+    gene = normalize_gene(gene_names, protein_name, organism_prefix)
+    if gene:
+        return (gene, tokens[0] if tokens else "", "ok")
+
+    return ("", tokens[0] if tokens else "", "missing")
+
+
+# ---------------------------------------------------------------------------
+# Structural validation (for gene-less rescue)
+# ---------------------------------------------------------------------------
+
+
+def _structural_rescue(seq: str, mhc_class: str, chain: str) -> bool:
+    """Check if a sequence is structurally valid MHC (domain parse succeeds).
+
+    Requires at least 2 Cys residues (conserved disulfide bond) to avoid
+    rescuing poly-repeat or non-MHC sequences that pass the lenient
+    fragment-fallback path.
+    """
+    if seq.upper().count("C") < 2:
+        return False
+    try:
+        from mhcseqs.groove import (
+            decompose_class_i,
+            decompose_class_ii_alpha,
+            decompose_class_ii_beta,
+        )
+
+        if mhc_class == "I":
+            return decompose_class_i(seq).ok
+        if mhc_class == "II":
+            if chain == "alpha":
+                return decompose_class_ii_alpha(seq).ok
+            return decompose_class_ii_beta(seq).ok
+    except Exception:
+        pass
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Single-row curation (testable entry point)
+# ---------------------------------------------------------------------------
+
+
+def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
+    """Curate a single row from the raw diverse MHC download.
+
+    Returns (curated_dict_or_None, stats) where stats tracks what happened.
+    """
+    stats: Counter = Counter()
+
+    protein_name = row.get("protein_name", "")
+    gene_names = row.get("gene_names", "")
+    organism = row.get("organism", "")
+    seq = row.get("sequence", "")
+    length = len(seq)
+
+    if length < min_length:
+        stats["short"] += 1
+        return None, stats
+
+    cls = classify_mhc(protein_name, gene_names)
+    if cls is None:
+        stats["unclassifiable"] += 1
+        return None, stats
+    mhc_class, chain = cls
+
+    combined = f"{protein_name} {gene_names}"
+    has_i = CLASS_I_PATTERN.search(combined)
+    has_ii = CLASS_II_ALPHA_PATTERN.search(combined) or CLASS_II_BETA_PATTERN.search(combined)
+    if has_i and has_ii:
+        stats["ambiguous_class"] += 1
+        return None, stats
+
+    prefix = derive_prefix(organism)
+    if not prefix:
+        stats["no_prefix"] += 1
+        return None, stats
+
+    gene, raw_gene_label, gene_status = resolve_gene_annotation(gene_names, protein_name, prefix)
+
+    if not gene:
+        # Try structural rescue: keep if sequence parses as valid MHC
+        if _structural_rescue(seq, mhc_class, chain):
+            stats["rescued_no_gene"] += 1
+            if gene_status == "opaque_unassigned":
+                stats["opaque_gene_label"] += 1
+        else:
+            stats["no_gene"] += 1
+            return None, stats
+    else:
+        # Filter genomic loci that slipped through normalization
+        gene_part = gene.split("-", 1)[-1] if "-" in gene else gene
+        if GENOMIC_LOCUS_RE.match(gene_part):
+            stats["genomic_locus"] += 1
+            return None, stats
+
+        # Filter compound gene names with both class I and class II indicators
+        gene_upper = gene.upper()
+        has_ci_gene = bool(re.search(r"\b(UA|UB|UC|UD|UE|UF|UG|BF)\d", gene_upper))
+        has_cii_gene = bool(re.search(r"(DAB|DAA|DRB|DRA|DQB|DQA|DPB|DPA|BLB)\d", gene_upper))
+        if has_ci_gene and has_cii_gene:
+            stats["ambiguous_gene"] += 1
+            return None, stats
+
+        stats["kept"] += 1
+
+    curated = {
+        "uniprot_accession": row.get("uniprot_accession", ""),
+        "gene": gene,
+        "raw_gene_label": raw_gene_label,
+        "gene_status": gene_status,
+        "organism": organism,
+        "organism_id": row.get("organism_id", ""),
+        "length": str(length),
+        "mhc_class": mhc_class,
+        "chain": chain,
+        "is_fragment": row.get("is_fragment", "False"),
+        "source_group": row.get("source_group", ""),
+        "sequence": seq,
+    }
+    return curated, stats
 
 
 # ---------------------------------------------------------------------------
@@ -285,83 +486,21 @@ def main():
         print("Run scripts/fetch_diverse_mhc.py first.")
         return
 
-    # Load raw data
     with open(args.input, "r", encoding="utf-8") as f:
         raw_rows = list(csv.DictReader(f))
     print(f"Loaded {len(raw_rows)} raw entries from {args.input}")
 
-    # Curate
     kept = []
     stats = Counter()
 
     for r in raw_rows:
-        protein_name = r.get("protein_name", "")
-        gene_names = r.get("gene_names", "")
-        organism = r.get("organism", "")
-        seq = r.get("sequence", "")
-        length = len(seq)
-
-        # Length filter
-        if length < args.min_length:
-            stats["short"] += 1
-            continue
-
-        # Classify MHC class/chain
-        cls = classify_mhc(protein_name, gene_names)
-        if cls is None:
-            stats["unclassifiable"] += 1
-            continue
-        mhc_class, chain = cls
-
-        # Filter ambiguous entries that match both class I and class II patterns
-        combined = f"{protein_name} {gene_names}"
-        has_i = CLASS_I_PATTERN.search(combined)
-        has_ii = CLASS_II_ALPHA_PATTERN.search(combined) or CLASS_II_BETA_PATTERN.search(combined)
-        if has_i and has_ii:
-            stats["ambiguous_class"] += 1
-            continue
-
-        # Derive species prefix
-        prefix = derive_prefix(organism)
-        if not prefix:
-            stats["no_prefix"] += 1
-            continue
-
-        # Normalize gene name
-        gene = normalize_gene(gene_names, protein_name, prefix)
-        if not gene:
-            stats["no_gene"] += 1
-            continue
-
-        # Filter remaining genomic loci that slipped through
-        if GENOMIC_LOCUS_RE.match(gene.split("-", 1)[-1] if "-" in gene else gene):
-            stats["genomic_locus"] += 1
-            continue
-
-        # Filter compound gene names containing both class I and class II indicators
-        gene_upper = gene.upper()
-        has_ci_gene = bool(re.search(r"\b(UA|UB|UC|UD|UE|UF|UG|BF)\d", gene_upper))
-        has_cii_gene = bool(re.search(r"(DAB|DAA|DRB|DRA|DQB|DQA|DPB|DPA|BLB)\d", gene_upper))
-        if has_ci_gene and has_cii_gene:
-            stats["ambiguous_gene"] += 1
-            continue
-
-        kept.append({
-            "uniprot_accession": r["uniprot_accession"],
-            "gene": gene,
-            "organism": organism,
-            "organism_id": r.get("organism_id", ""),
-            "length": str(length),
-            "mhc_class": mhc_class,
-            "chain": chain,
-            "is_fragment": r.get("is_fragment", "False"),
-            "source_group": r.get("source_group", ""),
-            "sequence": seq,
-        })
-        stats["kept"] += 1
+        curated, row_stats = curate_row(r, min_length=args.min_length)
+        stats.update(row_stats)
+        if curated is not None:
+            kept.append(curated)
 
     # Report
-    print(f"\nCuration results ({len(raw_rows)} → {stats['kept']}):")
+    print(f"\nCuration results ({len(raw_rows)} → {len(kept)}):")
     for k, v in stats.most_common():
         print(f"  {k}: {v}")
 
@@ -378,7 +517,7 @@ def main():
     prefixes = Counter(r["gene"].split("-")[0] if "-" in r["gene"] else "??" for r in kept)
     print(f"\nUnique species prefixes: {len(prefixes)}")
 
-    # Write output
+    # Write output (only the standard columns, not provenance fields)
     fields = [
         "uniprot_accession", "gene", "organism", "organism_id",
         "length", "mhc_class", "chain", "is_fragment",
@@ -386,11 +525,11 @@ def main():
     ]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with open(args.output, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
+        w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         w.writeheader()
         w.writerows(kept)
 
-    print(f"\nWrote {stats['kept']} entries to {args.output}")
+    print(f"\nWrote {len(kept)} entries to {args.output}")
 
 
 if __name__ == "__main__":
