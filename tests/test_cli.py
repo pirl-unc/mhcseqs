@@ -151,9 +151,7 @@ def test_lookup_no_csv(tmp_path, monkeypatch):
     monkeypatch.setattr(
         mhcseqs,
         "_find_csv",
-        lambda name, **kw: (_ for _ in ()).throw(
-            FileNotFoundError(f"{name} not found. Run mhcseqs.build() or 'mhcseqs build' first.")
-        ),
+        lambda name, **kw: (_ for _ in ()).throw(FileNotFoundError(f"{name} not found. Run mhcseqs.build() or 'mhcseqs build' first.")),
     )
     with pytest.raises(FileNotFoundError, match="build"):
         mhcseqs.lookup("HLA-A*02:01")

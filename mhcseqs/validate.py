@@ -304,9 +304,7 @@ def validate_build(
         stats["sp_start_with_M"] = m_start
         stats["sp_total"] = len(sp_sequences)
         if m_pct < 95:
-            warnings.append(
-                f"SP_AGGREGATE: only {m_pct:.1f}% of signal peptides start with M ({m_start}/{len(sp_sequences)})"
-            )
+            warnings.append(f"SP_AGGREGATE: only {m_pct:.1f}% of signal peptides start with M ({m_start}/{len(sp_sequences)})")
 
     # SP composition: signal peptides are expected to be enriched in
     # hydrophobic residues and depleted in charged/polar ones.  Skip the
@@ -317,9 +315,7 @@ def validate_build(
         hydro_frac = sum(1 for c in all_sp if c in HYDROPHOBIC) / len(all_sp) if all_sp else 0
         stats["sp_hydrophobic_fraction"] = round(hydro_frac * 100, 1)
         if hydro_frac < 0.35:
-            warnings.append(
-                f"SP_AGGREGATE: low hydrophobic fraction ({hydro_frac:.1%}); expected >35% for signal peptides"
-            )
+            warnings.append(f"SP_AGGREGATE: low hydrophobic fraction ({hydro_frac:.1%}); expected >35% for signal peptides")
 
     # SP length distribution
     sp_lens = [len(sp) for sp in sp_sequences]

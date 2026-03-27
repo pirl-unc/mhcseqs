@@ -2,7 +2,7 @@
 
 import pytest
 
-from mhcseqs.groove import apply_mutations, decompose_class_i, decompose_domains
+from mhcseqs.domain_parsing import apply_mutations, decompose_class_i, decompose_domains
 
 # HLA-A*02:01 mature sequence (UniProt P01892, 341 aa)
 HLA_A0201_MATURE = (
@@ -159,7 +159,7 @@ def test_out_of_range_raises():
 
 def test_failed_result_raises():
     """Cannot apply mutations to a failed AlleleRecord."""
-    from mhcseqs.groove import AlleleRecord
+    from mhcseqs.domain_parsing import AlleleRecord
 
     bad = AlleleRecord(status="too_short")
     with pytest.raises(ValueError, match="failed result"):

@@ -11,6 +11,8 @@ Quick start::
     r = mhcseqs.lookup("HLA-A*02:01")
     r.groove1            # α1 domain
     r.groove2            # α2 domain
+    r.domains            # typed domain grammar spans
+    r.domain_architecture
     r.mature_sequence    # signal peptide removed
     r.sequence           # full protein (with signal peptide)
 
@@ -24,6 +26,34 @@ Quick start::
 from dataclasses import dataclass
 from typing import Sequence
 
+__all__ = [
+    # domain_parsing
+    "NON_GROOVE_GENES",
+    "AlleleRecord",
+    "RawAllele",
+    "SequenceFeatures",
+    "StructuralDomain",
+    "analyze_sequence",
+    "apply_mutations",
+    "decompose_class_i",
+    "decompose_class_ii_alpha",
+    "decompose_class_ii_beta",
+    "decompose_domains",
+    "extract_groove",
+    "find_cys_pairs",
+    "infer_structural_domains",
+    "parse_class_i",
+    "parse_class_ii_alpha",
+    "parse_class_ii_beta",
+    # alleles
+    "infer_gene",
+    "infer_mhc_class",
+    "infer_species",
+    "normalize_allele_name",
+    "normalize_mhc_class",
+    "parse_allele_name",
+]
+
 from .alleles import (
     infer_gene,
     infer_mhc_class,
@@ -32,11 +62,13 @@ from .alleles import (
     normalize_mhc_class,
     parse_allele_name,
 )
-from .download import SOURCES, download_all
-from .groove import (
+from .domain_parsing import (
     NON_GROOVE_GENES,
     AlleleRecord,
     RawAllele,
+    SequenceFeatures,
+    StructuralDomain,
+    analyze_sequence,
     apply_mutations,
     decompose_class_i,
     decompose_class_ii_alpha,
@@ -44,10 +76,12 @@ from .groove import (
     decompose_domains,
     extract_groove,
     find_cys_pairs,
+    infer_structural_domains,
     parse_class_i,
     parse_class_ii_alpha,
     parse_class_ii_beta,
 )
+from .download import SOURCES, download_all
 from .imgt import (
     CONSERVED_CYS_POSITIONS,
     GALPHA2_GAP_POSITIONS,

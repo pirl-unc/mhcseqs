@@ -1,11 +1,12 @@
 import csv
 
-from mhcseqs.groove import AlleleRecord
+from mhcseqs.domain_parsing import AlleleRecord
 from mhcseqs.pipeline import (
     FULL_FIELDS,
     FUNCTIONAL_GROOVE_STATUSES,
     RAW_FIELDS,
     _candidate_tokens,
+    _emit_full_row,
     _extract_source_id,
     _infer_chain,
     _load_b2m_references,
@@ -125,6 +126,8 @@ def test_full_fields():
     assert "groove_seq" in FULL_FIELDS
     assert "ig_domain" in FULL_FIELDS
     assert "anchor_type" in FULL_FIELDS
+    assert "domain_architecture" in FULL_FIELDS
+    assert "domain_spans" in FULL_FIELDS
 
 
 def test_functional_groove_statuses():
@@ -253,9 +256,12 @@ def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, 
     monkeypatch.setattr("mhcseqs.pipeline._extract_source_id", lambda header, source_label: "SYN001")
     monkeypatch.setattr(
         "mhcseqs.pipeline._try_domain_parse",
-        lambda seq, *, mhc_class, gene, allele: AlleleRecord(status="ok", mature_start=27),
+        lambda seq, *, mhc_class, gene, allele, chain="", features=None: AlleleRecord(status="ok", mature_start=27),
     )
-    monkeypatch.setattr("mhcseqs.pipeline.refine_signal_peptide", lambda seq, mature_start, species_category: 29)
+    monkeypatch.setattr(
+        "mhcseqs.pipeline.refine_signal_peptide",
+        lambda seq, mature_start, species_category, mhc_class="", features=None: 29,
+    )
     monkeypatch.setattr("mhcseqs.pipeline._load_b2m_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline._load_mouse_h2_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline._load_diverse_mhc_references", lambda: [])
@@ -270,3 +276,47 @@ def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, 
     assert row["has_signal_peptide"] == "True"
     assert row["signal_peptide_len"] == "29"
     assert row["signal_peptide_seq"] == seq[:29]
+
+
+def test_emit_full_row_realigns_domain_fields_after_refinement(monkeypatch):
+    seq = "M" * 40 + "A" * 260
+    representative = {
+        "allele_normalized": "HLA-A*02:01",
+        "gene": "A",
+        "mhc_class": "I",
+        "chain": "alpha",
+        "species": "Homo sapiens",
+        "species_category": "bird",
+        "species_prefix": "HLA",
+        "source": "test",
+        "source_id": "SYN001",
+    }
+    groove = AlleleRecord(
+        status="ok",
+        mhc_class="I",
+        chain="alpha",
+        mature_start=27,
+        groove1=seq[27:117],
+        groove2=seq[117:210],
+        groove_seq=seq[27:210],
+        groove1_len=90,
+        groove2_len=93,
+        ig_domain=seq[210:300],
+        ig_domain_len=90,
+        tail=seq[300:],
+        tail_len=len(seq) - 300,
+    )
+
+    monkeypatch.setattr(
+        "mhcseqs.pipeline.refine_signal_peptide",
+        lambda seq, mature_start, species_category, mhc_class="": 29,
+    )
+
+    row = _emit_full_row("HLA-A*02:01", representative, "unique", seq, groove)
+
+    assert row["mature_start"] == "29"
+    reconstructed = row["groove1"] + row["groove2"] + row["ig_domain"] + row["tail"]
+    assert row["mature_sequence"] == reconstructed
+    assert row["groove1"] == seq[29:117]
+    assert row["domain_architecture"].startswith("signal_peptide>g_alpha1>g_alpha2>c1_alpha3")
+    assert row["domain_spans"].startswith("signal_peptide:1-29;g_alpha1:30-117")

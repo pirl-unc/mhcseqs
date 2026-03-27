@@ -41,11 +41,15 @@ include = ["mhcseqs*"]
 mhcseqs = ["b2m_sequences.csv", "mouse_h2_sequences.csv", "diverse_mhc_sequences.csv"]
 
 [tool.ruff]
-line-length = 120
+line-length = 150
 target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts use sys.path manipulation before importing sibling modules
+"scripts/*.py" = ["E402"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -142,3 +142,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+.claude/worktrees/
+data/_perf_baseline_results.json
