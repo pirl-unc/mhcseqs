@@ -11,6 +11,8 @@ Quick start::
     r = mhcseqs.lookup("HLA-A*02:01")
     r.groove1            # α1 domain
     r.groove2            # α2 domain
+    r.domains            # typed domain grammar spans
+    r.domain_architecture
     r.mature_sequence    # signal peptide removed
     r.sequence           # full protein (with signal peptide)
 
@@ -33,10 +35,13 @@ from .alleles import (
     parse_allele_name,
 )
 from .download import SOURCES, download_all
-from .groove import (
+from .domain_parsing import (
     NON_GROOVE_GENES,
     AlleleRecord,
     RawAllele,
+    SequenceFeatures,
+    StructuralDomain,
+    analyze_sequence,
     apply_mutations,
     decompose_class_i,
     decompose_class_ii_alpha,
@@ -44,6 +49,7 @@ from .groove import (
     decompose_domains,
     extract_groove,
     find_cys_pairs,
+    infer_structural_domains,
     parse_class_i,
     parse_class_ii_alpha,
     parse_class_ii_beta,

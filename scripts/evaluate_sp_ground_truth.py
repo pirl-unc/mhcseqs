@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Evaluate signal peptide heuristic accuracy against UniProt ground truth.
 
-Loads data/sp_ground_truth.csv (UniProt Signal annotations), runs our
-Cys-pair + refinement heuristic on each sequence, and compares the
-predicted SP length against the annotated SP length.
+Prefers ``data/sp_ground_truth_enriched.csv`` when available.  That enriched
+benchmark carries gold MHC class / chain metadata so the evaluator can dispatch
+the parser directly instead of guessing class from the sequence alone.  When
+the enriched file is absent, the evaluator falls back to the original raw GT
+CSV and the older classless parser-selection heuristic.
 
 Usage:
     python scripts/evaluate_sp_ground_truth.py
@@ -11,15 +13,44 @@ Usage:
 from __future__ import annotations
 
 import csv
+import re
 import sys
 from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-GT_CSV = ROOT / "data" / "sp_ground_truth.csv"
+GT_RAW_CSV = ROOT / "data" / "sp_ground_truth.csv"
+GT_ENRICHED_CSV = ROOT / "data" / "sp_ground_truth_enriched.csv"
+NEGATIVE_CONTROL_CSV = ROOT / "data" / "sp_negative_controls.csv"
+GT_CSV = GT_ENRICHED_CSV if GT_ENRICHED_CSV.exists() else GT_RAW_CSV
 
-# Taxon IDs for broad clade mapping (used when normalize_mhc_species misses)
-_MAMMAL_TAXIDS = {9606, 10090, 10116}  # human, mouse, rat
+# Exact taxon IDs we can categorize without ambiguity.
+_TAXID_TO_CATEGORY = {
+    9606: "human",
+    10090: "murine",
+    10116: "murine",
+}
+
+
+_HINT_REGEX_CACHE: dict[str, re.Pattern[str]] = {}
+
+
+def _parse_cli_args(argv: list[str]) -> dict[str, bool]:
+    """Return simple evaluator options from argv."""
+    return {
+        "use_early_shortcuts": "--no-early-shortcuts" not in argv,
+    }
+
+
+def _hint_match(text: str, keyword: str) -> bool:
+    """Word-boundary-aware fallback matching for genus/common-name hints."""
+    if keyword.endswith((" ", "-")):
+        return keyword in text
+    pat = _HINT_REGEX_CACHE.get(keyword)
+    if pat is None:
+        pat = re.compile(r"\b" + re.escape(keyword) + r"\b")
+        _HINT_REGEX_CACHE[keyword] = pat
+    return bool(pat.search(text))
 
 
 def _species_category(organism: str, taxon_id: str = "") -> str:
@@ -28,13 +59,22 @@ def _species_category(organism: str, taxon_id: str = "") -> str:
     Uses the species module first, then falls back to taxonomy-based
     heuristics for organisms not in the mhcseqs species table.
     """
-    from mhcseqs.species import normalize_mhc_species
+    from mhcseqs.species import extract_latin_binomial, normalize_mhc_species
 
-    cat = normalize_mhc_species(organism)
-    if cat:
-        return cat
+    try:
+        taxid_value = int(str(taxon_id or "").strip())
+    except ValueError:
+        taxid_value = 0
+    exact_taxid_cat = _TAXID_TO_CATEGORY.get(taxid_value)
+    if exact_taxid_cat:
+        return exact_taxid_cat
 
-    org_lower = organism.lower()
+    for candidate in (organism, extract_latin_binomial(organism)):
+        cat = normalize_mhc_species(candidate)
+        if cat:
+            return cat
+
+    org_lower = extract_latin_binomial(organism).lower()
 
     # Broad taxonomic heuristics for vertebrate clades in the ground truth
 
@@ -53,8 +93,6 @@ def _species_category(organism: str, taxon_id: str = "") -> str:
         "larus", "sterna", "alcedo", "merops", "upupa", "bucorvus",
         "picus", "dendrocopos", "indicator", "galbula", "pterocles",
     )
-    if any(h in org_lower for h in _BIRD_HINTS):
-        return "bird"
 
     # Actinopterygii + Chondrichthyes (fish)
     _FISH_HINTS = (
@@ -72,8 +110,10 @@ def _species_category(organism: str, taxon_id: str = "") -> str:
         "raja ", "leucoraja", "dasyatis", "rhinobatos", "callorhinchus",
         "liparis", "larimichthys", "siniperca",
     )
-    if any(h in org_lower for h in _FISH_HINTS):
+    if any(_hint_match(org_lower, h) for h in _FISH_HINTS):
         return "fish"
+    if any(_hint_match(org_lower, h) for h in _BIRD_HINTS):
+        return "bird"
 
     # Reptilia
     _REPTILE_HINTS = (
@@ -89,7 +129,7 @@ def _species_category(organism: str, taxon_id: str = "") -> str:
         "testudo", "terrapene", "emys", "mauremys", "pelodiscus",
         "amblyrhynch", "cyclura", "conolophus", "ctenosaura",
     )
-    if any(h in org_lower for h in _REPTILE_HINTS):
+    if any(_hint_match(org_lower, h) for h in _REPTILE_HINTS):
         return "other_vertebrate"
 
     # Amphibia
@@ -105,7 +145,7 @@ def _species_category(organism: str, taxon_id: str = "") -> str:
         "pyxicephalus", "conraua", "ceratobatrachus", "atelopus",
         "mantella", "boophis",
     )
-    if any(h in org_lower for h in _AMPHIBIAN_HINTS):
+    if any(_hint_match(org_lower, h) for h in _AMPHIBIAN_HINTS):
         return "other_vertebrate"
 
     # Ground truth is exclusively vertebrate (fetched from Mammalia, Aves,
@@ -114,7 +154,35 @@ def _species_category(organism: str, taxon_id: str = "") -> str:
     return "other_vertebrate"
 
 
-def _try_parse(seq: str) -> tuple[int, str]:
+def load_ground_truth_rows(prefer_enriched: bool = True) -> tuple[Path, list[dict[str, str]]]:
+    """Load raw or enriched GT rows, preferring the enriched file when present."""
+    path = GT_ENRICHED_CSV if prefer_enriched and GT_ENRICHED_CSV.exists() else GT_RAW_CSV
+    with open(path, "r", encoding="utf-8") as handle:
+        return path, list(csv.DictReader(handle))
+
+
+def _row_species_category(row: dict[str, str]) -> str:
+    return row.get("species_category", "") or _species_category(row["organism"], row.get("taxon_id", ""))
+
+
+def _row_dispatch_metadata(row: dict[str, str]) -> tuple[str, str, str]:
+    mhc_class = str(row.get("mhc_class", "") or "").strip().upper()
+    chain = str(row.get("chain", "") or "").strip().lower()
+    gene = str(row.get("gene", "") or "").strip()
+    return mhc_class, chain, gene
+
+
+def _parser_name_for_dispatch(mhc_class: str, chain: str) -> str:
+    if mhc_class == "I":
+        return "class_I"
+    if mhc_class == "II" and chain == "alpha":
+        return "class_II_alpha"
+    if mhc_class == "II" and chain == "beta":
+        return "class_II_beta"
+    return ""
+
+
+def _try_parse(seq: str, *, features=None, use_early_shortcuts: bool = True) -> tuple[int, str]:
     """Try all domain parsers and pick the most plausible result.
 
     When multiple parsers succeed, pick the one whose mature_start is
@@ -124,11 +192,15 @@ def _try_parse(seq: str) -> tuple[int, str]:
 
     Returns (mature_start, parser_used) or (0, "") on failure.
     """
-    from mhcseqs.groove import (
+    from mhcseqs.domain_parsing import (
+        analyze_sequence,
         decompose_class_i,
         decompose_class_ii_alpha,
         decompose_class_ii_beta,
     )
+
+    if features is None:
+        features = analyze_sequence(seq)
 
     TYPICAL_SP = 23  # median MHC SP length across vertebrates
     candidates = []
@@ -138,7 +210,7 @@ def _try_parse(seq: str) -> tuple[int, str]:
         (decompose_class_ii_alpha, "class_II_alpha"),
     ]:
         try:
-            result = parser(seq)
+            result = parser(seq, features=features, use_early_shortcuts=use_early_shortcuts)
             if result.ok and result.mature_start > 0:
                 candidates.append((result.mature_start, name))
         except Exception:
@@ -156,18 +228,127 @@ def _try_parse(seq: str) -> tuple[int, str]:
     return min(candidates, key=lambda x: x[0])
 
 
-def evaluate():
-    from mhcseqs.groove import refine_signal_peptide
+def predict_sp_for_row(
+    row: dict[str, str],
+    *,
+    use_early_shortcuts: bool = True,
+) -> dict[str, str | int | bool]:
+    """Predict SP length for a GT row, using gold dispatch when available."""
+    from mhcseqs.domain_parsing import analyze_sequence, decompose_domains, refine_signal_peptide
 
+    seq = row["sequence"]
+    category = _row_species_category(row)
+    mhc_class, chain, gene = _row_dispatch_metadata(row)
+    features = analyze_sequence(seq)
+
+    if mhc_class in {"I", "II"}:
+        parser_name = _parser_name_for_dispatch(mhc_class, chain)
+        try:
+            result = decompose_domains(
+                seq,
+                mhc_class=mhc_class,
+                chain=chain or None,
+                gene=gene,
+                features=features,
+                use_early_shortcuts=use_early_shortcuts,
+            )
+        except Exception as exc:  # pragma: no cover - defensive evaluator path
+            return {
+                "ok": False,
+                "dispatch_mode": "gold",
+                "parser": parser_name,
+                "mhc_class": mhc_class,
+                "chain": chain,
+                "gene": gene,
+                "status": f"exception:{type(exc).__name__}",
+                "mature_start": 0,
+                "predicted_sp": 0,
+            }
+
+        resolved_chain = str(result.chain or chain or "")
+        resolved_class = str(result.mhc_class or mhc_class or "")
+        if not parser_name:
+            parser_name = _parser_name_for_dispatch(resolved_class, resolved_chain)
+
+        if not result.ok or result.mature_start <= 0:
+            return {
+                "ok": False,
+                "dispatch_mode": "gold",
+                "parser": parser_name,
+                "mhc_class": resolved_class,
+                "chain": resolved_chain,
+                "gene": gene,
+                "status": result.status,
+                "mature_start": int(result.mature_start or 0),
+                "predicted_sp": 0,
+            }
+
+        groove_anchor = (
+            (int(result.anchor_cys1), int(result.anchor_cys2))
+            if result.anchor_cys1 is not None and result.anchor_cys2 is not None
+            else None
+        )
+        refined = refine_signal_peptide(
+            seq,
+            result.mature_start,
+            category,
+            mhc_class,
+            features=features,
+            groove_anchor=groove_anchor,
+        )
+        return {
+            "ok": True,
+            "dispatch_mode": "gold",
+            "parser": parser_name,
+            "mhc_class": resolved_class,
+            "chain": resolved_chain,
+            "gene": gene,
+            "status": result.status,
+            "mature_start": int(result.mature_start),
+            "predicted_sp": int(refined),
+        }
+    cys_start, parser_name = _try_parse(seq, features=features, use_early_shortcuts=use_early_shortcuts)
+    if cys_start == 0:
+        return {
+            "ok": False,
+            "dispatch_mode": "inferred",
+            "parser": "",
+            "mhc_class": "",
+            "chain": "",
+            "gene": "",
+            "status": "unparsed",
+            "mature_start": 0,
+            "predicted_sp": 0,
+        }
+
+    inferred_class = "I" if parser_name == "class_I" else "II"
+    refined = refine_signal_peptide(seq, cys_start, category, inferred_class, features=features)
+    return {
+        "ok": True,
+        "dispatch_mode": "inferred",
+        "parser": parser_name,
+        "mhc_class": inferred_class,
+        "chain": (
+            "alpha" if parser_name == "class_II_alpha"
+            else ("beta" if parser_name == "class_II_beta" else "alpha")
+        ),
+        "gene": "",
+        "status": "ok",
+        "mature_start": int(cys_start),
+        "predicted_sp": int(refined),
+    }
+
+
+def evaluate(*, use_early_shortcuts: bool = True):
     if not GT_CSV.exists():
         print(f"Ground truth not found: {GT_CSV}", file=sys.stderr)
         print("Run: python scripts/fetch_sp_ground_truth.py", file=sys.stderr)
         sys.exit(1)
 
-    with open(GT_CSV, "r", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
+    gt_path, rows = load_ground_truth_rows(prefer_enriched=True)
 
-    print(f"Loaded {len(rows)} ground truth entries from {GT_CSV.name}")
+    print(f"Loaded {len(rows)} ground truth entries from {gt_path.name}")
+    print(f"Early shortcuts:  {'enabled' if use_early_shortcuts else 'disabled'}")
     print()
 
     # Counters
@@ -180,28 +361,28 @@ def evaluate():
     within_3 = 0
     deltas = []
     by_category: dict[str, Counter] = {}
+    by_class: dict[tuple[str, str], Counter] = {}
     by_reviewed: dict[str, Counter] = {}
+    by_dispatch: Counter = Counter()
     mismatches_gt3: list[dict] = []
 
     for row in rows:
-        seq = row["sequence"]
         gt_sp_len = int(row["sp_length"])
         organism = row["organism"]
         reviewed = row["reviewed"]
         accession = row["accession"]
         total += 1
 
-        # Parse sequence
-        cys_start, parser = _try_parse(seq)
-        if cys_start == 0:
+        prediction = predict_sp_for_row(row, use_early_shortcuts=use_early_shortcuts)
+        if not prediction["ok"]:
             unparsed += 1
             continue
 
         parsed += 1
+        by_dispatch[str(prediction["dispatch_mode"])] += 1
 
-        # Determine species category and refine
-        cat = _species_category(organism, row.get("taxon_id", ""))
-        refined = refine_signal_peptide(seq, cys_start, cat)
+        cat = _row_species_category(row)
+        refined = int(prediction["predicted_sp"])
 
         delta = refined - gt_sp_len
         deltas.append(delta)
@@ -222,11 +403,14 @@ def evaluate():
                 "organism": organism,
                 "category": cat or "unknown",
                 "gt_sp": gt_sp_len,
-                "cys_pred": cys_start,
+                "cys_pred": int(prediction["mature_start"]),
                 "refined": refined,
                 "delta": delta,
                 "reviewed": reviewed,
-                "parser": parser,
+                "parser": str(prediction["parser"]),
+                "mhc_class": str(prediction["mhc_class"]),
+                "chain": str(prediction["chain"]),
+                "dispatch_mode": str(prediction["dispatch_mode"]),
             })
 
         # Per-category stats
@@ -240,6 +424,19 @@ def evaluate():
             by_category[cat_key]["within_1"] += 1
         if abs(delta) <= 2:
             by_category[cat_key]["within_2"] += 1
+
+        class_key = str(row.get("mhc_class", "") or prediction["mhc_class"] or "unknown")
+        if (class_key, cat_key) not in by_class:
+            by_class[(class_key, cat_key)] = Counter()
+        by_class[(class_key, cat_key)]["total"] += 1
+        if delta == 0:
+            by_class[(class_key, cat_key)]["exact"] += 1
+        if abs(delta) <= 1:
+            by_class[(class_key, cat_key)]["within_1"] += 1
+        if abs(delta) <= 2:
+            by_class[(class_key, cat_key)]["within_2"] += 1
+        if abs(delta) <= 3:
+            by_class[(class_key, cat_key)]["within_3"] += 1
 
         # Per-reviewed stats
         rev_key = "reviewed" if reviewed == "Y" else "unreviewed"
@@ -258,6 +455,9 @@ def evaluate():
     print(f"Total entries:    {total}")
     print(f"Parsed:           {parsed} ({100*parsed/total:.1f}%)")
     print(f"Unparsed:         {unparsed} ({100*unparsed/total:.1f}%)")
+    if by_dispatch:
+        dispatch_summary = ", ".join(f"{k}={v}" for k, v in sorted(by_dispatch.items()))
+        print(f"Dispatch mode:    {dispatch_summary}")
     print()
     if parsed > 0:
         print(f"Exact match:      {exact}/{parsed} ({100*exact/parsed:.1f}%)")
@@ -294,6 +494,23 @@ def evaluate():
             f"{c['within_2']:>4} ({100*c['within_2']/t:5.1f}%)"
         )
 
+    if by_class:
+        print("\n" + "=" * 70)
+        print("BY MHC CLASS AND SPECIES CATEGORY")
+        print("=" * 70)
+        print(f"{'Class':<8} {'Category':<18} {'Total':>6} {'Exact':>12} {'<=1':>12} {'<=2':>12} {'<=3':>12}")
+        print("-" * 82)
+        for mhc_class, category in sorted(by_class.keys()):
+            c = by_class[(mhc_class, category)]
+            t = c["total"]
+            print(
+                f"{mhc_class:<8} {category:<18} {t:>6} "
+                f"{c['exact']:>4} ({100*c['exact']/t:5.1f}%) "
+                f"{c['within_1']:>4} ({100*c['within_1']/t:5.1f}%) "
+                f"{c['within_2']:>4} ({100*c['within_2']/t:5.1f}%) "
+                f"{c['within_3']:>4} ({100*c['within_3']/t:5.1f}%)"
+            )
+
     # Per-reviewed breakdown
     print(f"\n{'Review status':<20} {'Total':>6} {'Exact':>8} {'<=1':>8}")
     print("-" * 48)
@@ -325,4 +542,5 @@ def evaluate():
 
 
 if __name__ == "__main__":
-    evaluate()
+    options = _parse_cli_args(sys.argv[1:])
+    evaluate(use_early_shortcuts=options["use_early_shortcuts"])

@@ -5,14 +5,39 @@ Date: 2026-03-24
 ## Current state
 
 Committed on `feature/sp-pipeline-integration`:
-- Property-based SP scoring (universal across species)
-- Class I Cys pair classification by flanking motifs (replaces position ranges)
-- Junction motif discovery (G..H..Q finds α1/α2 boundary)
-- Adaptive-width SP search (±8 base, ±15 with junction)
-- Parse trace for debugging
+- Property-based SP refinement (`refine_signal_peptide`) used in pipeline/evaluator
+- Class I Cys pair classification by flanking motifs (replaces raw position ranges for pair selection)
+- Junction motif discovery (G..H..Q) for class I boundary detection
+- Adaptive-width SP search helper exists (`_find_mature_start`), but is not yet wired into `decompose_class_i`
+- Parse trace for class I debugging
 - Class II parsers remain on position-range Cys selection
+- Full-sequence CSV serialization now realigns domain fields when SP refinement shifts `mature_start`
+- Evaluator species fallback now uses taxon-aware / word-boundary-safe categorization
 
-Accuracy: bird 62.1%, fish 59.6%, human 84.7%, overall 56.6% exact.
+Accuracy from `python scripts/evaluate_sp_ground_truth.py` after the category fix:
+- bird 64.0%, fish 57.6%, human 84.7%, overall 56.5% exact
+
+## Refined TODO
+
+1. Lock measurement + serialization invariants
+   - Keep the `mature_sequence == groove/tail reconstruction` invariant tested
+   - Keep evaluator species categorization taxon-safe so per-clade metrics stay trustworthy
+2. Human-first path to >99%
+   - Add gene context to the evaluator (or a local accession→gene map for reviewed human entries)
+   - Resolve the known class II human misses: DQB 30/32 split, DQA/DMA gene-specific offsets, residual SP misparses
+   - Re-baseline after each change; human >95% is near-term, >99% is plausible with gene-aware class II handling
+3. Wire structural SP search into the class I parser
+   - Pass species context into `decompose_class_i`
+   - Replace direct constant subtraction with `_find_mature_start()` behind a no-regression gate
+   - Keep mammalian behavior stable while improving bird/fish/NHP edge cases
+4. Add holistic candidate-parse enumeration
+   - Enumerate motif-based and position-based candidates side by side
+   - Score the full `[SP]-[groove]-[Ig]-[tail]` decomposition, not isolated boundaries
+   - Do not remove class II constants until the holistic scorer beats the baseline on every category
+5. Non-mammal roadmap toward high overall accuracy
+   - Fish-specific or fish-relaxed junction handling
+   - Broader class-I junction motif support outside mammals/birds
+   - Treat all-species >90% as a multi-phase target after human/class II stabilization, not an immediate expectation
 
 ## Next: Full candidate parse enumeration
 
@@ -78,7 +103,7 @@ The calibrated class II flanking tables (already in groove.py):
 ### Gene-specific constant elimination
 
 With enumeration + holistic scoring + junction discovery:
-- Class I: constants already bypassed by motif classification
+- Class I: groove/Ig pair selection is motif-based, but mature-start inference still uses the constant path until `_find_mature_start()` is wired in
 - Class II alpha: junction discovery doesn't apply (no groove1/groove2 split),
   but domain size scoring can replace the gene-specific Cys1 mature positions
   (DQA=109, DMA=120) by preferring candidates with plausible groove1 lengths

@@ -54,6 +54,9 @@ r.groove1           # α1 domain
 r.groove2           # α2 domain
 r.ig_domain         # α3 Ig-fold
 r.tail              # TM + cytoplasmic
+r.domains           # typed domain spans
+r.domain_architecture
+r.domain_spans
 r.species_category  # "human"
 
 # Apply mutations (IEDB-style, e.g. "K66A")
@@ -87,22 +90,42 @@ Three sources are merged into a single dataset:
 
 ### By species category
 
-| Category | Count |
-|---|---:|
-| human | 25,364 |
-| bird | 9,312 |
-| nhp | 7,125 |
-| fish | 4,859 |
-| ungulate | 1,768 |
-| murine | 1,587 |
-| other_vertebrate | 1,137 |
-| other_mammal | 943 |
-| carnivore | 484 |
+| Category | Count | Groove OK | Class I groove | Class II groove |
+|---|---:|---:|---|---|
+| human | 25,364 | 98.0% | median 183 aa | median 88 aa |
+| nhp | 7,125 | 100.0% | median 183 aa | median 88 aa |
+| bird | 9,312 | 99.8% | median 80 aa | median 88 aa |
+| fish | 4,859 | 97.5% | median 179 aa | median 89 aa |
+| ungulate | 1,768 | 97.6% | median 183 aa | median 88 aa |
+| murine | 1,587 | 90.7% | median 137 aa | median 85 aa |
+| other_vertebrate | 1,137 | 97.6% | median 173 aa | median 88 aa |
+| other_mammal | 943 | 97.6% | median 166 aa | median 88 aa |
+| carnivore | 484 | 99.6% | median 181 aa | median 88 aa |
+
+Class I groove = groove1 + groove2 (α1 + α2 domains). Class II groove = groove1 or groove2
+(single chain contributes one groove half). The variation in class I groove lengths reflects
+the mix of full-length sequences (two groove halves, ~183 aa) and single-exon fragments
+(one half, ~80-93 aa).
 
 Species categories: human, nhp (non-human primates), murine (mice, rats, rodents),
 ungulate (cattle, pig, horse, sheep, goat), carnivore (dog, cat),
 other_mammal (marsupials, monotremes, bats, cetaceans, rabbit),
 bird, fish, other_vertebrate (reptiles, amphibians).
+
+### Signal peptide detection accuracy
+
+Validated against 2,403 UniProt ground-truth SP annotations:
+
+| Species | Class I exact | Class II exact |
+|---|---|---|
+| Human | 99.2% | 88.4% |
+| NHP | 100.0% | 91.2% |
+| Bird | 94.4% | 89.3% |
+| Fish | 86.9% | 81.9% |
+| Other vertebrate | 68.2% | 86.1% |
+| **Overall** | **82.0% exact**, 89.9% within ±2 aa |
+
+False positive rate on 2,155 mature-only controls: 3.8%.
 
 ## Data directory
 
@@ -122,56 +145,120 @@ By default, `mhcseqs build` downloads FASTA files and writes output CSVs to
 
 ## Structural decomposition
 
-Each protein chain is decomposed into four contiguous regions:
+The parser materializes an explicit domain grammar:
+
+| Chain | Grammar |
+|---|---|
+| Class I alpha | `signal_peptide? -> g_alpha1 -> g_alpha2 -> c1_alpha3 -> transmembrane? -> cytoplasmic_tail?` |
+| Class II alpha | `signal_peptide? -> g_alpha1 -> c1_alpha2 -> transmembrane? -> cytoplasmic_tail?` |
+| Class II beta | `signal_peptide? -> g_beta1 -> c1_beta2 -> transmembrane? -> cytoplasmic_tail?` |
+
+The exported contiguous sequence fields are:
 
 | Column | Class I alpha | Class II alpha | Class II beta |
 |---|---|---|---|
-| `groove1` | α1 domain (~90 aa) | α1 domain (~83 aa) | — |
-| `groove2` | α2 domain (~93 aa) | — | β1 domain (~93 aa) |
-| `ig_domain` | α3 Ig-fold (~95 aa) | α2 Ig-fold (~95 aa) | β2 Ig-fold (~95 aa) |
-| `tail` | TM + cytoplasmic | TM + cytoplasmic | TM + cytoplasmic |
+| `groove1` | α1 domain (~80-95 aa typical) | α1 domain (~75-95 aa typical) | — |
+| `groove2` | α2 domain (~80-100 aa typical) | — | β1 domain (~70-100 aa typical) |
+| `ig_domain` | α3 C-like support domain | α2 C-like support domain | β2 C-like support domain |
+| `tail` | linker + TM + cytoplasmic tail | linker + TM + cytoplasmic tail | linker + TM + cytoplasmic tail |
 
-For a class I chain: `mature_protein = groove1 + groove2 + ig_domain + tail`
+`domain_architecture` and `domain_spans` expose the typed domain grammar
+directly, for example:
 
-## Groove extraction algorithm
+- class I: `signal_peptide>g_alpha1>g_alpha2>c1_alpha3>tail_linker>transmembrane>cytoplasmic_tail`
+- class II beta: `signal_peptide>g_beta1>c1_beta2>tail_linker>transmembrane>cytoplasmic_tail`
 
-The groove parser is **alignment-free** — it uses conserved Cys-Cys disulfide
-pairs in Ig-fold domains as structural landmarks to slice domain boundaries
-without multiple sequence alignment.
+## How Parsing Works
 
-### Signal peptide inference
+The parser is **alignment-free** and **holistic**. It does not rely on one
+absolute Cys position to define the mature start.
 
-Signal peptide length is inferred from the Cys pair position, not from
-sequence motifs. The conserved Ig-fold Cys has a known position in the
-mature protein (e.g., position 100 for class I α2). The offset between the
-raw sequence position and the expected mature position gives the signal
-peptide length:
+For each sequence it:
 
-```
-mature_start = raw_cys_position - expected_mature_cys_position
-```
+1. Enumerates all plausible Cys-Cys pairs in the Ig/C-like separation range.
+2. Scores each pair as a candidate G-domain or C-like anchor using fold-topology
+   evidence, especially the Trp41-like signal around `c1+14`.
+3. Enumerates candidate SP boundaries and whole domain parses, including partial
+   parses when only fragment evidence is available.
+4. Chooses the best full parse using factored multiplicative scoring:
+   three structural claims (SP grammar, domain architecture, completeness) each
+   produce a [0,1] factor.  Contradictory evidence in any factor gates the score
+   down multiplicatively, while missing evidence is a softer penalty.
 
-Gene-specific constants account for groove domain length variation:
-DQA (109), DMA (120), DPB (114). All others use the defaults (class I: 100,
-class II alpha: 106, class II beta: 116).
+The strongest evidence types are:
 
-### Groove status values
+- SP cleavage grammar: hydrophobic h-region, short c-region, von Heijne `-3/-1`
+  compatibility, exclusion of impossible `-3/-1` property pairs, and mild `+1`
+  mature-sequence penalties.
+- Domain-fold grammar: canonical G-domain versus C-like disulfide topology,
+  including the IMGT-style `Cys11-Cys74` G-domain signature and the
+  `Cys23/Trp41/Cys104` C-like grammar.
+- Class-specific groove boundaries:
+  - class I α1/α2 junction motifs
+  - class I α2 -> α3 boundary motifs
+  - class II α1 -> α2 and β1 -> β2 boundary motifs
+- Soft priors on groove/support-domain lengths and TM support downstream.
+
+The parser handles:
+
+- full-length proteins with or without signal peptides
+- SP-stripped deposits (`mature_start = 0`)
+- common fragments:
+  - class I exon 2 only -> `alpha1_only`
+  - class I exon 3 only -> `alpha2_only`
+  - class II exon 2-like fragments -> `fragment_fallback`
+- low-evidence salvage:
+  - class I from α3 C-like support only -> `inferred_from_alpha3`
+  - class II beta from β1 groove pair only -> `beta1_only_fallback`
+- true groove absence / insufficient structural evidence -> `missing_groove`
+
+### Groove Status Values
+
+These are the important parser-facing statuses:
 
 | Status | Meaning |
 |---|---|
-| `ok` | Full decomposition: groove1 + groove2 + ig_domain + tail |
-| `alpha1_only` | Single-exon class I fragment — α1 domain (no Cys pair) |
-| `alpha2_only` | Single-exon class I fragment — α2 domain (has Cys pair) |
-| `beta1_only_fallback` | Class II beta with β1 pair only (no β2 Ig pair) |
-| `fragment_fallback` | Short fragment used as raw groove sequence |
-| `inferred_from_alpha3` | Groove boundaries estimated from α3 Cys pair |
-| `not_applicable` | Non-groove gene (B2M, MICA, MICB, HFE, MR1) |
-| `non_classical` | Non-classical MHC lineage (fish L/S/P/H) |
-| `short` | Groove half < 70 aa — unlikely to be functional |
-| `suspect_anchor` | Cys mutation produced implausible mature_start |
+| `ok` | Full decomposition from the main structural grammar |
+| `alpha1_only` | Class I fragment consistent with α1 / exon 2 only |
+| `alpha2_only` | Class I fragment consistent with α2 / exon 3 only |
+| `fragment_fallback` | Short fragment retained as the observable groove half |
+| `inferred_from_alpha3` | Class I salvage parse using a downstream α3 C-like anchor |
+| `beta1_only_fallback` | Class II beta salvage parse using only the β1 groove pair |
+| `missing_groove` | No recoverable groove architecture from the available evidence |
+| `non_classical` | Non-classical class-I lineage flagged post-parse |
+| `short` | Groove half too short to look functionally peptide-binding |
 
-See [groove.py](mhcseqs/groove.py) module docstring for detailed algorithm
-documentation with ASCII structural diagrams.
+Pipeline-only statuses can still appear in CSV outputs:
+
+| Status | Meaning |
+|---|---|
+| `not_applicable` | Row intentionally excluded from groove functionality, mainly B2M in build outputs |
+
+## Literature Basis
+
+The parser is built around conserved sequence grammar from the MHC literature:
+
+- MHC domain organization is more conserved than short local motifs across
+  vertebrates: [Primordial Linkage of β2-Microglobulin to the MHC](https://pmc.ncbi.nlm.nih.gov/articles/PMC3805034/)
+- IMGT domain numbering and the G-domain versus C-like disulfide grammar:
+  [PMC3913909](https://pmc.ncbi.nlm.nih.gov/articles/PMC3913909/)
+- Classical class-I domain layout and landmarks:
+  [PMC2434379](https://pmc.ncbi.nlm.nih.gov/articles/PMC2434379/)
+- Salmonid class-II alpha/beta cysteine topology and lineage-specific extra
+  cysteines: [PMC2386828](https://pmc.ncbi.nlm.nih.gov/articles/PMC2386828/)
+- Teleost class-II evolutionary divergence while retaining the same modular
+  architecture: [PMC4219347](https://pmc.ncbi.nlm.nih.gov/articles/PMC4219347/)
+
+Signal-peptide logic follows the standard SPase grammar:
+
+- von Heijne `-3/-1` cleavage rule:
+  [How signal sequences maintain cleavage specificity](https://pubmed.ncbi.nlm.nih.gov/6423828/)
+- flanking `-2/+1` effects:
+  [Flanking signal and mature peptide residues influence signal peptide cleavage](https://pmc.ncbi.nlm.nih.gov/articles/PMC2638155/)
+- strong penalty for `+1 Pro`:
+  [PubMed 1544500](https://pubmed.ncbi.nlm.nih.gov/1544500/)
+- h-region / c-region structural context:
+  [Structure of the human signal peptidase complex reveals the determinants for signal peptide cleavage](https://www.sciencedirect.com/science/article/pii/S1097276521006006)
 
 ## Key columns
 

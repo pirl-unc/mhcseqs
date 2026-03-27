@@ -352,7 +352,7 @@ def _structural_rescue(seq: str, mhc_class: str, chain: str) -> bool:
     if seq.upper().count("C") < 2:
         return False
     try:
-        from mhcseqs.groove import (
+        from mhcseqs.domain_parsing import (
             decompose_class_i,
             decompose_class_ii_alpha,
             decompose_class_ii_beta,

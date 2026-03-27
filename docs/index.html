@@ -162,62 +162,67 @@ mhcseqs.infer_mhc_class("HLA-A*02:01")  # "I"</code></pre>
   <tr><td style="text-align:left"><code>groove_seq</code></td><td style="text-align:left">Concatenation of groove1 + groove2</td></tr>
   <tr><td style="text-align:left"><code>ig_domain</code></td><td style="text-align:left">Ig support domain: α3 (class I), α2 (class II α), β2 (class II β)</td></tr>
   <tr><td style="text-align:left"><code>tail</code></td><td style="text-align:left">Transmembrane + cytoplasmic region</td></tr>
-  <tr><td style="text-align:left"><code>groove_status</code></td><td style="text-align:left">Groove parse outcome (ok, alpha3_fallback, etc.)</td></tr>
+  <tr><td style="text-align:left"><code>domain_architecture</code></td><td style="text-align:left">Typed domain grammar, e.g. <code>signal_peptide&gt;g_alpha1&gt;g_alpha2&gt;c1_alpha3&gt;transmembrane</code></td></tr>
+  <tr><td style="text-align:left"><code>domain_spans</code></td><td style="text-align:left">Human-readable domain coordinates in the raw sequence</td></tr>
+  <tr><td style="text-align:left"><code>groove_status</code></td><td style="text-align:left">Groove parse outcome (ok, missing_groove, fragment_fallback, etc.)</td></tr>
   <tr><td style="text-align:left"><code>anchor_type</code></td><td style="text-align:left">Which Cys pair anchored the parse</td></tr>
   <tr><td style="text-align:left"><code>is_functional</code></td><td style="text-align:left">Groove parseable AND not null/pseudogene</td></tr>
 </table>
 
 <h2 id="algorithm">Groove extraction algorithm</h2>
 
-<p>The parser is <strong>alignment-free</strong> — it uses conserved Cys-Cys disulfide
-pairs in Ig-fold domains as structural landmarks.</p>
+<p>The parser is <strong>alignment-free</strong> and <strong>holistic</strong>. It scores
+signal peptide, groove, support-domain, and TM evidence together instead of
+anchoring the parse on one fixed mature-position constant.</p>
 
 <h3>Domain architecture</h3>
-<pre><code>CLASS I alpha chain:
-
-  raw pos:  0       SP   ms        ms+90  C1  C1+10     C2+20     s_C2+20
-            |--------|    |          |     |    |          |         |
-            [ signal ]    [-- groove1 --]--[--- groove2 ---]--[-- ig --]--[ tail ]
-            [ peptide]    [     α1      ]  [      α2       ]  [  α3   ]
-                          |<-- 90 aa -->|  | C1.......C2   |  |C1..C2 |
-                                           |<--- 93 aa --->|
-
-CLASS II alpha chain:
-
-  raw pos:  0       SP   ms           ms+83  C1         C2
-            |--------|    |              |    |          |
-            [ signal ]    [-- groove1 ---]----[--- ig ------]--[ tail ]
-            [ peptide]    [     α1       ]    [    α2       ]
-
-CLASS II beta chain:
-
-  raw pos:  0       SP   ms  C1b       C2b      C1i         C2i
-            |--------|    |   |          |        |           |
-            [ signal ]    [------- groove2 ------]--[-- ig ----]--[ tail ]
-            [ peptide]    [         β1           ]  [   β2     ]</code></pre>
+<pre><code>Class I alpha:   signal_peptide? -&gt; g_alpha1 -&gt; g_alpha2 -&gt; c1_alpha3 -&gt; TM? -&gt; tail?
+Class II alpha: signal_peptide? -&gt; g_alpha1 -&gt; c1_alpha2 -&gt; TM? -&gt; tail?
+Class II beta:  signal_peptide? -&gt; g_beta1  -&gt; c1_beta2  -&gt; TM? -&gt; tail?</code></pre>
 
 <h3>How it works</h3>
 <ol>
-  <li>Find all Cys-Cys pairs with 48–72 residue separation (Ig-fold signature).</li>
-  <li>Select the pair in the expected positional range, preferring the one whose
-      separation is closest to the domain's canonical value.</li>
-  <li>Infer signal peptide length by subtracting the known mature-position constant
-      from the raw Cys position.</li>
-  <li>Slice groove, Ig domain, and tail using offsets relative to the anchor pair.</li>
+  <li>Enumerate all plausible Cys-Cys pairs in the Ig/C-like separation range.</li>
+  <li>Score each pair as G-domain or C-like using Trp41-like fold topology, Cys-flank composition, and pair separation.</li>
+  <li>Enumerate candidate SP boundaries and complete domain parses, including partial-fragment parses when needed.</li>
+  <li>Choose the best whole parse from combined evidence: SP grammar, groove anchor, groove boundary motifs, support-domain evidence, and TM support.</li>
 </ol>
+
+<p>The main evidence sources are:</p>
+<ul>
+  <li>SP grammar: hydrophobic h-region, short c-region, von Heijne <code>-3/-1</code> compatibility, and impossible-pair exclusions.</li>
+  <li>Domain grammar: G-domain versus C-like disulfide topology, especially the Trp41-like signal around <code>c1+14</code>.</li>
+  <li>Class-specific groove boundaries: class-I α1/α2 junctions and groove -&gt; C-like boundary motifs for class I and class II.</li>
+  <li>Soft priors on groove/support-domain lengths and downstream TM support.</li>
+</ul>
 
 <h3>Groove status codes</h3>
 <table>
   <tr><th style="text-align:left">Status</th><th style="text-align:left">Meaning</th></tr>
-  <tr><td style="text-align:left"><code>ok</code></td><td style="text-align:left">Primary anchor found, groove extracted normally</td></tr>
-  <tr><td style="text-align:left"><code>alpha3_fallback</code></td><td style="text-align:left">Class I: used α3 Cys pair instead of α2</td></tr>
-  <tr><td style="text-align:left"><code>beta1_only_fallback</code></td><td style="text-align:left">Class II β: only β1 Cys pair available</td></tr>
-  <tr><td style="text-align:left"><code>fragment_fallback</code></td><td style="text-align:left">Short sequence treated as raw groove fragment</td></tr>
-  <tr><td style="text-align:left"><code>not_applicable</code></td><td style="text-align:left">B2M, MICA, MICB, HFE (not peptide-binding)</td></tr>
-  <tr><td style="text-align:left"><code>too_short</code></td><td style="text-align:left">Sequence &lt; 70 aa</td></tr>
-  <tr><td style="text-align:left"><code>no_cys_pairs</code></td><td style="text-align:left">No valid Cys-Cys pairs found</td></tr>
-  <tr><td style="text-align:left"><code>no_alpha2_pair</code></td><td style="text-align:left">Class I: no Cys pair in α2 range</td></tr>
+  <tr><td style="text-align:left"><code>ok</code></td><td style="text-align:left">Full decomposition from the main structural grammar</td></tr>
+  <tr><td style="text-align:left"><code>inferred_from_alpha3</code></td><td style="text-align:left">Class I salvage parse using only a downstream α3 C-like anchor</td></tr>
+  <tr><td style="text-align:left"><code>beta1_only_fallback</code></td><td style="text-align:left">Class II β salvage parse using only the β1 groove pair</td></tr>
+  <tr><td style="text-align:left"><code>alpha1_only</code></td><td style="text-align:left">Class-I fragment consistent with α1 / exon 2 only</td></tr>
+  <tr><td style="text-align:left"><code>alpha2_only</code></td><td style="text-align:left">Class-I fragment consistent with α2 / exon 3 only</td></tr>
+  <tr><td style="text-align:left"><code>fragment_fallback</code></td><td style="text-align:left">Short fragment retained as the observable groove half</td></tr>
+  <tr><td style="text-align:left"><code>missing_groove</code></td><td style="text-align:left">No recoverable groove architecture from the available evidence</td></tr>
+  <tr><td style="text-align:left"><code>non_classical</code></td><td style="text-align:left">Non-classical class-I lineage flagged post-parse</td></tr>
+  <tr><td style="text-align:left"><code>short</code></td><td style="text-align:left">Groove half too short to look functionally peptide-binding</td></tr>
+  <tr><td style="text-align:left"><code>not_applicable</code></td><td style="text-align:left">Pipeline-level non-groove row, mainly B2M in build outputs</td></tr>
 </table>
+
+<h3>Literature basis</h3>
+<ul>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3805034/">PMC3805034</a>: vertebrate MHC class I / class II modular domain organization.</li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3913909/">PMC3913909</a>: IMGT numbering and G-domain versus C-like landmarks.</li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC2434379/">PMC2434379</a>: classical class-I domain layout and landmarks.</li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC2386828/">PMC2386828</a>: salmonid class-II cysteine topology and lineage-specific extra cysteines.</li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4219347/">PMC4219347</a>: teleost class-II evolution with retained domain grammar.</li>
+  <li><a href="https://pubmed.ncbi.nlm.nih.gov/6423828/">PubMed 6423828</a>: von Heijne signal-peptide cleavage rule.</li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC2638155/">PMC2638155</a>: flanking <code>-2/+1</code> cleavage effects.</li>
+  <li><a href="https://pubmed.ncbi.nlm.nih.gov/1544500/">PubMed 1544500</a>: strong disfavoring of <code>+1 Pro</code>.</li>
+  <li><a href="https://www.sciencedirect.com/science/article/pii/S1097276521006006">Structure of the human signal peptidase complex</a>: h-region / c-region determinants beyond the local cleavage tetrapeptide.</li>
+</ul>
 
 <h2 id="species">Species taxonomy</h2>
 
@@ -238,7 +243,7 @@ CLASS II beta chain:
 
 <h2 id="modules">Module reference</h2>
 
-<h3>mhcseqs.groove</h3>
+<h3>mhcseqs.domain_parsing</h3>
 <p>Core groove extraction. Key functions:</p>
 <ul>
   <li><code>extract_groove(seq, mhc_class, ...)</code> — main dispatcher</li>
