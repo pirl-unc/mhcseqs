@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 import re
 from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
@@ -20,14 +21,15 @@ from .alleles import (
     normalize_mhc_class,
     parse_allele_name,
 )
-from .groove import (
+from .domain_grammar import NON_MHC_ACCESSIONS
+from .domain_parsing import (
     NON_GROOVE_GENES,
-    NON_MHC_ACCESSIONS,
     AlleleRecord,
+    SequenceFeatures,
+    analyze_sequence,
+    decompose_domains,
     is_class_ii_alpha_gene,
-    parse_class_i,
-    parse_class_ii_alpha,
-    parse_class_ii_beta,
+    refine_signal_peptide,
 )
 from .species import get_latin_name, normalize_mhc_species
 
@@ -37,6 +39,8 @@ MIN_MHC_SEQUENCE_LEN = 70
 # Curated reference CSVs (shipped with this repo)
 _B2M_CSV = Path(__file__).resolve().parent / "b2m_sequences.csv"
 _MOUSE_H2_CSV = Path(__file__).resolve().parent / "mouse_h2_sequences.csv"
+# Legacy filename: this is the curated supplemental UniProt bundle for
+# underrepresented taxa outside the IMGT/IPD downloads.
 _DIVERSE_MHC_CSV = Path(__file__).resolve().parent / "diverse_mhc_sequences.csv"
 
 _NUCLEOTIDE_LIKE_CHARS = set("ACGTUNWSMKRYBDHV")
@@ -102,6 +106,8 @@ FULL_FIELDS = [
     "ig_domain_len",
     "tail",
     "tail_len",
+    "domain_architecture",
+    "domain_spans",
     "groove_status",
     "groove_flags",
     "anchor_type",
@@ -290,10 +296,23 @@ def _load_mouse_h2_references() -> List[dict]:
             is_fragment = row.get("is_fragment", "False") == "True"
 
             # Groove parse to infer signal peptide / mature start
-            groove = _try_groove_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
+            features = analyze_sequence(seq)
+            groove = _try_domain_parse(
+                seq,
+                mhc_class=mhc_class,
+                gene=gene,
+                allele=allele_name,
+                chain=chain,
+                features=features,
+            )
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
-            has_sp = mature_start >= 15 and seq[:1].upper() == "M"
-            sp_seq = seq[:mature_start] if has_sp else ""
+            mature_start, has_sp, sp_seq = _signal_peptide_fields(
+                seq,
+                mature_start,
+                "murine",
+                mhc_class,
+                features=features,
+            )
 
             rows.append(
                 {
@@ -333,6 +352,27 @@ def _infer_chain(gene: str, mhc_class: str) -> str:
     return ""
 
 
+def _signal_peptide_fields(
+    seq: str,
+    mature_start: int,
+    species_category: str = "",
+    mhc_class: str = "",
+    *,
+    features: Optional[SequenceFeatures] = None,
+) -> Tuple[int, bool, str]:
+    """Return refined signal peptide metadata for a raw sequence row."""
+    refined_start = refine_signal_peptide(
+        seq,
+        mature_start,
+        species_category,
+        mhc_class,
+        features=features,
+    )
+    has_sp = refined_start >= 15 and seq[:1].upper() == "M"
+    sp_seq = seq[:refined_start] if has_sp else ""
+    return refined_start, has_sp, sp_seq
+
+
 # Source group → species_category mapping (for diverse_mhc_sequences.csv)
 _DIVERSE_GROUP_TO_CATEGORY = {
     "reptile_lepidosauria": "other_vertebrate",
@@ -350,11 +390,12 @@ _DIVERSE_GROUP_TO_CATEGORY = {
 
 
 def _load_diverse_mhc_references() -> List[dict]:
-    """Load curated diverse MHC sequences from diverse_mhc_sequences.csv.
+    """Load curated supplemental UniProt MHC sequences.
 
-    These are UniProt sequences from taxonomic groups underrepresented in
-    IMGT/HLA and IPD-MHC: reptiles, amphibians, birds, fish, sharks,
-    marsupials, monotremes, and bats.
+    The CSV keeps its historical ``diverse_mhc_sequences.csv`` filename, but
+    today it serves as the curated supplemental UniProt bundle for taxa
+    underrepresented in IMGT/HLA and IPD-MHC: reptiles, amphibians, birds,
+    fish, sharks, marsupials, monotremes, and bats.
     """
     if not _DIVERSE_MHC_CSV.exists():
         return []
@@ -393,11 +434,17 @@ def _load_diverse_mhc_references() -> List[dict]:
                 elif gene:
                     chain = "beta"
 
-            # Groove parse for signal peptide detection
-            groove = _try_groove_parse(seq, mhc_class=mhc_class, gene=gene, allele=allele_name)
-            mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
-            has_sp = mature_start >= 15 and seq[:1].upper() == "M"
-            sp_seq = seq[:mature_start] if has_sp else ""
+            # This curated file is large (~20k rows), so keep the light-weight
+            # SP-only path here, but run it through the same cached SP feature
+            # bundle and refinement logic used elsewhere in the pipeline.
+            features = analyze_sequence(seq)
+            mature_start, has_sp, sp_seq = _signal_peptide_fields(
+                seq,
+                features.sp_estimate,
+                species_category,
+                mhc_class,
+                features=features,
+            )
 
             rows.append(
                 {
@@ -481,10 +528,23 @@ def build_raw_index(
             # groove parser (useful for alignment even when no true SP is
             # present).  has_signal_peptide is only True when the sequence
             # actually begins with Met and the offset is plausible.
-            groove = _try_groove_parse(seq, mhc_class=mhc_class, gene=gene or "", allele=normalized)
+            features = analyze_sequence(seq)
+            groove = _try_domain_parse(
+                seq,
+                mhc_class=mhc_class,
+                gene=gene or "",
+                allele=normalized,
+                chain=chain,
+                features=features,
+            )
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
-            has_sp = mature_start >= 15 and seq[:1].upper() == "M"
-            sp_seq = seq[:mature_start] if has_sp else ""
+            mature_start, has_sp, sp_seq = _signal_peptide_fields(
+                seq,
+                mature_start,
+                species_category,
+                mhc_class,
+                features=features,
+            )
 
             suffix = allele_suffix_flags(normalized)
 
@@ -549,7 +609,7 @@ def build_raw_index(
             stats["parsed"] += 1
             stats["h2_references"] = stats.get("h2_references", 0) + 1
 
-    # Inject diverse MHC sequences (reptiles, amphibians, birds, fish, etc.)
+    # Inject curated supplemental UniProt MHC sequences for underrepresented taxa.
     diverse_rows = _load_diverse_mhc_references()
     for dr in diverse_rows:
         key = dr["allele_normalized"]
@@ -568,25 +628,33 @@ def build_raw_index(
     return dict(stats)
 
 
-def _try_groove_parse(
+def _try_domain_parse(
     seq: str,
     *,
     mhc_class: str,
     gene: str,
     allele: str,
+    chain: str = "",
+    features: Optional[SequenceFeatures] = None,
 ) -> Optional[AlleleRecord]:
     try:
         gene_upper = (gene or "").strip().upper()
-        # B2M and non-groove genes (MICA/MICB/HFE) don't have peptide-binding grooves
-        if gene_upper in ("B2M", "BETA-2-MICROGLOBULIN") or gene_upper in NON_GROOVE_GENES:
+        if gene_upper in ("B2M", "BETA-2-MICROGLOBULIN"):
             return None
         nc = normalize_mhc_class(mhc_class)
-        if nc == "I":
-            return parse_class_i(seq, allele=allele, gene=gene)
-        if nc == "II":
-            if is_class_ii_alpha_gene(gene):
-                return parse_class_ii_alpha(seq, allele=allele, gene=gene)
-            return parse_class_ii_beta(seq, allele=allele, gene=gene)
+        if nc in {"I", "II"}:
+            if features is None:
+                features = analyze_sequence(seq)
+            chain_token = str(chain or "").strip().lower()
+            chain_hint = None if chain_token in {"", "unknown"} else chain
+            return decompose_domains(
+                seq,
+                mhc_class=nc,
+                chain=chain_hint,
+                allele=allele,
+                gene=gene,
+                features=features,
+            )
     except Exception:
         pass
     return None
@@ -695,11 +763,12 @@ def _try_assemble_overlap(
         consensus = merged
 
     # Verify the assembled sequence produces a valid groove
-    groove = _try_groove_parse(
+    groove = _try_domain_parse(
         consensus,
         mhc_class=anchor.get("mhc_class", ""),
         gene=anchor.get("gene", ""),
         allele=group_key,
+        chain=anchor.get("chain", ""),
     )
     if groove is None or not groove.ok:
         return None
@@ -709,11 +778,12 @@ def _try_assemble_overlap(
 
 def _groove_signature(row: dict) -> Optional[Tuple[str, str]]:
     """Compute groove signature for a raw record (parses on the fly)."""
-    groove = _try_groove_parse(
+    groove = _try_domain_parse(
         row["sequence"],
         mhc_class=row.get("mhc_class", ""),
         gene=row.get("gene", ""),
         allele=row.get("allele_normalized", ""),
+        chain=row.get("chain", ""),
     )
     if groove is None or not groove.ok:
         return None
@@ -887,24 +957,103 @@ def _emit_full_row(
     groove: Optional[AlleleRecord],
 ) -> dict:
     """Build a row for mhc-full-seqs.csv (includes groove decomposition)."""
+
+    def _realign_domains_to_refined_start(record: AlleleRecord, refined_start: int) -> AlleleRecord:
+        """Keep emitted domain slices aligned when SP refinement shifts mature_start."""
+        if not record.ok or refined_start == record.mature_start:
+            return record
+
+        old_start = record.mature_start
+        if refined_start < 0 or refined_start > len(seq) or old_start < 0 or old_start > len(seq):
+            return record
+
+        if record.mhc_class == "I":
+            groove1_end = old_start + record.groove1_len
+            groove2_end = groove1_end + record.groove2_len
+            ig_end = groove2_end + record.ig_domain_len
+            groove1 = seq[refined_start:groove1_end]
+            groove2 = seq[groove1_end:groove2_end]
+            ig_domain = seq[groove2_end:ig_end]
+            tail = seq[ig_end:]
+            return replace(
+                record,
+                mature_start=refined_start,
+                groove_seq=groove1 + groove2,
+                groove1=groove1,
+                groove2=groove2,
+                groove1_len=len(groove1),
+                groove2_len=len(groove2),
+                ig_domain=ig_domain,
+                ig_domain_len=len(ig_domain),
+                tail=tail,
+                tail_len=len(tail),
+            )
+
+        if record.chain == "alpha":
+            groove1_end = old_start + record.groove1_len
+            ig_end = groove1_end + record.ig_domain_len
+            groove1 = seq[refined_start:groove1_end]
+            ig_domain = seq[groove1_end:ig_end]
+            tail = seq[ig_end:]
+            return replace(
+                record,
+                mature_start=refined_start,
+                groove_seq=groove1,
+                groove1=groove1,
+                groove2="",
+                groove1_len=len(groove1),
+                groove2_len=0,
+                ig_domain=ig_domain,
+                ig_domain_len=len(ig_domain),
+                tail=tail,
+                tail_len=len(tail),
+            )
+
+        if record.chain == "beta":
+            groove2_end = old_start + record.groove2_len
+            ig_end = groove2_end + record.ig_domain_len
+            groove2 = seq[refined_start:groove2_end]
+            ig_domain = seq[groove2_end:ig_end]
+            tail = seq[ig_end:]
+            return replace(
+                record,
+                mature_start=refined_start,
+                groove_seq=groove2,
+                groove1="",
+                groove2=groove2,
+                groove1_len=0,
+                groove2_len=len(groove2),
+                ig_domain=ig_domain,
+                ig_domain_len=len(ig_domain),
+                tail=tail,
+                tail_len=len(tail),
+            )
+
+        return record
+
     mature_start = groove.mature_start if groove and groove.ok else 0
-    mature_seq = seq[mature_start:] if mature_start > 0 else seq
+    mature_start = refine_signal_peptide(
+        seq,
+        mature_start,
+        representative.get("species_category", ""),
+        groove.mhc_class if groove else representative.get("mhc_class", ""),
+    )
+    aligned_groove = _realign_domains_to_refined_start(groove, mature_start) if groove else None
+    mature_seq = aligned_groove.mature_sequence if aligned_groove and aligned_groove.ok else (seq[mature_start:] if mature_start > 0 else seq)
 
     gene = representative.get("gene", "")
     gene_upper = gene.strip().upper()
     is_non_groove = gene_upper in NON_GROOVE_GENES or gene_upper in ("B2M", "BETA-2-MICROGLOBULIN")
 
-    if groove:
-        groove_status = groove.status
+    if aligned_groove:
+        groove_status = aligned_groove.status
     elif is_non_groove:
         groove_status = "not_applicable"
     else:
         groove_status = ""
 
     suffix = allele_suffix_flags(representative.get("allele_normalized", ""))
-    is_functional = (
-        groove_status in FUNCTIONAL_GROOVE_STATUSES and not suffix["is_null"] and not suffix["is_pseudogene"]
-    )
+    is_functional = groove_status in FUNCTIONAL_GROOVE_STATUSES and not suffix["is_null"] and not suffix["is_pseudogene"]
     return {
         "two_field_allele": group_key,
         "representative_allele": representative.get("allele_normalized", ""),
@@ -921,18 +1070,20 @@ def _emit_full_row(
         "sequence": seq,
         "mature_start": str(mature_start),
         "mature_sequence": mature_seq,
-        "groove1": groove.groove1 if groove else "",
-        "groove2": groove.groove2 if groove else "",
-        "groove_seq": groove.groove_seq if groove else "",
-        "groove1_len": str(groove.groove1_len) if groove else "0",
-        "groove2_len": str(groove.groove2_len) if groove else "0",
-        "ig_domain": groove.ig_domain if groove else "",
-        "ig_domain_len": str(groove.ig_domain_len) if groove else "0",
-        "tail": groove.tail if groove else "",
-        "tail_len": str(groove.tail_len) if groove else "0",
+        "groove1": aligned_groove.groove1 if aligned_groove else "",
+        "groove2": aligned_groove.groove2 if aligned_groove else "",
+        "groove_seq": aligned_groove.groove_seq if aligned_groove else "",
+        "groove1_len": str(aligned_groove.groove1_len) if aligned_groove else "0",
+        "groove2_len": str(aligned_groove.groove2_len) if aligned_groove else "0",
+        "ig_domain": aligned_groove.ig_domain if aligned_groove else "",
+        "ig_domain_len": str(aligned_groove.ig_domain_len) if aligned_groove else "0",
+        "tail": aligned_groove.tail if aligned_groove else "",
+        "tail_len": str(aligned_groove.tail_len) if aligned_groove else "0",
+        "domain_architecture": aligned_groove.domain_architecture if aligned_groove else "",
+        "domain_spans": aligned_groove.domain_spans if aligned_groove else "",
         "groove_status": groove_status,
-        "groove_flags": ",".join(groove.flags) if groove and groove.flags else "",
-        "anchor_type": groove.anchor_type if groove else "",
+        "groove_flags": ",".join(aligned_groove.flags) if aligned_groove and aligned_groove.flags else "",
+        "anchor_type": aligned_groove.anchor_type if aligned_groove else "",
         "is_null": str(suffix["is_null"]),
         "is_questionable": str(suffix["is_questionable"]),
         "is_pseudogene": str(suffix["is_pseudogene"]),
@@ -1098,11 +1249,12 @@ def build_full_seqs(
         if rep is not None:
             # Use the assembled sequence if available, otherwise the rep's own
             seq = assembled_seq if assembled_seq else rep["sequence"]
-            groove = _try_groove_parse(
+            groove = _try_domain_parse(
                 seq,
                 mhc_class=rep.get("mhc_class", ""),
                 gene=rep.get("gene", ""),
                 allele=rep.get("allele_normalized", ""),
+                chain=rep.get("chain", ""),
             )
             stats["with_representative"] += 1
             stats[f"policy_{policy}"] += 1
@@ -1112,11 +1264,12 @@ def build_full_seqs(
             sorted_members = sorted(members, key=lambda r: -len(r["sequence"]))
             fallback = sorted_members[0]
             seq = fallback["sequence"]
-            groove = _try_groove_parse(
+            groove = _try_domain_parse(
                 seq,
                 mhc_class=fallback.get("mhc_class", ""),
                 gene=fallback.get("gene", ""),
                 allele=fallback.get("allele_normalized", ""),
+                chain=fallback.get("chain", ""),
             )
             if groove and groove.ok:
                 stats["with_representative"] += 1

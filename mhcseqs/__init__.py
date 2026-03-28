@@ -11,6 +11,8 @@ Quick start::
     r = mhcseqs.lookup("HLA-A*02:01")
     r.groove1            # α1 domain
     r.groove2            # α2 domain
+    r.domains            # typed domain grammar spans
+    r.domain_architecture
     r.mature_sequence    # signal peptide removed
     r.sequence           # full protein (with signal peptide)
 
@@ -24,6 +26,34 @@ Quick start::
 from dataclasses import dataclass
 from typing import Sequence
 
+__all__ = [
+    # domain_parsing
+    "NON_GROOVE_GENES",
+    "AlleleRecord",
+    "RawAllele",
+    "SequenceFeatures",
+    "StructuralDomain",
+    "analyze_sequence",
+    "apply_mutations",
+    "decompose_class_i",
+    "decompose_class_ii_alpha",
+    "decompose_class_ii_beta",
+    "decompose_domains",
+    "extract_groove",
+    "find_cys_pairs",
+    "infer_structural_domains",
+    "parse_class_i",
+    "parse_class_ii_alpha",
+    "parse_class_ii_beta",
+    # alleles
+    "infer_gene",
+    "infer_mhc_class",
+    "infer_species",
+    "normalize_allele_name",
+    "normalize_mhc_class",
+    "parse_allele_name",
+]
+
 from .alleles import (
     infer_gene,
     infer_mhc_class,
@@ -32,18 +62,26 @@ from .alleles import (
     normalize_mhc_class,
     parse_allele_name,
 )
-from .download import SOURCES, download_all
-from .groove import (
+from .domain_parsing import (
     NON_GROOVE_GENES,
     AlleleRecord,
     RawAllele,
+    SequenceFeatures,
+    StructuralDomain,
+    analyze_sequence,
     apply_mutations,
+    decompose_class_i,
+    decompose_class_ii_alpha,
+    decompose_class_ii_beta,
+    decompose_domains,
     extract_groove,
     find_cys_pairs,
+    infer_structural_domains,
     parse_class_i,
     parse_class_ii_alpha,
     parse_class_ii_beta,
 )
+from .download import SOURCES, download_all
 from .imgt import (
     CONSERVED_CYS_POSITIONS,
     GALPHA2_GAP_POSITIONS,
@@ -237,10 +275,10 @@ def lookup(
     """Look up a single allele and return a fully parsed AlleleRecord.
 
     Finds the allele in the built full-sequences CSV, then runs
-    ``extract_groove()`` on it to produce a complete record with all
+    ``decompose_domains()`` on it to produce a complete record with all
     fields populated (including anchor Cys positions).
 
-    Optionally applies mutations (same format as ``extract_groove()``).
+    Optionally applies mutations (same format as ``decompose_domains()``).
 
     >>> r = mhcseqs.lookup("HLA-A*02:01")           # doctest: +SKIP
     >>> r.groove1[:10]                               # doctest: +SKIP
@@ -289,7 +327,7 @@ def lookup(
     allele_name = hit.get("two_field_allele", "")
     full_allele_name = hit.get("representative_allele", "")
 
-    result = extract_groove(
+    result = decompose_domains(
         seq,
         mhc_class=mhc_class,
         chain=chain,
@@ -324,11 +362,15 @@ __all__ = [
     "build_raw_index",
     "build_full_seqs",
     "apply_mutations",
+    "decompose_domains",
+    "decompose_class_i",
+    "decompose_class_ii_alpha",
+    "decompose_class_ii_beta",
     "extract_groove",
+    "find_cys_pairs",
     "parse_class_i",
     "parse_class_ii_alpha",
     "parse_class_ii_beta",
-    "find_cys_pairs",
     "RawAllele",
     "AlleleRecord",
     "NON_GROOVE_GENES",
