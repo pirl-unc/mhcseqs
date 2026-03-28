@@ -121,6 +121,9 @@ from .domain_grammar import (
     CLASS_I_ALPHA2_END_AFTER_CYS2,
     CLASS_II_ALPHA_GENE_PREFIXES,
     CLASS_II_BETA_GENE_PREFIXES,
+    GENE_CLASS_I_PATTERNS,
+    GENE_CLASS_II_ALPHA_PATTERNS,
+    GENE_CLASS_II_BETA_PATTERNS,
     IG_DOMAIN_END_AFTER_CYS2,
     IG_SEP_MAX,
     IG_SEP_MIN,
@@ -129,6 +132,7 @@ from .domain_grammar import (
     MIN_GROOVE_SOURCE_LEN,
     NON_CLASSICAL_CLASS_I_GENE_PATTERNS,
     NON_GROOVE_GENES,
+    NON_MHC_GENE_NAMES,
     PRIMARY_PARSE_CANDIDATE_KEEP,
     PRIMARY_PARSE_EXPANSION_MARGIN,
     PRIMARY_PARSE_LOW_CONFIDENCE,
@@ -5654,6 +5658,36 @@ def decompose_domains(
             gene_token = str(infer_gene(allele) or "").strip().upper()
         except Exception:
             gene_token = ""
+
+    # Filter non-MHC genes that appear in MHC-region datasets.
+    # LOC* gene names are NOT filtered here — they can be real MHC with
+    # NCBI identifiers.  The pipeline filters LOC* during build instead.
+    if gene_token in {g.upper() for g in NON_MHC_GENE_NAMES}:
+        return _attach_parse_candidate(
+            AlleleRecord(
+                allele=allele,
+                gene=gene,
+                mhc_class=nc or mhc_class,
+                chain=str(chain or ""),
+                sequence=cleaned_seq,
+                seq_len=len(cleaned_seq),
+                status="non_groove",
+                anchor_type="non_mhc_gene",
+                flags=("non_mhc_gene",),
+            )
+        )
+
+    # Infer class from gene name patterns when mhcgnomes can't resolve.
+    if nc not in ("I", "II") and gene_token:
+        gene_raw = str(gene or "").strip()
+        if any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_I_PATTERNS):
+            nc = "I"
+        elif any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_II_ALPHA_PATTERNS):
+            nc = "II"
+            chain = "alpha"
+        elif any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_II_BETA_PATTERNS):
+            nc = "II"
+            chain = "beta"
 
     if gene_token in {"B2M", "BETA-2-MICROGLOBULIN"}:
         chain_token = str(chain or "").strip().lower()

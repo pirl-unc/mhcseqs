@@ -122,6 +122,92 @@ NON_MHC_ACCESSIONS = frozenset(
         "B0UYT5",
     }
 )
+
+# Genes in the MHC region that do NOT encode MHC groove proteins.
+# These appear in IPD-MHC and genome annotations but are transporters,
+# enzymes, transcription factors, olfactory receptors, etc.
+NON_MHC_GENE_NAMES = frozenset(
+    {
+        "Prr3",
+        "PRR3",
+        "Hsd17b8",
+        "Cfb",
+        "Tap1",
+        "Tap2",
+        "TAP1",
+        "TAP2",
+        "Pfdn6",
+        "Ppp1r10",
+        "Rxrb",
+        "Slc39a7",
+        "Mog",
+        "Gabbr1",
+        "Col11a2",
+        "B3galt4",
+        "Wdr46",
+        "Zbtb22",
+        "Zbtb9",
+        "Zbtb12",
+        "Daxx",
+        "Phf1",
+        "Trim10",
+        "Rpp21",
+        "Mrps18b",
+        "Gtf2h4",
+        "Atp6v1g2",
+        "Tapbp",
+        "Selenos",
+        "Ifi44l",
+        "Hm13",
+        "HM13",
+        "H13",
+        "Ralgdsl2",
+        "Znf106",
+        "Uty",
+        "Kdm5d",
+        "Mfsd6",
+        "Klra1",
+        "Arhgap45",
+        "Ciita",
+        "CIITA",
+    }
+)
+
+# Gene name patterns for inferring class/chain when mhcgnomes can't parse.
+# These cover rat RT1, mouse H2, rabbit RLA, and IPD-MHC non-model organisms.
+GENE_CLASS_I_PATTERNS = (
+    "RT1.A",
+    "RT1.D",
+    "RT1-A",
+    "RT1-S",
+    "RT1-M",
+    "RT1-O",
+    "RT1-T24",
+    "RT1-CE",
+    "Db2",
+    "Mill",
+    "Chse-H2-Q",
+    "rt1-E",
+)
+GENE_CLASS_II_ALPHA_PATTERNS = (
+    "H2-Oa",
+    "RT1-DOa",
+    "RLA-DR-alpha",
+    "A-alpha MHC",
+    "I-A-alpha",
+    "RT1.Ag",
+)
+GENE_CLASS_II_BETA_PATTERNS = (
+    "H2-Ob",
+    "RT1-DOb",
+    "RT1-Ba",
+    "RT1.B",
+    "RLA-DR-beta",
+    "A-beta MHC",
+    "I-A-beta",
+    "MHC II H2-IE-beta",
+    "rt1-El",
+)
 MIN_FUNCTIONAL_GROOVE_HALF_LEN = 70
 
 MHC_SP_PRESENT_PREFIX_TRIADS = frozenset(
