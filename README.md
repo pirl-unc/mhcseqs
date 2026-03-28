@@ -86,26 +86,28 @@ Three sources are merged into a single dataset:
 | UniProt | 20,566 | 500+ species | Curated diverse MHC, B2M, H-2 references (shipped in package) |
 | **Total raw** | **77,576** | | |
 | **After merge/dedup** | **55,658** | | One representative per two-field allele |
-| **Groove OK** | **54,121** | | 97.2% of representatives |
+| **Groove OK** | **54,102** | | 97.2% of representatives |
 
 ### By species category
 
-| Category | Count | Groove OK | Class I groove | Class II groove |
-|---|---:|---:|---|---|
-| human | 25,364 | 98.0% | median 183 aa | median 88 aa |
-| nhp | 7,125 | 100.0% | median 183 aa | median 88 aa |
-| bird | 9,312 | 99.8% | median 80 aa | median 88 aa |
-| fish | 4,859 | 97.5% | median 179 aa | median 89 aa |
-| ungulate | 1,768 | 97.6% | median 183 aa | median 88 aa |
-| murine | 1,587 | 90.7% | median 137 aa | median 85 aa |
-| other_vertebrate | 1,137 | 97.6% | median 173 aa | median 88 aa |
-| other_mammal | 943 | 97.6% | median 166 aa | median 88 aa |
-| carnivore | 484 | 99.6% | median 181 aa | median 88 aa |
+| Category | Count | Groove OK | Class I full | Class II full |
+|---|---:|---:|---:|---:|
+| human | 25,364 | 99.8% | 17,426 (99.8%) | 5,347 (67.9%) |
+| nhp | 7,125 | 98.0% | 4,583 (98.8%) | 1,426 (57.4%) |
+| bird | 9,312 | 98.9% | 546 (9.2%) | 562 (16.8%) |
+| fish | 4,859 | 97.4% | 776 (60.2%) | 1,259 (35.3%) |
+| ungulate | 1,768 | 94.7% | 577 (90.4%) | 303 (26.9%) |
+| murine | 1,587 | 89.7% | 489 (43.9%) | 118 (32.3%) |
+| other_vertebrate | 1,137 | 96.0% | 324 (68.9%) | 129 (19.4%) |
+| other_mammal | 943 | 95.7% | 280 (53.0%) | 146 (36.0%) |
+| carnivore | 484 | 99.6% | 164 (98.8%) | 0 (0.0%) |
 
-Class I groove = groove1 + groove2 (α1 + α2 domains). Class II groove = groove1 or groove2
-(single chain contributes one groove half). The variation in class I groove lengths reflects
-the mix of full-length sequences (two groove halves, ~183 aa) and single-exon fragments
-(one half, ~80-93 aa).
+"Groove OK" includes both full-length and fragment parses. "Full" means both groove
+halves present (class I: α1 + α2, ~183 aa; class II: single chain's groove half with
+Ig support, ~88 aa groove + ~90 aa Ig). The remaining entries are **single-exon fragments**
+(one groove half only) — common in bird and fish submissions to IPD-MHC where only
+the polymorphic exon is sequenced. The parser correctly characterizes these as
+`alpha1_only`, `alpha2_only`, `beta1_only_fallback`, or `fragment_fallback`.
 
 Species categories: human, nhp (non-human primates), murine (mice, rats, rodents),
 ungulate (cattle, pig, horse, sheep, goat), carnivore (dog, cat),
