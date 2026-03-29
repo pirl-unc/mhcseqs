@@ -86,7 +86,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Optional, Sequence
 
-from .alleles import infer_gene, normalize_mhc_class
+from .alleles import infer_gene, is_non_mhc_gene, normalize_mhc_class, parse_gene_class
 from .domain_grammar import (
     AA_PROPERTY as _AA_PROPERTY,
 )
@@ -132,7 +132,6 @@ from .domain_grammar import (
     MIN_GROOVE_SOURCE_LEN,
     NON_CLASSICAL_CLASS_I_GENE_PATTERNS,
     NON_GROOVE_GENES,
-    NON_MHC_GENE_NAMES,
     PRIMARY_PARSE_CANDIDATE_KEEP,
     PRIMARY_PARSE_EXPANSION_MARGIN,
     PRIMARY_PARSE_LOW_CONFIDENCE,
@@ -5659,10 +5658,10 @@ def decompose_domains(
         except Exception:
             gene_token = ""
 
-    # Filter non-MHC genes that appear in MHC-region datasets.
-    # LOC* gene names are NOT filtered here — they can be real MHC with
-    # NCBI identifiers.  The pipeline filters LOC* during build instead.
-    if gene_token in {g.upper() for g in NON_MHC_GENE_NAMES}:
+    # Filter non-MHC genes (TAP1, CIITA, HM13, etc.).
+    # Uses mhcgnomes >= 3.18 parse_gene_class() when available, falls back
+    # to local NON_MHC_GENE_NAMES set.
+    if is_non_mhc_gene(gene or allele):
         return _attach_parse_candidate(
             AlleleRecord(
                 allele=allele,
@@ -5677,17 +5676,32 @@ def decompose_domains(
             )
         )
 
-    # Infer class from gene name patterns when mhcgnomes can't resolve.
-    if nc not in ("I", "II") and gene_token:
-        gene_raw = str(gene or "").strip()
-        if any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_I_PATTERNS):
-            nc = "I"
-        elif any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_II_ALPHA_PATTERNS):
-            nc = "II"
-            chain = "alpha"
-        elif any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_II_BETA_PATTERNS):
-            nc = "II"
-            chain = "beta"
+    # Infer class from gene name when mhcgnomes can't resolve the full allele.
+    # Uses mhcgnomes >= 3.18 parse_gene_class() for suffix-based classification
+    # (F10 → class I, BLB → class II beta, DRA → class II alpha, etc.),
+    # falls back to local GENE_CLASS_*_PATTERNS for mhcgnomes < 3.18.
+    if nc not in ("I", "II") and (gene or allele):
+        gc = parse_gene_class(gene or allele)
+        if gc is not None:
+            gc_class = gc.get("mhc_class")
+            gc_chain = gc.get("chain")
+            if gc_class == "I":
+                nc = "I"
+            elif gc_class == "II":
+                nc = "II"
+                if gc_chain in ("alpha", "beta"):
+                    chain = gc_chain
+        else:
+            # Fallback for mhcgnomes < 3.18
+            gene_raw = str(gene or "").strip()
+            if any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_I_PATTERNS):
+                nc = "I"
+            elif any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_II_ALPHA_PATTERNS):
+                nc = "II"
+                chain = "alpha"
+            elif any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_II_BETA_PATTERNS):
+                nc = "II"
+                chain = "beta"
 
     if gene_token in {"B2M", "BETA-2-MICROGLOBULIN"}:
         chain_token = str(chain or "").strip().lower()
