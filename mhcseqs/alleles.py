@@ -241,18 +241,27 @@ def parse_gene_class(gene: Optional[str]) -> Optional[dict]:
         mhcgnomes = _require_mhcgnomes()
         fn = getattr(mhcgnomes, "parse_gene_class", None)
         if fn is None:
-            # Try the gene_class_info module directly (3.18+)
-            try:
-                from mhcgnomes.gene_class_info import parse_gene_class as _pgc
-
-                fn = _pgc
-            except ImportError:
-                return None
-        if fn is None:
             return None
         result = fn(str(gene).strip())
-        if result is not None:
-            return dict(result) if not isinstance(result, dict) else result
+        # Result is a GeneClassInfo dataclass — extract fields
+        mhc_class = str(getattr(result, "mhc_class", "") or "")
+        chain_val = getattr(result, "chain", None)
+        non_mhc = getattr(result, "non_mhc", False)
+        # Normalize: mhcgnomes returns "I", "Ib", "IIa", "IIb", "other"
+        # We need "I" or "II" for dispatch.
+        if mhc_class.startswith("II"):
+            mhc_class = "II"
+        elif mhc_class.startswith("I"):
+            mhc_class = "I"
+        elif mhc_class == "other":
+            pass  # keep "other" for non-MHC detection
+        else:
+            mhc_class = None
+        return {
+            "mhc_class": mhc_class,
+            "chain": str(chain_val) if chain_val else None,
+            "non_mhc": bool(non_mhc),
+        }
     except Exception:
         pass
     return None
