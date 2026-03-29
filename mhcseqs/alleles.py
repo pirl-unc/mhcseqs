@@ -202,9 +202,20 @@ def infer_gene(allele: str) -> str:
 
 
 def infer_mhc_class(allele: Optional[str]) -> Optional[str]:
-    """Infer MHC class ("I" or "II") from allele name via mhcgnomes."""
+    """Infer MHC class ("I" or "II") from allele name via mhcgnomes.
+
+    Uses ``parse_gene_class()`` first (lenient suffix-based classification
+    available in mhcgnomes >= 3.18), then falls back to full allele parsing.
+    """
     if not allele:
         return None
+    # Try lenient gene-class inference first (mhcgnomes >= 3.18)
+    result = parse_gene_class(allele)
+    if result is not None:
+        cls = result.get("mhc_class")
+        if cls in ("I", "II"):
+            return cls
+    # Fall back to full allele parsing
     try:
         parsed = parse_allele_name(allele)
     except Exception:
@@ -212,6 +223,57 @@ def infer_mhc_class(allele: Optional[str]) -> Optional[str]:
     if parsed is None:
         return None
     return normalize_mhc_class(getattr(parsed, "mhc_class", None), default=None)
+
+
+def parse_gene_class(gene: Optional[str]) -> Optional[dict]:
+    """Classify a gene name by MHC class/chain using mhcgnomes (>= 3.18).
+
+    Returns a dict with keys ``mhc_class``, ``chain``, ``non_mhc``,
+    or None if the function is not available (mhcgnomes < 3.18).
+
+    This is the lenient classification path that recognizes IPD-MHC
+    suffixes like F10, BLB, Q9, E-S, DRA, DAB, etc. without requiring
+    a full allele parse.
+    """
+    if not gene:
+        return None
+    try:
+        mhcgnomes = _require_mhcgnomes()
+        fn = getattr(mhcgnomes, "parse_gene_class", None)
+        if fn is None:
+            # Try the gene_class_info module directly (3.18+)
+            try:
+                from mhcgnomes.gene_class_info import parse_gene_class as _pgc
+
+                fn = _pgc
+            except ImportError:
+                return None
+        if fn is None:
+            return None
+        result = fn(str(gene).strip())
+        if result is not None:
+            return dict(result) if not isinstance(result, dict) else result
+    except Exception:
+        pass
+    return None
+
+
+def is_non_mhc_gene(gene: Optional[str]) -> bool:
+    """Check if a gene name is a known non-MHC gene in the MHC region.
+
+    Returns True for genes like TAP1, TAP2, CIITA, HM13, PRR3 that
+    appear in MHC-region datasets but don't encode groove proteins.
+    Uses mhcgnomes >= 3.18 when available, falls back to a local set.
+    """
+    if not gene:
+        return False
+    result = parse_gene_class(gene)
+    if result is not None:
+        return bool(result.get("non_mhc", False))
+    # Fallback for mhcgnomes < 3.18
+    from .domain_grammar import NON_MHC_GENE_NAMES
+
+    return gene.strip() in NON_MHC_GENE_NAMES or gene.strip().upper() in {g.upper() for g in NON_MHC_GENE_NAMES}
 
 
 def infer_species_identity(allele: Optional[str]) -> Optional[str]:
