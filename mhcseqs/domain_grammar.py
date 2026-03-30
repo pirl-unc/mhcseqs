@@ -208,6 +208,65 @@ GENE_CLASS_II_BETA_PATTERNS = (
     "MHC II H2-IE-beta",
     "rt1-El",
 )
+# Boundary-family log-odds: residue-class enrichment at SP boundaries vs
+# nearby non-boundary positions.  Derived from 2,403 GT boundaries and
+# 16,821 background positions.  Used as a species-independent boundary
+# signal that captures non-mammalian cleavage patterns.
+# Keys: (offset_from_cleavage, property_class) -> log2(fg/bg)
+SP_BOUNDARY_LOG_ODDS: dict[tuple[int, str], float] = {
+    (-3, "small"): 0.90,
+    (-3, "hydroxyl"): 1.72,
+    (-3, "cysteine"): 1.73,
+    (-3, "aliphatic"): -1.14,
+    (-3, "aromatic"): -5.85,
+    (-3, "basic"): -1.96,
+    (-3, "proline"): -4.36,
+    (-3, "amide"): -1.66,
+    (-3, "acidic"): -0.61,
+    (-2, "acidic"): 4.29,
+    (-2, "amide"): 3.73,
+    (-2, "basic"): 3.26,
+    (-2, "aromatic"): 1.47,
+    (-2, "aliphatic"): -2.54,
+    (-2, "proline"): -1.35,
+    (-1, "small"): 1.93,
+    (-1, "cysteine"): 0.98,
+    (-1, "hydroxyl"): 0.39,
+    (-1, "aliphatic"): -6.22,
+    (-1, "aromatic"): -3.62,
+    (-1, "basic"): -2.88,
+    (-1, "acidic"): -3.11,
+    (-1, "proline"): -0.57,
+    (0, "acidic"): 3.30,
+    (0, "basic"): 0.86,
+    (0, "amide"): 0.61,
+    (0, "aliphatic"): -1.17,
+    (0, "aromatic"): -0.62,
+    (0, "proline"): -4.62,
+    (0, "cysteine"): -0.80,
+    (1, "acidic"): 2.60,
+    (1, "basic"): 1.97,
+    (1, "hydroxyl"): 1.16,
+    (1, "amide"): 0.69,
+    (1, "proline"): 0.77,
+    (1, "small"): -1.84,
+    (1, "cysteine"): -3.58,
+    (1, "aliphatic"): -1.42,
+    (2, "basic"): 2.63,
+    (2, "acidic"): 1.21,
+    (2, "proline"): 0.76,
+    (2, "small"): -2.07,
+    (2, "cysteine"): -2.09,
+    (2, "aliphatic"): -0.80,
+    (3, "acidic"): 1.54,
+    (3, "basic"): 1.41,
+    (3, "hydroxyl"): 1.47,
+    (3, "proline"): 0.81,
+    (3, "small"): -2.72,
+    (3, "cysteine"): -4.71,
+    (3, "aliphatic"): -0.93,
+}
+
 MIN_FUNCTIONAL_GROOVE_HALF_LEN = 70
 
 MHC_SP_PRESENT_PREFIX_TRIADS = frozenset(
