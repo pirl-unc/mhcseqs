@@ -135,6 +135,7 @@ from .domain_grammar import (
     PRIMARY_PARSE_CANDIDATE_KEEP,
     PRIMARY_PARSE_EXPANSION_MARGIN,
     PRIMARY_PARSE_LOW_CONFIDENCE,
+    SP_BOUNDARY_LOG_ODDS,
     SP_ESTIMATE_CANDIDATE_KEEP,
     GrammarSpec,
 )
@@ -2168,6 +2169,24 @@ def _clean_seq(sequence: Optional[str]) -> str:
 #   SP: 14-45 (0 = stripped)
 
 
+def _score_boundary_family(seq: str, pos: int) -> float:
+    """Score a candidate SP cleavage site by residue-class boundary family.
+
+    Uses log-odds ratios of property classes at positions -3 to +3 relative
+    to the cleavage site, comparing true GT boundaries vs nearby non-boundary
+    positions.  This is a species-independent signal that captures non-mammalian
+    cleavage patterns the von Heijne rules miss.
+    """
+    if pos < 3 or pos + 4 > len(seq):
+        return 0.0
+    score = 0.0
+    for off in range(-3, 4):
+        prop = _AA_PROPERTY.get(seq[pos + off], "")
+        lo = SP_BOUNDARY_LOG_ODDS.get((off, prop), 0.0)
+        score += lo
+    return score * 0.15  # scale to contribute ~1-2 points for typical boundaries
+
+
 def _score_sp_cleavage(
     seq: str,
     pos: int,
@@ -2259,6 +2278,9 @@ def _score_sp_cleavage(
             score += min(kd_drop * 0.5, 1.5)
 
     score += _score_h_region_alignment(seq, pos, h_region=h_region) * _SP_H_REGION_WEIGHT
+
+    # Boundary-family scoring: residue-class log-odds at -3..+3
+    score += _score_boundary_family(seq, pos)
 
     return score
 
@@ -2678,8 +2700,12 @@ def _select_best_viable_record(records: Sequence[AlleleRecord]) -> Optional[Alle
 def _soft_prior_score(value: int, typical: int, soft: tuple[int, int], hard: tuple[int, int]) -> float:
     """Score a domain length against a soft prior.
 
-    Within soft range: 0 to +4, peaking at typical.
-    Between soft and hard: linear penalty.
+    Within soft range: flat plateau at +2.0.  All plausible lengths score
+    equally — a ±1 residue SP shift should NOT change which groove parse wins.
+    This is critical for cross-species parsing where groove domains range
+    from 75 to 110 aa across vertebrate lineages.
+
+    Between soft and hard: linear ramp down.
     Beyond hard: steep penalty.
     """
     slo, shi = soft
@@ -3681,7 +3707,15 @@ def _enumerate_mature_starts(
     for pos in range(search_lo, search_hi + 1):
         s = scaffold.score(pos)
         if sp_candidates:
-            s += _score_sp_estimate_zone_consistency(pos, sp_candidates, sp_confidence)
+            zone_score = _score_sp_estimate_zone_consistency(pos, sp_candidates, sp_confidence)
+            # Scale zone weight by h-region quality: when the h-region is
+            # very strong (frac ≥ 0.75), trust the zone more heavily.
+            h_s, h_e = scaffold.h_region
+            if h_e > h_s and scaffold.seq[:1] == "M":
+                h_frac = _hydrophobic_fraction(scaffold.seq, h_s, h_e, features=scaffold.features)
+                if h_frac >= 0.75:
+                    zone_score *= 1.5
+            s += zone_score
         elif sp_estimate > 0:
             s += _score_sp_estimate_consistency(pos, sp_estimate, sp_confidence)
         if s > best_score + _SP_EARLIER_TIE_MARGIN:
