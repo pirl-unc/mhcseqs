@@ -302,13 +302,17 @@ def test_non_classical_mfsd_detected():
 
 
 def test_short_groove_class_i():
-    """A class I parse with groove1 < 70 aa should get status=short."""
-    # Truncate the mature sequence to produce a short groove1
-    # Remove first 30 residues — groove1 will be ~60 aa
-    truncated = HLA_A0201_MATURE[30:]
+    """A class I parse with groove1 < 70 aa should get status=short.
+
+    Note: SP-stripped sequences (no Met at position 0) get a relaxed
+    threshold (40 aa) because truncated N-terminal α1 domains are
+    common in IPD-MHC deposits.  This test uses a Met-starting sequence
+    to verify the normal 70 aa threshold.
+    """
+    # Prepend Met to the truncated sequence so the normal threshold applies
+    truncated = "M" + HLA_A0201_MATURE[31:]
     result = decompose_domains(truncated, mhc_class="I", allele="short-test", gene="A")
     if result.ok or result.status == "short":
-        # If it parsed at all, check the short detection
         if result.groove1_len > 0 and result.groove1_len < MIN_FUNCTIONAL_GROOVE_HALF_LEN:
             assert result.status == "short"
             assert any("groove1_short" in f for f in result.flags)
