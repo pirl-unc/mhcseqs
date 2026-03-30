@@ -92,15 +92,15 @@ Three sources are merged into a single dataset:
 
 | Category | Count | Groove OK | Class I full | Class II full |
 |---|---:|---:|---:|---:|
-| human | 25,364 | 99.8% | 17,426 (99.8%) | 5,347 (67.9%) |
-| nhp | 7,125 | 98.0% | 4,583 (98.8%) | 1,426 (57.4%) |
-| bird | 9,312 | 98.9% | 546 (9.2%) | 562 (16.8%) |
-| fish | 4,859 | 97.4% | 776 (60.2%) | 1,259 (35.3%) |
-| ungulate | 1,768 | 94.7% | 577 (90.4%) | 303 (26.9%) |
-| murine | 1,587 | 89.7% | 490 (44.0%) | 118 (32.3%) |
-| other_vertebrate | 1,137 | 96.0% | 324 (68.9%) | 129 (19.4%) |
-| other_mammal | 943 | 95.1% | 280 (53.0%) | 146 (36.0%) |
-| carnivore | 484 | 99.6% | 164 (98.8%) | 0 (0.0%) |
+| human | 25,364 | 99.8% | 17,426 | 5,347 |
+| nhp | 7,125 | 98.0% | 4,583 | 1,426 |
+| bird | 9,312 | 98.9% | 546 | 562 |
+| fish | 4,859 | 97.4% | 776 | 1,259 |
+| ungulate | 1,768 | 94.7% | 577 | 303 |
+| murine | 1,587 | 89.7% | 490 | 118 |
+| carnivore | 484 | 99.6% | 164 | 0 |
+| other_mammal | 943 | 95.1% | 280 | 146 |
+| other_vertebrate | 1,137 | 96.0% | 324 | 129 |
 
 "Groove OK" includes both full-length and fragment parses. "Full" means both groove
 halves present (class I: α1 + α2, ~183 aa; class II: single chain's groove half with
