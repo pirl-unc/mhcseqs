@@ -759,6 +759,14 @@ class ParseScaffold:
             alpha1_len = self.groove_boundary - mature_start
             if alpha1_len > 0 and self.class_i_alpha2_len > 0:
                 g1, g2, total = _score_class_i_groove_lengths(alpha1_len, self.class_i_alpha2_len)
+                # SP-stripped mature-only sequences (pos=0, no Met) have
+                # truncated α1 because the SP and N-terminal residues are
+                # missing from the database deposit.  Cap the α1 length
+                # penalty so good Cys pair topology can still produce a
+                # viable parse.  This recovers horse Eqca, pig SLA, and
+                # similar IPD-MHC deposits.
+                if mature_start == 0 and self.seq[:1] != "M" and g1 < -3.0:
+                    g1 = -3.0
                 groove += g1 + g2 + total
             else:
                 groove += -80.0
@@ -3698,11 +3706,17 @@ def _enumerate_mature_starts(
     # enumeration.
     search_hi = min(search_hi, groove_end - 1)
 
-    if search_hi < search_lo:
-        return -1
-
     best_pos = -1
     best_score = -999.0
+
+    if search_hi < search_lo:
+        # No valid SP range.  For sequences that look SP-stripped (no Met,
+        # no h-region), fall through to the pos=0 check below — these are
+        # mature-only deposits where α1 is truncated (e.g., horse Eqca,
+        # pig SLA in IPD-MHC).  For Met-starting sequences, return -1 so
+        # the salvage path can try alternative Cys pairs.
+        if scaffold.seq[:1] == "M":
+            return -1
 
     for pos in range(search_lo, search_hi + 1):
         s = scaffold.score(pos)
@@ -3726,10 +3740,6 @@ def _enumerate_mature_starts(
             best_pos = pos
 
     # Also check pos=0 (SP-stripped / leaderless).
-    # The pos=0 candidate gets its groove/ig/tail scores from the scaffold
-    # normally, plus a leaderless bonus based on the same SP evidence used
-    # above (Met, h-region, charged N-terminus).  This ensures pos=0 and
-    # pos>0 compete on the same evidence model.
     s = scaffold.score(0)
 
     seq = scaffold.seq
@@ -4065,9 +4075,14 @@ def _refine_status(result: AlleleRecord) -> AlleleRecord:
 
     # Short groove detection: whichever groove segment(s) this grammar
     # actually owns must still be large enough to be functional.
+    # For SP-stripped sequences (mature_start=0, no Met), groove1 may be
+    # truncated because the N-terminal residues were missing from the
+    # database deposit.  Use a lower threshold (40 aa) for these.
+    is_sp_stripped = result.mature_start == 0 and not (result.sequence or "").startswith("M")
+    min_len = 40 if is_sp_stripped else MIN_FUNCTIONAL_GROOVE_HALF_LEN
     for field_name, _role in grammar.groove_segments:
         seg_len = int(getattr(result, f"{field_name}_len", 0) or 0)
-        if seg_len > 0 and seg_len < MIN_FUNCTIONAL_GROOVE_HALF_LEN:
+        if seg_len > 0 and seg_len < min_len:
             flags.append(f"{field_name}_short({seg_len})")
             return replace(result, status="short", flags=_flags_to_tuple(flags))
 
