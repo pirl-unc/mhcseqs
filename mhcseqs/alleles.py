@@ -308,8 +308,20 @@ def infer_species(allele: str) -> Optional[str]:
 
 
 def allele_suffix_flags(allele: str) -> dict[str, bool]:
-    """Detect null/questionable/pseudogene suffix markers."""
+    """Detect null/questionable/pseudogene suffix markers.
+
+    HLA-style suffixes (N, Q, L, S) appear after numeric allele fields,
+    e.g. ``HLA-A*02:01N``.  Haplotype-based systems like Rano (``Rano-A1*n``)
+    and H-2 (``H2-D*q``) use single letters as the allele designation
+    itself — these must NOT be treated as null/questionable markers.
+    """
     token = str(allele or "").strip()
+    # If there is a '*', check whether the designation after it contains
+    # digits.  Pure-letter designations are haplotype names, not suffixes.
+    if "*" in token:
+        after_star = token.rsplit("*", 1)[1]
+        if not re.search(r"\d", after_star):
+            return {"is_null": False, "is_questionable": False, "is_pseudogene": False}
     suffix_match = re.search(r"([A-Za-z]+)$", token)
     suffix = suffix_match.group(1).upper() if suffix_match else ""
     return {

@@ -14,7 +14,7 @@
 | Negative controls: correct zero-SP | 1,951 / 2,155 (90.5%) |
 | Negative controls: false positive SPs | 82 / 2,155 (3.8%) |
 | Negative controls: abstentions | 122 / 2,155 (5.7%) |
-| Tests passing | 318 |
+| Tests passing | 321 |
 | Evaluator runtime | ~25s for 2,403 sequences |
 
 ## Accuracy by MHC class × species
