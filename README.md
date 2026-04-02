@@ -280,7 +280,7 @@ Signal-peptide logic follows the standard SPase grammar:
 ## Dependencies
 
 - **Python 3.10+**
-- **[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.14.0** — allele name parsing with species-directed disambiguation
+- **[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.18.0** — allele name parsing with species-directed disambiguation
 
 No alignment tools, BLAST, or structure databases are required.
 
