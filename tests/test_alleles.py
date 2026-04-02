@@ -40,6 +40,27 @@ def test_allele_suffix_flags_normal():
     assert flags["is_pseudogene"] is False
 
 
+def test_allele_suffix_flags_rano_haplotype_not_null():
+    """Rano-A1*n is a haplotype name, not a null allele."""
+    flags = allele_suffix_flags("Rano-A1*n")
+    assert flags["is_null"] is False
+    assert flags["is_questionable"] is False
+    assert flags["is_pseudogene"] is False
+
+
+def test_allele_suffix_flags_rano_haplotype_q_not_questionable():
+    """Rano-A1*q is a haplotype name, not a questionable allele."""
+    flags = allele_suffix_flags("Rano-A*q")
+    assert flags["is_questionable"] is False
+
+
+def test_allele_suffix_flags_h2_haplotype_not_null():
+    """H2-D*b is a haplotype name, not a suffix-bearing allele."""
+    flags = allele_suffix_flags("H2-D*b")
+    assert flags["is_null"] is False
+    assert flags["is_questionable"] is False
+
+
 def test_normalize_allele_name_full():
     assert normalize_allele_name("HLA-A*02:01") == "HLA-A*02:01"
 
