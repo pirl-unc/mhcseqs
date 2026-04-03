@@ -85,22 +85,22 @@ Three sources are merged into a single dataset:
 | IPD-MHC | 12,380 | Non-human mammals, birds, fish | Downloaded at build time |
 | UniProt | 20,566 | 500+ species | Curated diverse MHC, B2M, H-2 references (shipped in package) |
 | **Total raw** | **77,576** | | |
-| **After merge/dedup** | **55,658** | | One representative per two-field allele |
-| **Groove OK** | **54,098** | | 97.2% of representatives |
+| **After merge/dedup** | **55,696** | | One representative per two-field allele |
+| **Groove OK** | **54,164** | | 97.2% of representatives |
 
 ### By species category
 
 | Category | Count | Groove OK | Class I full | Class II full |
 |---|---:|---:|---:|---:|
-| human | 25,364 | 99.8% | 17,426 | 5,347 |
-| nhp | 7,125 | 98.0% | 4,583 | 1,426 |
-| bird | 9,312 | 98.9% | 546 | 562 |
-| fish | 4,859 | 97.4% | 776 | 1,259 |
-| ungulate | 1,768 | 94.7% | 577 | 303 |
-| murine | 1,587 | 89.7% | 490 | 118 |
+| human | 25,364 | 99.8% | 17,364 | 5,347 |
+| nhp | 7,125 | 98.0% | 4,582 | 1,429 |
+| bird | 9,312 | 99.0% | 549 | 562 |
+| fish | 4,859 | 97.2% | 777 | 1,259 |
+| ungulate | 1,768 | 96.2% | 603 | 303 |
+| murine | 1,625 | 89.7% | 509 | 123 |
 | carnivore | 484 | 99.6% | 164 | 0 |
-| other_mammal | 943 | 95.1% | 280 | 146 |
-| other_vertebrate | 1,137 | 96.0% | 324 | 129 |
+| other_mammal | 943 | 95.1% | 281 | 146 |
+| other_vertebrate | 1,137 | 96.1% | 325 | 131 |
 
 "Groove OK" includes both full-length and fragment parses. "Full" means both groove
 halves present (class I: α1 + α2, ~183 aa; class II: single chain's groove half with
