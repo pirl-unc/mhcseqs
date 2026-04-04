@@ -1,4 +1,5 @@
 from mhcseqs.alleles import (
+    _coerce_allele_name,
     allele_suffix_flags,
     infer_gene,
     infer_mhc_class,
@@ -116,3 +117,37 @@ def test_normalize_mhc_class_aliases():
     assert normalize_mhc_class("CLASSII") == "II"
     assert normalize_mhc_class("IA") == "I"
     assert normalize_mhc_class("IIA") == "II"
+
+
+def test_normalize_mhc_class_mhcgnomes_subclasses():
+    """mhcgnomes returns 'Ia', 'Ib', 'IIa' — subclass designations, not mouse I-A."""
+    assert normalize_mhc_class("Ia") == "I"
+    assert normalize_mhc_class("Ib") == "I"
+    assert normalize_mhc_class("IIa") == "II"
+    assert normalize_mhc_class("IIb") == "II"
+
+
+def test_coerce_allele_name_hla_short_forms():
+    """Known HLA genes are coerced to allele notation."""
+    assert _coerce_allele_name("A2") == "HLA-A*02"
+    assert _coerce_allele_name("B7") == "HLA-B*07"
+    assert _coerce_allele_name("C4") == "HLA-C*04"
+    assert _coerce_allele_name("E1") == "HLA-E*01"
+    assert _coerce_allele_name("G1") == "HLA-G*01"
+    assert _coerce_allele_name("HLA-A2") == "HLA-A*02"
+
+
+def test_coerce_allele_name_rejects_non_hla():
+    """Non-HLA gene-like tokens must NOT be coerced to HLA format."""
+    assert _coerce_allele_name("RT1") == "RT1"
+    assert _coerce_allele_name("SLA1") == "SLA1"
+    assert _coerce_allele_name("K2") == "K2"
+    assert _coerce_allele_name("D3") == "D3"
+    assert _coerce_allele_name("DRB1") == "DRB1"
+
+
+def test_coerce_allele_name_h2_passthrough():
+    """Mouse H-2 alleles pass through correctly."""
+    assert _coerce_allele_name("H2-Kb") == "H2-Kb"
+    assert _coerce_allele_name("H-2-Kb") == "H2-Kb"
+    assert _coerce_allele_name("H-2Kb") == "H2-Kb"

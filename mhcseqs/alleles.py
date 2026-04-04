@@ -20,8 +20,8 @@ from .species import normalize_mhc_species
 
 _MHC_CLASS_I_ALIASES = {
     "I",
-    "IA",
-    "IB",
+    "IA",  # mhcgnomes subclass "Ia" (class I alpha), NOT mouse I-A
+    "IB",  # mhcgnomes subclass "Ib" (class I beta / non-classical)
     "IC",
     "CLASSI",
     "CLASS-I",
@@ -87,10 +87,12 @@ def _coerce_allele_name(allele: Optional[str]) -> str:
     if upper.startswith("H-2"):
         token = "H2-" + token[3:]
         upper = token.upper()
+    _HLA_SHORT_GENES = {"A", "B", "C", "E", "F", "G"}
     short_match = re.match(r"^(?:HLA-)?([A-Z]+)(\d)$", upper)
     if short_match:
         gene, field = short_match.groups()
-        return f"HLA-{gene}*0{field}"
+        if gene in _HLA_SHORT_GENES:
+            return f"HLA-{gene}*0{field}"
     return token
 
 
