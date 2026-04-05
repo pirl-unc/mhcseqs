@@ -86,7 +86,7 @@ Three sources are merged into a single dataset:
 | UniProt | 20,566 | 500+ species | Curated diverse MHC, B2M, H-2 references (shipped in package) |
 | **Total raw** | **77,576** | | |
 | **After merge/dedup** | **55,696** | | One representative per two-field allele |
-| **Groove OK** | **54,164** | | 97.2% of representatives |
+| **Groove OK** | **54,155** | | 97.2% of representatives |
 
 ### By species category
 
@@ -94,13 +94,13 @@ Three sources are merged into a single dataset:
 |---|---:|---:|---:|---:|
 | human | 25,364 | 99.8% | 17,364 | 5,347 |
 | nhp | 7,125 | 98.0% | 4,582 | 1,429 |
-| bird | 9,312 | 99.0% | 549 | 562 |
+| bird | 9,312 | 99.1% | 553 | 558 |
 | fish | 4,859 | 97.2% | 777 | 1,259 |
 | ungulate | 1,768 | 96.2% | 603 | 303 |
-| murine | 1,625 | 89.7% | 509 | 123 |
+| murine | 1,625 | 89.0% | 466 | 158 |
 | carnivore | 484 | 99.6% | 164 | 0 |
-| other_mammal | 943 | 95.1% | 281 | 146 |
-| other_vertebrate | 1,137 | 96.1% | 325 | 131 |
+| other_mammal | 943 | 95.0% | 275 | 152 |
+| other_vertebrate | 1,137 | 96.2% | 327 | 129 |
 
 "Groove OK" includes both full-length and fragment parses. "Full" means both groove
 halves present (class I: α1 + α2, ~183 aa; class II: single chain's groove half with

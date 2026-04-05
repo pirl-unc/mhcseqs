@@ -20,6 +20,7 @@ from .alleles import (
     normalize_allele_name,
     normalize_mhc_class,
     parse_allele_name,
+    parse_gene_class,
 )
 from .domain_grammar import NON_MHC_ACCESSIONS
 from .domain_parsing import (
@@ -426,6 +427,16 @@ def _load_diverse_mhc_references() -> List[dict]:
             species_category = _DIVERSE_GROUP_TO_CATEGORY.get(source_group, "")
             if not species_category:
                 species_category = normalize_mhc_species(organism) or ""
+
+            # Override mhc_class from mhcgnomes when the CSV value is
+            # wrong or unknown — UniProt annotations frequently misclassify
+            # RT1/H-2 class II genes (DOb, Ba, Eb, DQA, etc.) as class I.
+            if gene:
+                pgc = parse_gene_class(gene)
+                if pgc and pgc.get("mhc_class") in ("I", "II"):
+                    mhc_class = pgc["mhc_class"]
+                    if pgc.get("chain"):
+                        chain = pgc["chain"]
 
             # Fix chain for class II unknowns: try class_ii_alpha_gene check
             if mhc_class == "II" and chain in ("unknown", ""):
