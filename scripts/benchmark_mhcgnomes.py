@@ -93,7 +93,7 @@ def run_benchmark() -> dict:
                 tp = type(r).__name__
                 if tp in ("Gene", "Allele", "AlleleWithoutGene"):
                     sp = getattr(getattr(r, "species", None), "name", "")
-                    if sp and sp.lower() in organism.lower():
+                    if sp and (sp.lower() in organism.lower() or organism.lower() in sp.lower()):
                         parsed += 1
                         continue
                     elif sp:
