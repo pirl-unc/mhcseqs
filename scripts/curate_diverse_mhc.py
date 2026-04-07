@@ -328,7 +328,15 @@ def resolve_gene_annotation(gene_names: str, protein_name: str, organism_prefix:
     Returns (normalized_gene, raw_label, gene_status) where:
     - normalized_gene: clean gene name or ""
     - raw_label: original gene identifier (for provenance)
-    - gene_status: "ok", "paper_specific", "opaque_unassigned", "inferred", "missing"
+    - gene_status: one of:
+        "ok"                   — standard MHC nomenclature
+        "ortholog_transferred" — gene named after ortholog from another species
+                                 (e.g. H2-K1 on a fish, RT1-B on a snake) by
+                                 automated genome annotation pipelines (GNOMON/RefSeq)
+        "paper_specific"       — ad-hoc identifier from an individual study
+        "opaque_unassigned"    — opaque species-specific numbering (Crpo94)
+        "inferred"             — B2M inferred from protein name
+        "missing"              — no gene name found
     """
     if not gene_names:
         if B2M_PATTERN.search(protein_name or ""):
@@ -359,6 +367,30 @@ def resolve_gene_annotation(gene_names: str, protein_name: str, organism_prefix:
         return (gene, tokens[0] if tokens else "", status)
 
     return ("", tokens[0] if tokens else "", "missing")
+
+
+# Species-specific MHC nomenclature systems and their source species.
+# When these patterns appear on other species, it's because NCBI's automated
+# annotation pipeline named the gene after its closest reference ortholog.
+_ORTHOLOG_NOMENCLATURE = [
+    # (gene regex, source organism prefix(es), description)
+    (re.compile(r"(^|-)H2[-.]", re.IGNORECASE), {"Mumu", "Musp", "Muca", "Mupr"}, "mouse H-2"),
+    (re.compile(r"(^|-)H-2", re.IGNORECASE), {"Mumu", "Musp", "Muca", "Mupr"}, "mouse H-2"),
+    (re.compile(r"(^|-)RT1[-.]", re.IGNORECASE), {"Rano"}, "rat RT1"),
+]
+
+
+def _is_ortholog_transferred(gene: str, organism_prefix: str) -> bool:
+    """Detect gene names from another species' nomenclature system.
+
+    NCBI's genome annotation pipeline (GNOMON) names predicted genes after
+    the closest known ortholog.  This results in e.g. H2-K1 appearing on
+    fish or RT1-B on snakes.
+    """
+    for pattern, source_prefixes, _desc in _ORTHOLOG_NOMENCLATURE:
+        if pattern.search(gene) and organism_prefix not in source_prefixes:
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -434,6 +466,16 @@ def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
         return None, stats
 
     gene, raw_gene_label, gene_status = resolve_gene_annotation(gene_names, protein_name, prefix)
+
+    # Detect ortholog-transferred names: gene named after a reference
+    # species ortholog by automated annotation (e.g. H2-K1 on a fish).
+    # Rewrite to {organism_prefix}-ortho:{ortholog_name} so the actual
+    # species is primary and the ortholog reference is preserved.
+    if gene and gene_status in ("ok", "paper_specific") and _is_ortholog_transferred(gene, prefix):
+        # Extract the ortholog name (the original gene without our prefix)
+        ortholog_name = gene.split("-", 1)[1] if "-" in gene else gene
+        gene = f"{prefix}-ortho:{ortholog_name}"
+        gene_status = "ortholog_transferred"
 
     if not gene:
         # Try structural rescue: keep if sequence parses as valid MHC

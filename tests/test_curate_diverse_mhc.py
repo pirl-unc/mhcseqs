@@ -69,6 +69,40 @@ def test_normalize_gene_detects_paper_specific_names():
     assert resolve_gene_annotation("UA", "", "Sppu")[2] == "ok"
 
 
+def test_ortholog_transferred_detection():
+    from scripts.curate_diverse_mhc import _is_ortholog_transferred
+
+    # H2 names on non-mouse species
+    assert _is_ortholog_transferred("Asme-H2-AA", "Asme")
+    assert _is_ortholog_transferred("Mepo-H2-K1_0", "Mepo")
+    assert _is_ortholog_transferred("Lost-H2-EB1", "Lost")
+    # RT1 names on non-rat species
+    assert _is_ortholog_transferred("Opha-RT1-B", "Opha")
+    assert _is_ortholog_transferred("RT1-HA", "Caca")
+    # Legitimate on actual mouse/rat
+    assert not _is_ortholog_transferred("H2-K1", "Mumu")
+    assert not _is_ortholog_transferred("RT1-Ba", "Rano")
+    # Other Mus species are legitimate too
+    assert not _is_ortholog_transferred("H2-Eb", "Musp")
+
+
+def test_curate_row_marks_ortholog_transferred():
+    row = {
+        "uniprot_accession": "TEST005",
+        "gene_names": "H2-K1",
+        "protein_name": "H-2 class I histocompatibility antigen, K-K alpha chain",
+        "organism": "Merluccius polli",
+        "organism_id": "999999",
+        "is_fragment": "True",
+        "source_group": "bony_fish",
+        "sequence": _load_mouse_class_i_sequence(),
+    }
+    curated, stats = curate_row(row)
+    assert curated is not None
+    assert curated["gene"] == "Mepo-ortho:H2-K1"
+    assert curated["gene_status"] == "ortholog_transferred"
+
+
 def test_curate_row_rescues_structurally_valid_class_i_without_gene():
     row = {
         "uniprot_accession": "TEST001",
