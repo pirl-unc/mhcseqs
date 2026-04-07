@@ -32,6 +32,18 @@ def test_normalize_gene_fixes_lowercase_and_transferred_prefixes():
     assert normalize_gene("orni-dba", "", "Orni") == "Orni-DBA"
     assert normalize_gene("hla-dqa1", "", "Xetr") == "Xetr-DQA1"
     assert normalize_gene("HLADRB1 K3G42_000618", "", "Spto") == "Spto-DRB1"
+    # Transferred primate/model-organism prefixes on unrelated species
+    assert normalize_gene("PATR-A", "", "Asme") == "Asme-A"
+    assert normalize_gene("POPY-E", "", "Asme") == "Asme-E"
+    assert normalize_gene("MAMU-DRA", "", "Lost") == "Lost-DRA"
+    assert normalize_gene("Mamu-DRA", "", "Eufi") == "Eufi-DRA"
+    assert normalize_gene("MAFA-A1", "", "Rhfe") == "Rhfe-A1"
+    assert normalize_gene("SLA-DQB1", "", "Acox") == "Acox-DQB1"
+    # GOGO on Gobio gobio is legitimate (prefix collision), not an artifact
+    assert normalize_gene("Gogo-DAB1", "", "Gogo") == "Gogo-DAB1"
+    # Legitimate uses on the actual source species are preserved
+    assert normalize_gene("MAMU-DRA", "", "Mamu") == "Mamu-DRA"
+    assert normalize_gene("PATR-A", "", "Patr") == "Patr-A"
 
 
 def test_normalize_gene_preserves_literature_prefixes():

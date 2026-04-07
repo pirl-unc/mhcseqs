@@ -17,6 +17,7 @@ Output: mhcseqs/diverse_mhc_sequences.csv (shipped with the package)
 Usage:
     python scripts/curate_diverse_mhc.py [--input PATH] [--output PATH] [--min-length N]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -170,6 +171,10 @@ def derive_prefix(organism: str) -> str:
 # Gene name normalization
 # ---------------------------------------------------------------------------
 
+# Model-organism MHC prefixes that genome annotation pipelines transfer
+# onto unrelated species via homology (e.g. HLA-DRA on a rodent).
+_TRANSFERRED_PREFIXES = {"HLA", "PATR", "POPY", "MAMU", "MAFA", "GOGO", "SLA"}
+
 _BARE_GENE_RE = (
     r"^(BF|BLB|BLA|YF|"
     r"DAB|DAA|DRB|DRA|DQA|DQB|DPA|DPB|DMA|DMB|DOA|DOB|DXB|DXA|DYA|DYB|DNA|"
@@ -189,7 +194,7 @@ def _is_opaque_numbering(tok: str, organism_prefix: str) -> bool:
     gp_upper = gene_part.upper()
     prefix_upper = organism_prefix.upper()
     if gp_upper.startswith(prefix_upper):
-        rest = gp_upper[len(prefix_upper):]
+        rest = gp_upper[len(prefix_upper) :]
         if rest and rest.isdigit():
             return True
     return False
@@ -227,8 +232,11 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
             # Check if the gene part is opaque numbering
             if _is_opaque_numbering(gene_part, organism_prefix):
                 continue
-            # HLA- on non-human organisms → re-prefix with organism prefix
-            if tok_prefix.upper() == "HLA" and organism_prefix and organism_prefix.upper() != "HOSA":
+            # Transferred model-organism prefixes on unrelated species →
+            # re-prefix with the actual organism prefix.  Legitimate uses
+            # (e.g. Gogo on Gobio gobio) pass through because capitalize()
+            # matches the organism_prefix.
+            if tok_prefix.upper() in _TRANSFERRED_PREFIXES and organism_prefix and tok_prefix.capitalize() != organism_prefix:
                 return f"{organism_prefix}-{gene_part.upper()}"
             return f"{tok_prefix.capitalize()}-{gene_part.upper()}"
 
@@ -297,9 +305,7 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
     return ""
 
 
-def resolve_gene_annotation(
-    gene_names: str, protein_name: str, organism_prefix: str
-) -> tuple[str, str, str]:
+def resolve_gene_annotation(gene_names: str, protein_name: str, organism_prefix: str) -> tuple[str, str, str]:
     """Resolve gene annotation with provenance tracking.
 
     Returns (normalized_gene, raw_label, gene_status) where:
@@ -519,9 +525,16 @@ def main():
 
     # Write output (only the standard columns, not provenance fields)
     fields = [
-        "uniprot_accession", "gene", "organism", "organism_id",
-        "length", "mhc_class", "chain", "is_fragment",
-        "source_group", "sequence",
+        "uniprot_accession",
+        "gene",
+        "organism",
+        "organism_id",
+        "length",
+        "mhc_class",
+        "chain",
+        "is_fragment",
+        "source_group",
+        "sequence",
     ]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with open(args.output, "w", newline="", encoding="utf-8") as f:
