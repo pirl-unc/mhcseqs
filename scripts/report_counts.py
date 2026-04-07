@@ -80,19 +80,37 @@ def main():
                     continue
                 seen_pairs.add((gene, organism))
 
-                bare = gene.split("-", 1)[1] if "-" in gene else gene
-                prefix = gene.split("-")[0] if "-" in gene else ""
-                if bare.lower().startswith(prefix.lower()) and prefix:
-                    bare = bare[len(prefix) :].lstrip("-_")
                 latin = extract_latin_binomial(organism)
-                if latin:
+
+                # Ortholog-transferred genes: parse with source species
+                if "-ortho:" in gene:
+                    ortho_name = gene.split("-ortho:", 1)[1]
+                    bare = ortho_name
+                    # Map ortholog nomenclature to source species
+                    if ortho_name.upper().startswith(("H2", "H-2")):
+                        parse_species = "Mus musculus"
+                    elif ortho_name.upper().startswith("RT1"):
+                        parse_species = "Rattus norvegicus"
+                    else:
+                        parse_species = latin
+                else:
+                    bare = gene.split("-", 1)[1] if "-" in gene else gene
+                    prefix = gene.split("-")[0] if "-" in gene else ""
+                    if bare.lower().startswith(prefix.lower()) and prefix:
+                        bare = bare[len(prefix) :].lstrip("-_")
+                    parse_species = latin
+
+                if parse_species:
                     try:
-                        r = mhcgnomes.parse(bare, **{sp_kwarg: latin})
+                        r = mhcgnomes.parse(bare, **{sp_kwarg: parse_species})
                         tp = type(r).__name__
                         if tp in ("Gene", "Allele", "AlleleWithoutGene"):
-                            sp = getattr(getattr(r, "species", None), "name", "")
-                            if sp and sp.lower() in organism.lower():
+                            if "-ortho:" in gene:
                                 parsed_ok += 1
+                            else:
+                                sp = getattr(getattr(r, "species", None), "name", "")
+                                if sp and sp.lower() in organism.lower():
+                                    parsed_ok += 1
                     except Exception:
                         pass
 

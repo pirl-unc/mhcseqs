@@ -55,6 +55,29 @@ def strip_prefix(gene: str) -> str:
     return bare
 
 
+# Ortholog-transferred genes: {species}-ortho:{ortholog_name}
+# These should be parsed with the source species, not the actual organism.
+_ORTHOLOG_SOURCE_SPECIES = {
+    "H2": "Mus musculus",
+    "H-2": "Mus musculus",
+    "RT1": "Rattus norvegicus",
+}
+
+
+def parse_ortho_gene(gene: str) -> tuple[str, str] | None:
+    """Extract ortholog name and source species from an ortho: gene.
+
+    Returns (ortholog_name, source_species) or None if not an ortho gene.
+    """
+    if "-ortho:" not in gene:
+        return None
+    ortholog_name = gene.split("-ortho:", 1)[1]
+    for prefix, source_sp in _ORTHOLOG_SOURCE_SPECIES.items():
+        if ortholog_name.startswith(prefix):
+            return ortholog_name, source_sp
+    return ortholog_name, ""
+
+
 def _species_match(parsed_name: str, organism: str, latin: str) -> bool:
     """Check if parsed species matches the expected organism, handling synonyms."""
     p = parsed_name.lower()
@@ -103,13 +126,26 @@ def run_benchmark() -> dict:
             seen.add((gene, organism))
 
             latin = extract_latin_binomial(organism)
-            bare = strip_prefix(gene)
+
+            # Ortholog-transferred genes: parse with the source species
+            ortho = parse_ortho_gene(gene)
+            if ortho:
+                ortho_name, source_species = ortho
+                bare = ortho_name
+                parse_species = source_species or latin
+            else:
+                bare = strip_prefix(gene)
+                parse_species = latin
 
             # Always parse with species
             try:
-                r = mhcgnomes.parse(bare, **{species_kwarg: latin})
+                r = mhcgnomes.parse(bare, **{species_kwarg: parse_species})
                 tp = type(r).__name__
                 if tp in ("Gene", "Allele", "AlleleWithoutGene"):
+                    if ortho:
+                        # Ortholog: success means the ortholog name is valid
+                        parsed += 1
+                        continue
                     sp = getattr(getattr(r, "species", None), "name", "")
                     if sp and _species_match(sp, organism, latin):
                         parsed += 1
