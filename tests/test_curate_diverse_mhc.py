@@ -70,20 +70,22 @@ def test_normalize_gene_detects_paper_specific_names():
 
 
 def test_ortholog_transferred_detection():
-    from scripts.curate_diverse_mhc import _is_ortholog_transferred
+    from scripts.curate_diverse_mhc import _detect_ortholog_transfer
 
-    # H2 names on non-mouse species
-    assert _is_ortholog_transferred("Asme-H2-AA", "Asme")
-    assert _is_ortholog_transferred("Mepo-H2-K1_0", "Mepo")
-    assert _is_ortholog_transferred("Lost-H2-EB1", "Lost")
+    # H2 names on non-mouse species → returns source prefix
+    assert _detect_ortholog_transfer("Asme-H2-AA", "Asme") == "Mumu"
+    assert _detect_ortholog_transfer("Mepo-H2-K1_0", "Mepo") == "Mumu"
+    assert _detect_ortholog_transfer("Lost-H2-EB1", "Lost") == "Mumu"
     # RT1 names on non-rat species
-    assert _is_ortholog_transferred("Opha-RT1-B", "Opha")
-    assert _is_ortholog_transferred("RT1-HA", "Caca")
-    # Legitimate on actual mouse/rat
-    assert not _is_ortholog_transferred("H2-K1", "Mumu")
-    assert not _is_ortholog_transferred("RT1-Ba", "Rano")
-    # Other Mus species are legitimate too
-    assert not _is_ortholog_transferred("H2-Eb", "Musp")
+    assert _detect_ortholog_transfer("Opha-RT1-B", "Opha") == "Rano"
+    assert _detect_ortholog_transfer("RT1-HA", "Caca") == "Rano"
+    # Legitimate on actual mouse/rat (any species in genus) → None
+    assert _detect_ortholog_transfer("H2-K1", "Mumu") is None
+    assert _detect_ortholog_transfer("RT1-Ba", "Rano") is None
+    assert _detect_ortholog_transfer("H2-Eb", "Musp") is None
+    assert _detect_ortholog_transfer("H2-Eb", "Muco") is None  # Mus cookii
+    assert _detect_ortholog_transfer("RT1.Ba", "Rafu") is None  # Rattus fuscipes
+    assert _detect_ortholog_transfer("RT1.Ba", "Rale") is None  # Rattus leucopus
 
 
 def test_curate_row_marks_ortholog_transferred():
@@ -99,7 +101,7 @@ def test_curate_row_marks_ortholog_transferred():
     }
     curated, stats = curate_row(row)
     assert curated is not None
-    assert curated["gene"] == "Mepo-ortho:H2-K1"
+    assert curated["gene"] == "Mepo-ortho:Mumu:H2-K1"
     assert curated["gene_status"] == "ortholog_transferred"
 
 

@@ -372,25 +372,31 @@ def resolve_gene_annotation(gene_names: str, protein_name: str, organism_prefix:
 # Species-specific MHC nomenclature systems and their source species.
 # When these patterns appear on other species, it's because NCBI's automated
 # annotation pipeline named the gene after its closest reference ortholog.
+# H-2 and RT1 nomenclature is legitimate for Mus and Rattus (any species).
+# Match by genus prefix (first 2 chars) to avoid enumerating every species.
+_MURIDAE_GENUS_PREFIXES = {"Mu", "Ra"}  # Mus, Rattus
+
 _ORTHOLOG_NOMENCLATURE = [
-    # (gene regex, source organism prefix(es), description)
-    (re.compile(r"(^|-)H2[-.]", re.IGNORECASE), {"Mumu", "Musp", "Muca", "Mupr"}, "mouse H-2"),
-    (re.compile(r"(^|-)H-2", re.IGNORECASE), {"Mumu", "Musp", "Muca", "Mupr"}, "mouse H-2"),
-    (re.compile(r"(^|-)RT1[-.]", re.IGNORECASE), {"Rano"}, "rat RT1"),
+    # (gene regex, canonical source prefix)
+    (re.compile(r"(^|-)H2[-.]", re.IGNORECASE), "Mumu"),
+    (re.compile(r"(^|-)H-2", re.IGNORECASE), "Mumu"),
+    (re.compile(r"(^|-)RT1[-.]", re.IGNORECASE), "Rano"),
 ]
 
 
-def _is_ortholog_transferred(gene: str, organism_prefix: str) -> bool:
+def _detect_ortholog_transfer(gene: str, organism_prefix: str) -> str | None:
     """Detect gene names from another species' nomenclature system.
 
-    NCBI's genome annotation pipeline (GNOMON) names predicted genes after
-    the closest known ortholog.  This results in e.g. H2-K1 appearing on
-    fish or RT1-B on snakes.
+    Returns the canonical source species prefix (e.g. "Mumu" for H-2 genes)
+    if the gene uses a foreign nomenclature, or None if legitimate.
+    H-2/RT1 nomenclature is legitimate for any Mus or Rattus species.
     """
-    for pattern, source_prefixes, _desc in _ORTHOLOG_NOMENCLATURE:
-        if pattern.search(gene) and organism_prefix not in source_prefixes:
-            return True
-    return False
+    if organism_prefix[:2] in _MURIDAE_GENUS_PREFIXES:
+        return None  # Mus/Rattus — H2 and RT1 are their own system
+    for pattern, canonical in _ORTHOLOG_NOMENCLATURE:
+        if pattern.search(gene):
+            return canonical
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -469,13 +475,15 @@ def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
 
     # Detect ortholog-transferred names: gene named after a reference
     # species ortholog by automated annotation (e.g. H2-K1 on a fish).
-    # Rewrite to {organism_prefix}-ortho:{ortholog_name} so the actual
-    # species is primary and the ortholog reference is preserved.
-    if gene and gene_status in ("ok", "paper_specific") and _is_ortholog_transferred(gene, prefix):
-        # Extract the ortholog name (the original gene without our prefix)
-        ortholog_name = gene.split("-", 1)[1] if "-" in gene else gene
-        gene = f"{prefix}-ortho:{ortholog_name}"
-        gene_status = "ortholog_transferred"
+    # Rewrite to {organism}-ortho:{source_prefix}:{ortholog_gene} so
+    # consumers can split cleanly and use mhcgnomes to look up both
+    # the actual species and parse the ortholog gene name.
+    if gene and gene_status in ("ok", "paper_specific"):
+        source_prefix = _detect_ortholog_transfer(gene, prefix)
+        if source_prefix:
+            ortholog_name = gene.split("-", 1)[1] if "-" in gene else gene
+            gene = f"{prefix}-ortho:{source_prefix}:{ortholog_name}"
+            gene_status = "ortholog_transferred"
 
     if not gene:
         # Try structural rescue: keep if sequence parses as valid MHC

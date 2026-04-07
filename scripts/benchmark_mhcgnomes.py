@@ -55,27 +55,20 @@ def strip_prefix(gene: str) -> str:
     return bare
 
 
-# Ortholog-transferred genes: {species}-ortho:{ortholog_name}
-# These should be parsed with the source species, not the actual organism.
-_ORTHOLOG_SOURCE_SPECIES = {
-    "H2": "Mus musculus",
-    "H-2": "Mus musculus",
-    "RT1": "Rattus norvegicus",
-}
-
-
 def parse_ortho_gene(gene: str) -> tuple[str, str] | None:
-    """Extract ortholog name and source species from an ortho: gene.
+    """Extract ortholog gene name and source species prefix from an ortho: gene.
 
-    Returns (ortholog_name, source_species) or None if not an ortho gene.
+    Format: {actual_species}-ortho:{source_prefix}:{ortholog_gene}
+    Returns (ortholog_gene, source_prefix) or None if not an ortho gene.
+    Source prefix can be resolved to a species via mhcgnomes.Species.get().
     """
     if "-ortho:" not in gene:
         return None
-    ortholog_name = gene.split("-ortho:", 1)[1]
-    for prefix, source_sp in _ORTHOLOG_SOURCE_SPECIES.items():
-        if ortholog_name.startswith(prefix):
-            return ortholog_name, source_sp
-    return ortholog_name, ""
+    rest = gene.split("-ortho:", 1)[1]
+    if ":" not in rest:
+        return rest, ""
+    source_prefix, ortholog_gene = rest.split(":", 1)
+    return ortholog_gene, source_prefix
 
 
 def _species_match(parsed_name: str, organism: str, latin: str) -> bool:
@@ -130,9 +123,17 @@ def run_benchmark() -> dict:
             # Ortholog-transferred genes: parse with the source species
             ortho = parse_ortho_gene(gene)
             if ortho:
-                ortho_name, source_species = ortho
-                bare = ortho_name
-                parse_species = source_species or latin
+                ortho_gene, source_prefix = ortho
+                bare = ortho_gene
+                # Resolve source prefix to species name via mhcgnomes
+                parse_species = latin
+                if source_prefix:
+                    try:
+                        sp_obj = mhcgnomes.Species.get(source_prefix)
+                        if sp_obj:
+                            parse_species = sp_obj.name
+                    except Exception:
+                        pass
             else:
                 bare = strip_prefix(gene)
                 parse_species = latin

@@ -83,15 +83,18 @@ def main():
                 latin = extract_latin_binomial(organism)
 
                 # Ortholog-transferred genes: parse with source species
+                # Format: {actual}-ortho:{source_prefix}:{ortholog_gene}
                 if "-ortho:" in gene:
-                    ortho_name = gene.split("-ortho:", 1)[1]
-                    bare = ortho_name
-                    # Map ortholog nomenclature to source species
-                    if ortho_name.upper().startswith(("H2", "H-2")):
-                        parse_species = "Mus musculus"
-                    elif ortho_name.upper().startswith("RT1"):
-                        parse_species = "Rattus norvegicus"
+                    rest = gene.split("-ortho:", 1)[1]
+                    if ":" in rest:
+                        source_prefix, bare = rest.split(":", 1)
+                        try:
+                            sp_obj = mhcgnomes.Species.get(source_prefix)
+                            parse_species = sp_obj.name if sp_obj else latin
+                        except Exception:
+                            parse_species = latin
                     else:
+                        bare = rest
                         parse_species = latin
                 else:
                     bare = gene.split("-", 1)[1] if "-" in gene else gene
