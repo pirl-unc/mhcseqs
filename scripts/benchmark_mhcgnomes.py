@@ -55,6 +55,24 @@ def strip_prefix(gene: str) -> str:
     return bare
 
 
+def _species_match(parsed_name: str, organism: str, latin: str) -> bool:
+    """Check if parsed species matches the expected organism, handling synonyms."""
+    p = parsed_name.lower()
+    o = organism.lower()
+    if p in o or o in p:
+        return True
+    # Resolve through mhcgnomes to handle taxonomy synonyms
+    try:
+        import mhcgnomes
+
+        expected = mhcgnomes.Species.get(latin)
+        if expected and expected.name.lower() == p:
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def run_benchmark() -> dict:
     import mhcgnomes
 
@@ -93,7 +111,7 @@ def run_benchmark() -> dict:
                 tp = type(r).__name__
                 if tp in ("Gene", "Allele", "AlleleWithoutGene"):
                     sp = getattr(getattr(r, "species", None), "name", "")
-                    if sp and (sp.lower() in organism.lower() or organism.lower() in sp.lower()):
+                    if sp and _species_match(sp, organism, latin):
                         parsed += 1
                         continue
                     elif sp:
