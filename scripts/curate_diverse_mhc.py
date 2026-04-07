@@ -200,7 +200,20 @@ def _is_opaque_numbering(tok: str, organism_prefix: str) -> bool:
     return False
 
 
-def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> str:
+def _is_canonical_gene(gene_part: str) -> bool:
+    """Check if a gene part (after prefix stripping) uses standard MHC nomenclature."""
+    return bool(
+        re.match(_BARE_GENE_RE, gene_part, re.IGNORECASE)
+        or re.match(
+            r"^(UA|UB|UC|UD|UE|UF|UG|UH|UK|UL|UM|"
+            r"I|II|Ia|Ib|B2[Mm]|DRB|beta|alpha|BF|BLB|MHC|Mhc)\d*$",
+            gene_part,
+        )
+        or re.match(r"^[A-Z][a-z]{1,5}[AB]\d*$", gene_part)
+    )
+
+
+def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> tuple[str, bool]:
     """Extract and normalize the MHC gene name.
 
     Handles:
@@ -214,10 +227,12 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
     - Opaque species numbering (Crpo94) → empty string (filtered)
     - Genomic loci (si:xxx, LOC123) → empty string (filtered)
 
-    Returns the normalized gene name, or empty string if unusable.
+    Returns (normalized_gene, is_canonical) where is_canonical is True when
+    the gene name uses standard MHC nomenclature (UA, DAB, DRB, etc.) vs
+    paper-specific identifiers (dila_a1, MumuTL, Secit, etc.).
     """
     if not gene_names and not protein_name:
-        return ""
+        return "", False
 
     tokens = gene_names.replace(";", " ").split() if gene_names else []
 
@@ -237,8 +252,9 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
             # (e.g. Gogo on Gobio gobio) pass through because capitalize()
             # matches the organism_prefix.
             if tok_prefix.upper() in _TRANSFERRED_PREFIXES and organism_prefix and tok_prefix.capitalize() != organism_prefix:
-                return f"{organism_prefix}-{gene_part.upper()}"
-            return f"{tok_prefix.capitalize()}-{gene_part.upper()}"
+                return f"{organism_prefix}-{gene_part.upper()}", _is_canonical_gene(gene_part)
+            canonical = _is_canonical_gene(gene_part)
+            return f"{tok_prefix.capitalize()}-{gene_part.upper()}", canonical
 
     # Pass 2: find a known MHC gene token and normalize it
     for tok in tokens:
@@ -256,8 +272,8 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
             gene_part = tok_stripped[3:]
             if re.match(_BARE_GENE_RE, gene_part, re.IGNORECASE):
                 if organism_prefix and organism_prefix.upper() != "HOSA":
-                    return f"{organism_prefix}-{gene_part.upper()}"
-                return f"HLA-{gene_part.upper()}"
+                    return f"{organism_prefix}-{gene_part.upper()}", True
+                return f"HLA-{gene_part.upper()}", True
 
         # Concatenated prefix+gene: 4-letter prefix (matching organism) + gene
         # E.g., XimuDAB → Ximu-DAB, MaeuDBB → Maeu-DBB, SahaI → Saha-I
@@ -265,7 +281,7 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
             candidate_prefix = tok_stripped[:4].capitalize()
             if candidate_prefix == organism_prefix and tok_stripped[4:5].isupper():
                 gene_part = tok_stripped[4:]
-                return f"{candidate_prefix}-{gene_part}"
+                return f"{candidate_prefix}-{gene_part}", _is_canonical_gene(gene_part)
 
         # Literature prefix: 3-4 letter capitalized prefix + uppercase gene,
         # where prefix differs from organism (PochUA on Zhch → Poch-UA)
@@ -273,25 +289,26 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
         if m:
             lit_prefix, gene_part = m.group(1), m.group(2)
             if lit_prefix != (organism_prefix or ""):
-                return f"{lit_prefix}-{gene_part}"
+                return f"{lit_prefix}-{gene_part}", _is_canonical_gene(gene_part)
 
         # Bare MHC gene name (no prefix): DAB1*06, UBA*01, BF1, DRB1, etc.
         if re.match(_BARE_GENE_RE, tok_stripped, re.IGNORECASE):
             if organism_prefix:
-                return f"{organism_prefix}-{tok_stripped.upper()}"
-            return tok_stripped.upper()
+                return f"{organism_prefix}-{tok_stripped.upper()}", True
+            return tok_stripped.upper(), True
 
         # Single-letter or short gene names that look MHC-ish: UA, I, B2m, Mhc, etc.
         if re.match(r"^(UA|UB|UC|UD|UE|UF|UG|UM|I|II|Ia|Ib|Mhc|B2[Mm]|DRB|beta|alpha)\d*$", tok_stripped):
             if organism_prefix:
-                return f"{organism_prefix}-{tok_stripped}"
-            return tok_stripped
+                return f"{organism_prefix}-{tok_stripped}", True
+            return tok_stripped, True
 
         # Gene names ending in standard class II A/B pattern
         if re.match(r"^[A-Z][a-z]{1,5}[AB]\d*$", tok_stripped):
-            return tok_stripped
+            return tok_stripped, True
 
     # Pass 3: fall back to first non-locus, non-opaque token
+    # These are paper-specific identifiers (dila_a1, MumuTL, Secit, etc.)
     for tok in tokens:
         if GENOMIC_LOCUS_RE.match(tok):
             continue
@@ -299,10 +316,10 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
             continue
         if re.match(r"^[A-Za-z][\w.*:-]*$", tok) and len(tok) <= 30:
             if organism_prefix:
-                return f"{organism_prefix}-{tok}"
-            return tok
+                return f"{organism_prefix}-{tok}", False
+            return tok, False
 
-    return ""
+    return "", False
 
 
 def resolve_gene_annotation(gene_names: str, protein_name: str, organism_prefix: str) -> tuple[str, str, str]:
@@ -311,7 +328,7 @@ def resolve_gene_annotation(gene_names: str, protein_name: str, organism_prefix:
     Returns (normalized_gene, raw_label, gene_status) where:
     - normalized_gene: clean gene name or ""
     - raw_label: original gene identifier (for provenance)
-    - gene_status: "ok", "opaque_unassigned", "inferred", "missing"
+    - gene_status: "ok", "paper_specific", "opaque_unassigned", "inferred", "missing"
     """
     if not gene_names:
         if B2M_PATTERN.search(protein_name or ""):
@@ -336,9 +353,10 @@ def resolve_gene_annotation(gene_names: str, protein_name: str, organism_prefix:
     if all_opaque_or_locus and (opaque_label or tokens):
         return ("", opaque_label, "opaque_unassigned")
 
-    gene = normalize_gene(gene_names, protein_name, organism_prefix)
+    gene, is_canonical = normalize_gene(gene_names, protein_name, organism_prefix)
     if gene:
-        return (gene, tokens[0] if tokens else "", "ok")
+        status = "ok" if is_canonical else "paper_specific"
+        return (gene, tokens[0] if tokens else "", status)
 
     return ("", tokens[0] if tokens else "", "missing")
 
@@ -523,10 +541,10 @@ def main():
     prefixes = Counter(r["gene"].split("-")[0] if "-" in r["gene"] else "??" for r in kept)
     print(f"\nUnique species prefixes: {len(prefixes)}")
 
-    # Write output (only the standard columns, not provenance fields)
     fields = [
         "uniprot_accession",
         "gene",
+        "gene_status",
         "organism",
         "organism_id",
         "length",

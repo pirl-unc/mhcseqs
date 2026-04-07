@@ -22,33 +22,51 @@ def _load_b2m_sequence() -> str:
 
 
 def test_resolve_gene_annotation_demotes_opaque_species_numbering():
-    assert normalize_gene("Crpo94", "", "Crpo") == ""
-    assert normalize_gene("Crpo-Crpo94", "", "Crpo") == ""
+    assert normalize_gene("Crpo94", "", "Crpo") == ("", False)
+    assert normalize_gene("Crpo-Crpo94", "", "Crpo") == ("", False)
     assert resolve_gene_annotation("Crpo94", "", "Crpo") == ("", "Crpo94", "opaque_unassigned")
     assert resolve_gene_annotation("Crpo-Crpo94", "", "Crpo") == ("", "Crpo94", "opaque_unassigned")
 
 
 def test_normalize_gene_fixes_lowercase_and_transferred_prefixes():
-    assert normalize_gene("orni-dba", "", "Orni") == "Orni-DBA"
-    assert normalize_gene("hla-dqa1", "", "Xetr") == "Xetr-DQA1"
-    assert normalize_gene("HLADRB1 K3G42_000618", "", "Spto") == "Spto-DRB1"
+    assert normalize_gene("orni-dba", "", "Orni") == ("Orni-DBA", True)
+    assert normalize_gene("hla-dqa1", "", "Xetr") == ("Xetr-DQA1", True)
+    assert normalize_gene("HLADRB1 K3G42_000618", "", "Spto") == ("Spto-DRB1", True)
     # Transferred primate/model-organism prefixes on unrelated species
-    assert normalize_gene("PATR-A", "", "Asme") == "Asme-A"
-    assert normalize_gene("POPY-E", "", "Asme") == "Asme-E"
-    assert normalize_gene("MAMU-DRA", "", "Lost") == "Lost-DRA"
-    assert normalize_gene("Mamu-DRA", "", "Eufi") == "Eufi-DRA"
-    assert normalize_gene("MAFA-A1", "", "Rhfe") == "Rhfe-A1"
-    assert normalize_gene("SLA-DQB1", "", "Acox") == "Acox-DQB1"
+    assert normalize_gene("PATR-A", "", "Asme")[0] == "Asme-A"
+    assert normalize_gene("POPY-E", "", "Asme")[0] == "Asme-E"
+    assert normalize_gene("MAMU-DRA", "", "Lost") == ("Lost-DRA", True)
+    assert normalize_gene("Mamu-DRA", "", "Eufi") == ("Eufi-DRA", True)
+    assert normalize_gene("MAFA-A1", "", "Rhfe")[0] == "Rhfe-A1"
+    assert normalize_gene("SLA-DQB1", "", "Acox") == ("Acox-DQB1", True)
     # GOGO on Gobio gobio is legitimate (prefix collision), not an artifact
-    assert normalize_gene("Gogo-DAB1", "", "Gogo") == "Gogo-DAB1"
+    assert normalize_gene("Gogo-DAB1", "", "Gogo") == ("Gogo-DAB1", True)
     # Legitimate uses on the actual source species are preserved
-    assert normalize_gene("MAMU-DRA", "", "Mamu") == "Mamu-DRA"
-    assert normalize_gene("PATR-A", "", "Patr") == "Patr-A"
+    assert normalize_gene("MAMU-DRA", "", "Mamu") == ("Mamu-DRA", True)
+    assert normalize_gene("PATR-A", "", "Patr")[0] == "Patr-A"
 
 
 def test_normalize_gene_preserves_literature_prefixes():
-    assert normalize_gene("PochUA", "", "Zhch") == "Poch-UA"
-    assert normalize_gene("Hyam_DAB1", "", "Hyam") == "Hyam-DAB1"
+    assert normalize_gene("PochUA", "", "Zhch") == ("Poch-UA", True)
+    assert normalize_gene("Hyam_DAB1", "", "Hyam") == ("Hyam-DAB1", True)
+
+
+def test_normalize_gene_detects_paper_specific_names():
+    # Sea bass cDNA clone identifiers — Pass 1 splits on underscore,
+    # gene part "a1" is not canonical MHC nomenclature
+    assert normalize_gene("dila_a1", "", "Dila") == ("Dila-A1", False)
+    # Species-specific M3 variants — Pass 3 fallback
+    gene, canonical = normalize_gene("MumuTL", "", "Mumu")
+    assert gene == "Mumu-TL" and not canonical
+    # Serinus species-specific names — literature prefix differs from organism
+    gene, canonical = normalize_gene("Secit", "", "Crci")
+    assert not canonical
+    # Canonical genes remain canonical
+    assert normalize_gene("UA", "", "Sppu") == ("Sppu-UA", True)
+    assert normalize_gene("DAB1*06", "", "Orni") == ("Orni-DAB1*06", True)
+    # paper_specific status flows through resolve_gene_annotation
+    assert resolve_gene_annotation("dila_a1", "", "Dila")[2] == "paper_specific"
+    assert resolve_gene_annotation("UA", "", "Sppu")[2] == "ok"
 
 
 def test_curate_row_rescues_structurally_valid_class_i_without_gene():
