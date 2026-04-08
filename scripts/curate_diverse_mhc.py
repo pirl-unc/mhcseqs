@@ -392,9 +392,9 @@ def resolve_gene_annotation(gene_names: str, protein_name: str, organism_prefix:
 _MURIDAE_GENUS_PREFIXES = {"Mu", "Ra"}  # Mus, Rattus
 
 _ORTHOLOG_NOMENCLATURE = [
-    # (gene regex, canonical source prefix)
-    (re.compile(r"(^|-)H2[-.]", re.IGNORECASE), "Mumu"),
-    (re.compile(r"(^|-)H-2", re.IGNORECASE), "Mumu"),
+    # (gene regex, mhcgnomes source prefix — must resolve via Species.get())
+    (re.compile(r"(^|-)H2[-.]", re.IGNORECASE), "H2"),
+    (re.compile(r"(^|-)H-2", re.IGNORECASE), "H2"),
     (re.compile(r"(^|-)RT1[-.]", re.IGNORECASE), "Rano"),
 ]
 
@@ -402,7 +402,7 @@ _ORTHOLOG_NOMENCLATURE = [
 def _detect_ortholog_transfer(gene: str, organism_prefix: str) -> str | None:
     """Detect gene names from another species' nomenclature system.
 
-    Returns the canonical source species prefix (e.g. "Mumu" for H-2 genes)
+    Returns the mhcgnomes source prefix (e.g. "H2" for H-2 genes)
     if the gene uses a foreign nomenclature, or None if legitimate.
     H-2/RT1 nomenclature is legitimate for any Mus or Rattus species.
     """

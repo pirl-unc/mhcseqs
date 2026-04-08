@@ -72,10 +72,10 @@ def test_normalize_gene_detects_paper_specific_names():
 def test_ortholog_transferred_detection():
     from scripts.curate_diverse_mhc import _detect_ortholog_transfer
 
-    # H2 names on non-mouse species → returns source prefix
-    assert _detect_ortholog_transfer("Asme-H2-AA", "Asme") == "Mumu"
-    assert _detect_ortholog_transfer("Mepo-H2-K1_0", "Mepo") == "Mumu"
-    assert _detect_ortholog_transfer("Lost-H2-EB1", "Lost") == "Mumu"
+    # H2 names on non-mouse species → returns mhcgnomes prefix "H2"
+    assert _detect_ortholog_transfer("Asme-H2-AA", "Asme") == "H2"
+    assert _detect_ortholog_transfer("Mepo-H2-K1_0", "Mepo") == "H2"
+    assert _detect_ortholog_transfer("Lost-H2-EB1", "Lost") == "H2"
     # RT1 names on non-rat species
     assert _detect_ortholog_transfer("Opha-RT1-B", "Opha") == "Rano"
     assert _detect_ortholog_transfer("RT1-HA", "Caca") == "Rano"
@@ -101,7 +101,7 @@ def test_curate_row_marks_ortholog_transferred():
     }
     curated, stats = curate_row(row)
     assert curated is not None
-    assert curated["gene"] == "~ortho:MerlucciusPolli|Mumu:H2-K1"
+    assert curated["gene"] == "~ortho:MerlucciusPolli|H2:H2-K1"
     assert curated["gene_status"] == "ortholog_transferred"
 
 
