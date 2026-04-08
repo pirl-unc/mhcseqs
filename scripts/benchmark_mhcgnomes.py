@@ -55,20 +55,21 @@ def strip_prefix(gene: str) -> str:
     return bare
 
 
-def parse_ortho_gene(gene: str) -> tuple[str, str] | None:
-    """Extract ortholog gene name and source species prefix from an ortho: gene.
+def parse_nonstandard_gene(gene: str) -> tuple[str, str, str] | None:
+    """Parse a ~keyword:Species|rest gene identifier.
 
-    Format: {actual_species}-ortho:{source_prefix}:{ortholog_gene}
-    Returns (ortholog_gene, source_prefix) or None if not an ortho gene.
-    Source prefix can be resolved to a species via mhcgnomes.Species.get().
+    Returns (keyword, species_tag, payload) or None if standard gene.
+    For ~ortho:Species|Source:gene → ("ortho", "Species", "Source:gene")
+    For ~ref:Species|Acc:id → ("ref", "Species", "Acc:id")
+    For ~loc:Species|LOC_id → ("loc", "Species", "LOC_id")
     """
-    if "-ortho:" not in gene:
+    if not gene.startswith("~"):
         return None
-    rest = gene.split("-ortho:", 1)[1]
-    if ":" not in rest:
-        return rest, ""
-    source_prefix, ortholog_gene = rest.split(":", 1)
-    return ortholog_gene, source_prefix
+    # ~keyword:Species|rest
+    without_tilde = gene[1:]
+    keyword, _, remainder = without_tilde.partition(":")
+    species_tag, _, payload = remainder.partition("|")
+    return keyword, species_tag, payload
 
 
 def _species_match(parsed_name: str, organism: str, latin: str) -> bool:
@@ -116,49 +117,59 @@ def run_benchmark() -> dict:
             organism = row.get("organism", "")
             if not gene or (gene, organism) in seen:
                 continue
+            # Skip ~ref: and ~loc: — not parseable by design
+            if gene.startswith("~ref:") or gene.startswith("~loc:"):
+                continue
             seen.add((gene, organism))
 
             latin = extract_latin_binomial(organism)
 
-            # Ortholog-transferred genes: parse with the source species
-            ortho = parse_ortho_gene(gene)
-            if ortho:
-                ortho_gene, source_prefix = ortho
-                bare = ortho_gene
-                # Resolve source prefix to species name via mhcgnomes
-                parse_species = latin
-                if source_prefix:
+            # Non-standard genes (~ortho, ~ref, ~loc): handle specially
+            ns = parse_nonstandard_gene(gene)
+            if ns:
+                keyword, _species_tag, payload = ns
+                if keyword == "ortho":
+                    # ~ortho:Species|Source:gene → parse gene with source species
+                    source_prefix, _, ortho_gene = payload.partition(":")
+                    bare = ortho_gene
+                    parse_species = latin
+                    if source_prefix:
+                        try:
+                            sp_obj = mhcgnomes.Species.get(source_prefix)
+                            if sp_obj:
+                                parse_species = sp_obj.name
+                        except Exception:
+                            pass
                     try:
-                        sp_obj = mhcgnomes.Species.get(source_prefix)
-                        if sp_obj:
-                            parse_species = sp_obj.name
+                        r = mhcgnomes.parse(bare, **{species_kwarg: parse_species})
+                        tp = type(r).__name__
+                        if tp in ("Gene", "Allele", "AlleleWithoutGene"):
+                            parsed += 1
+                            continue
                     except Exception:
                         pass
+                # ~ref and ~loc are not parseable by mhcgnomes — skip to failure
             else:
                 bare = strip_prefix(gene)
                 parse_species = latin
 
-            # Always parse with species
-            try:
-                r = mhcgnomes.parse(bare, **{species_kwarg: parse_species})
-                tp = type(r).__name__
-                if tp in ("Gene", "Allele", "AlleleWithoutGene"):
-                    if ortho:
-                        # Ortholog: success means the ortholog name is valid
-                        parsed += 1
-                        continue
-                    sp = getattr(getattr(r, "species", None), "name", "")
-                    if sp and _species_match(sp, organism, latin):
-                        parsed += 1
-                        continue
-                    elif sp:
-                        wrong_species += 1
-                        continue
-                    else:
-                        parsed += 1
-                        continue
-            except Exception:
-                pass
+                # Try parsing standard gene with species
+                try:
+                    r = mhcgnomes.parse(bare, **{species_kwarg: parse_species})
+                    tp = type(r).__name__
+                    if tp in ("Gene", "Allele", "AlleleWithoutGene"):
+                        sp = getattr(getattr(r, "species", None), "name", "")
+                        if sp and _species_match(sp, organism, latin):
+                            parsed += 1
+                            continue
+                        elif sp:
+                            wrong_species += 1
+                            continue
+                        else:
+                            parsed += 1
+                            continue
+                except Exception:
+                    pass
 
             # Diagnose failure: is the species known?
             prefix = gene.split("-")[0] if "-" in gene else ""

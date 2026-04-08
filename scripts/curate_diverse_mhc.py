@@ -167,6 +167,21 @@ def derive_prefix(organism: str) -> str:
     return ""
 
 
+def derive_species_tag(organism: str) -> str:
+    """Derive a CamelCase species tag for non-standard gene identifiers.
+
+    E.g., Mus musculus → MusMusculus, Rattus norvegicus → RattusNorvegicus.
+    Used in ~keyword:SpeciesTag|id format.
+    """
+    latin = organism.split("(")[0].strip()
+    parts = latin.split()
+    if len(parts) >= 2:
+        return parts[0].capitalize() + parts[1].capitalize()
+    if len(parts) == 1:
+        return parts[0].capitalize()
+    return ""
+
+
 # ---------------------------------------------------------------------------
 # Gene name normalization
 # ---------------------------------------------------------------------------
@@ -206,6 +221,7 @@ def _is_canonical_gene(gene_part: str) -> bool:
         re.match(_BARE_GENE_RE, gene_part, re.IGNORECASE)
         or re.match(
             r"^(UA|UB|UC|UD|UE|UF|UG|UH|UK|UL|UM|"
+            r"A|B|C|E|F|G|"  # single-letter class I genes (valid with species prefix)
             r"I|II|Ia|Ib|B2[Mm]|DRB|beta|alpha|BF|BLB|MHC|Mhc)\d*$",
             gene_part,
         )
@@ -329,11 +345,10 @@ def resolve_gene_annotation(gene_names: str, protein_name: str, organism_prefix:
     - normalized_gene: clean gene name or ""
     - raw_label: original gene identifier (for provenance)
     - gene_status: one of:
-        "ok"                   — standard MHC nomenclature
-        "ortholog_transferred" — gene named after ortholog from another species
-                                 (e.g. H2-K1 on a fish, RT1-B on a snake) by
-                                 automated genome annotation pipelines (GNOMON/RefSeq)
-        "paper_specific"       — ad-hoc identifier from an individual study
+        "ok"                   — standard MHC nomenclature (e.g. Sppu-UA)
+        "ortholog_transferred" — gene: ~ortho:Species|Source:gene
+        "paper_specific"       — gene: ~ref:Species|Accession:id
+        "loc"                  — gene: ~loc:Species|LOC_id
         "opaque_unassigned"    — opaque species-specific numbering (Crpo94)
         "inferred"             — B2M inferred from protein name
         "missing"              — no gene name found
@@ -473,16 +488,16 @@ def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
 
     gene, raw_gene_label, gene_status = resolve_gene_annotation(gene_names, protein_name, prefix)
 
+    species_tag = derive_species_tag(organism)
+
     # Detect ortholog-transferred names: gene named after a reference
     # species ortholog by automated annotation (e.g. H2-K1 on a fish).
-    # Rewrite to {organism}-ortho:{source_prefix}:{ortholog_gene} so
-    # consumers can split cleanly and use mhcgnomes to look up both
-    # the actual species and parse the ortholog gene name.
+    # Format: ~ortho:Species|SourcePrefix:ortholog_gene
     if gene and gene_status in ("ok", "paper_specific"):
         source_prefix = _detect_ortholog_transfer(gene, prefix)
         if source_prefix:
             ortholog_name = gene.split("-", 1)[1] if "-" in gene else gene
-            gene = f"{prefix}-ortho:{source_prefix}:{ortholog_name}"
+            gene = f"~ortho:{species_tag}|{source_prefix}:{ortholog_name}"
             gene_status = "ortholog_transferred"
 
     if not gene:
@@ -495,11 +510,12 @@ def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
             stats["no_gene"] += 1
             return None, stats
     else:
-        # Filter genomic loci that slipped through normalization
+        # Genomic loci that slipped through normalization → encode as ~loc:
         gene_part = gene.split("-", 1)[-1] if "-" in gene else gene
         if GENOMIC_LOCUS_RE.match(gene_part):
+            gene = f"~loc:{species_tag}|{gene_part}"
+            gene_status = "loc"
             stats["genomic_locus"] += 1
-            return None, stats
 
         # Filter compound gene names with both class I and class II indicators
         gene_upper = gene.upper()
@@ -508,6 +524,13 @@ def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
         if has_ci_gene and has_cii_gene:
             stats["ambiguous_gene"] += 1
             return None, stats
+
+        # Encode paper-specific genes with ~ref: format
+        if gene_status == "paper_specific":
+            # Extract the identifier (gene part after species prefix)
+            ref_id = gene.split("-", 1)[1] if "-" in gene else gene
+            accession = row.get("uniprot_accession", "")
+            gene = f"~ref:{species_tag}|{accession}:{ref_id}"
 
         stats["kept"] += 1
 

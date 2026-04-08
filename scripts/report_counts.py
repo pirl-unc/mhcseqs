@@ -82,40 +82,42 @@ def main():
 
                 latin = extract_latin_binomial(organism)
 
-                # Ortholog-transferred genes: parse with source species
-                # Format: {actual}-ortho:{source_prefix}:{ortholog_gene}
-                if "-ortho:" in gene:
-                    rest = gene.split("-ortho:", 1)[1]
-                    if ":" in rest:
-                        source_prefix, bare = rest.split(":", 1)
+                # Non-standard genes (~ortho, ~ref, ~loc)
+                if gene.startswith("~"):
+                    keyword = gene[1:].partition(":")[0]
+                    if keyword == "ortho":
+                        payload = gene.split("|", 1)[1] if "|" in gene else ""
+                        source_prefix, _, bare = payload.partition(":")
                         try:
                             sp_obj = mhcgnomes.Species.get(source_prefix)
                             parse_species = sp_obj.name if sp_obj else latin
                         except Exception:
                             parse_species = latin
-                    else:
-                        bare = rest
-                        parse_species = latin
+                        if parse_species:
+                            try:
+                                r = mhcgnomes.parse(bare, **{sp_kwarg: parse_species})
+                                tp = type(r).__name__
+                                if tp in ("Gene", "Allele", "AlleleWithoutGene"):
+                                    parsed_ok += 1
+                            except Exception:
+                                pass
+                    # ~ref and ~loc are not parseable — skip
                 else:
                     bare = gene.split("-", 1)[1] if "-" in gene else gene
                     prefix = gene.split("-")[0] if "-" in gene else ""
                     if bare.lower().startswith(prefix.lower()) and prefix:
                         bare = bare[len(prefix) :].lstrip("-_")
                     parse_species = latin
-
-                if parse_species:
-                    try:
-                        r = mhcgnomes.parse(bare, **{sp_kwarg: parse_species})
-                        tp = type(r).__name__
-                        if tp in ("Gene", "Allele", "AlleleWithoutGene"):
-                            if "-ortho:" in gene:
-                                parsed_ok += 1
-                            else:
+                    if parse_species:
+                        try:
+                            r = mhcgnomes.parse(bare, **{sp_kwarg: parse_species})
+                            tp = type(r).__name__
+                            if tp in ("Gene", "Allele", "AlleleWithoutGene"):
                                 sp = getattr(getattr(r, "species", None), "name", "")
                                 if sp and sp.lower() in organism.lower():
                                     parsed_ok += 1
-                    except Exception:
-                        pass
+                        except Exception:
+                            pass
 
     # Print report
     print(f"\n{'=' * 50}")

@@ -101,7 +101,7 @@ def test_curate_row_marks_ortholog_transferred():
     }
     curated, stats = curate_row(row)
     assert curated is not None
-    assert curated["gene"] == "Mepo-ortho:Mumu:H2-K1"
+    assert curated["gene"] == "~ortho:MerlucciusPolli|Mumu:H2-K1"
     assert curated["gene_status"] == "ortholog_transferred"
 
 
