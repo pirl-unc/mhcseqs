@@ -247,10 +247,15 @@ def train() -> dict[str, object]:
         "nterm": {
             "start_m_log_odds": {
                 "present": round(_log_odds(pos_start_m, len(pos_rows), neg_start_m, len(neg_rows)), 4),
-                "absent": round(_log_odds(
-                    len(pos_rows) - pos_start_m, len(pos_rows),
-                    len(neg_rows) - neg_start_m, len(neg_rows),
-                ), 4),
+                "absent": round(
+                    _log_odds(
+                        len(pos_rows) - pos_start_m,
+                        len(pos_rows),
+                        len(neg_rows) - neg_start_m,
+                        len(neg_rows),
+                    ),
+                    4,
+                ),
             },
             "prefix3_log_odds": _table_log_odds(pos_nterm_prefix3, neg_nterm_prefix3),
         },
@@ -280,10 +285,7 @@ def train() -> dict[str, object]:
 
     # Strong leaderless threshold: sit just below the weakest positive
     # N-terminal score so the direct leaderless shortcut remains conservative.
-    pos_nterm_scores = sorted(
-        _score_nterm(row["sequence"].strip().upper(), model)
-        for row in pos_rows if row["sequence"]
-    )
+    pos_nterm_scores = sorted(_score_nterm(row["sequence"].strip().upper(), model) for row in pos_rows if row["sequence"])
     leaderless_threshold = (pos_nterm_scores[0] - 0.25) if pos_nterm_scores else -3.0
     model["config"]["leaderless_shortcut_threshold"] = round(leaderless_threshold, 4)
 

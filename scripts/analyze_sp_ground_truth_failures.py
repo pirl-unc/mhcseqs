@@ -79,11 +79,7 @@ def _chosen_class(parser_name: str) -> str:
 def _select_parser_from_runs(runs: dict[str, dict]) -> tuple[int, str]:
     """Replicate the evaluator's parser selection without reparsing."""
     typical_sp = 23
-    candidates = [
-        (int(info["mature_start"]), name)
-        for name, info in runs.items()
-        if info["ok"] and int(info["mature_start"] or 0) > 0
-    ]
+    candidates = [(int(info["mature_start"]), name) for name, info in runs.items() if info["ok"] and int(info["mature_start"] or 0) > 0]
     if not candidates:
         return 0, ""
 
@@ -163,9 +159,7 @@ def main() -> None:
                 signature = f"gold:{mhc_class}:{chain or 'na'}:{prediction['status']}"
             else:
                 runs = _run_all_parsers(seq, cat)
-                signature = " | ".join(
-                    f"{name}:{runs[name]['status']}" for name in ("class_I", "class_II_alpha", "class_II_beta")
-                )
+                signature = " | ".join(f"{name}:{runs[name]['status']}" for name in ("class_I", "class_II_alpha", "class_II_beta"))
             unparsed_signatures[signature] += 1
             if len(unparsed_examples[signature]) < 3:
                 unparsed_examples[signature].append(
@@ -188,12 +182,15 @@ def main() -> None:
             exact += 1
 
         class_key = row.get("mhc_class", "") or str(prediction["mhc_class"]) or _chosen_class(chosen_parser)
-        chosen = runs.get(chosen_parser, {
-            "status": str(prediction["status"]),
-            "mature_start": chosen_start,
-            "refined": pred,
-            "ok": bool(prediction["ok"]),
-        })
+        chosen = runs.get(
+            chosen_parser,
+            {
+                "status": str(prediction["status"]),
+                "mature_start": chosen_start,
+                "refined": pred,
+                "ok": bool(prediction["ok"]),
+            },
+        )
         chosen["mature_start"] = chosen_start
         chosen["refined"] = pred
         chosen["status"] = str(prediction["status"])
@@ -245,10 +242,10 @@ def main() -> None:
         total = c["total"]
         print(
             f"{class_key:<6} {category:<18} {total:>6} "
-            f"{c['exact']:>4} ({100*c['exact']/total:5.1f}%) "
-            f"{c['within_1']:>4} ({100*c['within_1']/total:5.1f}%) "
-            f"{c['within_2']:>4} ({100*c['within_2']/total:5.1f}%) "
-            f"{c['within_3']:>4} ({100*c['within_3']/total:5.1f}%)"
+            f"{c['exact']:>4} ({100 * c['exact'] / total:5.1f}%) "
+            f"{c['within_1']:>4} ({100 * c['within_1'] / total:5.1f}%) "
+            f"{c['within_2']:>4} ({100 * c['within_2'] / total:5.1f}%) "
+            f"{c['within_3']:>4} ({100 * c['within_3'] / total:5.1f}%)"
         )
 
     print("\nBy selected parser and species category")
@@ -257,10 +254,7 @@ def main() -> None:
     for parser_name, category in sorted(by_parser_cat.keys()):
         c = by_parser_cat[(parser_name, category)]
         total = c["total"]
-        print(
-            f"{parser_name:<16} {category:<18} {total:>6} "
-            f"{c['exact']:>4} ({100*c['exact']/total:5.1f}%)"
-        )
+        print(f"{parser_name:<16} {category:<18} {total:>6} {c['exact']:>4} ({100 * c['exact'] / total:5.1f}%)")
 
     print("\nLarge-miss failure modes (>3 aa)")
     if not failure_modes:
@@ -283,10 +277,7 @@ def main() -> None:
         for signature, count in unparsed_signatures.most_common(10):
             print(f"- {count}: {signature}")
             for example in unparsed_examples[signature]:
-                print(
-                    f"  {example['accession']} {example['category']} gt={example['gt_sp']} "
-                    f"{example['organism'][:40]}"
-                )
+                print(f"  {example['accession']} {example['category']} gt={example['gt_sp']} {example['organism'][:40]}")
 
 
 if __name__ == "__main__":

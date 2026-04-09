@@ -104,6 +104,11 @@ def run_benchmark() -> dict:
     use_species_param = "species" in parse_params
     species_kwarg = "species" if use_species_param else "default_species"
 
+    # Prefer Gene results for ambiguous names like RT1-B
+    prefer_gene = {}
+    if "preferred_result_types" in parse_params:
+        prefer_gene = {"preferred_result_types": [mhcgnomes.Allele, mhcgnomes.Gene]}
+
     seen: set[tuple[str, str]] = set()
     parsed = 0
     wrong_species = 0
@@ -117,8 +122,8 @@ def run_benchmark() -> dict:
             organism = row.get("organism", "")
             if not gene or (gene, organism) in seen:
                 continue
-            # Skip ~ref: and ~loc: — not parseable by design
-            if gene.startswith("~ref:") or gene.startswith("~loc:"):
+            # Skip ~ref:, ~loc:, ~local: — not parseable by design
+            if gene.startswith("~ref:") or gene.startswith("~loc:") or gene.startswith("~local:"):
                 continue
             seen.add((gene, organism))
 
@@ -141,7 +146,7 @@ def run_benchmark() -> dict:
                         except Exception:
                             pass
                     try:
-                        r = mhcgnomes.parse(bare, **{species_kwarg: parse_species})
+                        r = mhcgnomes.parse(bare, **{species_kwarg: parse_species}, **prefer_gene)
                         tp = type(r).__name__
                         if tp in ("Gene", "Allele", "AlleleWithoutGene"):
                             parsed += 1
@@ -155,7 +160,7 @@ def run_benchmark() -> dict:
 
                 # Try parsing standard gene with species
                 try:
-                    r = mhcgnomes.parse(bare, **{species_kwarg: parse_species})
+                    r = mhcgnomes.parse(bare, **{species_kwarg: parse_species}, **prefer_gene)
                     tp = type(r).__name__
                     if tp in ("Gene", "Allele", "AlleleWithoutGene"):
                         sp = getattr(getattr(r, "species", None), "name", "")

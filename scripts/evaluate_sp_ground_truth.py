@@ -10,6 +10,7 @@ CSV and the older classless parser-selection heuristic.
 Usage:
     python scripts/evaluate_sp_ground_truth.py
 """
+
 from __future__ import annotations
 
 import csv
@@ -80,35 +81,144 @@ def _species_category(organism: str, taxon_id: str = "") -> str:
 
     # Aves (birds) — common family/genus indicators
     _BIRD_HINTS = (
-        "gallus", "chicken", "meleagris", "turkey", "anas ", "duck", "goose",
-        "anser", "columba", "pigeon", "strix", "owl", "falco", "eagle",
-        "hawk", "pipra", "parus", "corvus", "fringill", "passer", "taeniopygia",
-        "zebra finch", "ficedula", "cyanistes", "sturnus", "acrocephalus",
-        "phylloscopus", "lanius", "hirundo", "apus", "coturnix", "quail",
-        "numida", "struthio", "dromaius", "apteryx", "rhea", "accipiter",
-        "buteo", "aquila", "haliaeetus", "catharus", "turdus", "serinus",
-        "lonchura", "melopsittacus", "psittac", "cacatua", "ara ",
-        "amazona", "nymphicus", "pelecanus", "phalacrocorax", "ardea",
-        "ciconia", "phoenicopterus", "spheniscus", "pygoscelis", "aptenodytes",
-        "larus", "sterna", "alcedo", "merops", "upupa", "bucorvus",
-        "picus", "dendrocopos", "indicator", "galbula", "pterocles",
+        "gallus",
+        "chicken",
+        "meleagris",
+        "turkey",
+        "anas ",
+        "duck",
+        "goose",
+        "anser",
+        "columba",
+        "pigeon",
+        "strix",
+        "owl",
+        "falco",
+        "eagle",
+        "hawk",
+        "pipra",
+        "parus",
+        "corvus",
+        "fringill",
+        "passer",
+        "taeniopygia",
+        "zebra finch",
+        "ficedula",
+        "cyanistes",
+        "sturnus",
+        "acrocephalus",
+        "phylloscopus",
+        "lanius",
+        "hirundo",
+        "apus",
+        "coturnix",
+        "quail",
+        "numida",
+        "struthio",
+        "dromaius",
+        "apteryx",
+        "rhea",
+        "accipiter",
+        "buteo",
+        "aquila",
+        "haliaeetus",
+        "catharus",
+        "turdus",
+        "serinus",
+        "lonchura",
+        "melopsittacus",
+        "psittac",
+        "cacatua",
+        "ara ",
+        "amazona",
+        "nymphicus",
+        "pelecanus",
+        "phalacrocorax",
+        "ardea",
+        "ciconia",
+        "phoenicopterus",
+        "spheniscus",
+        "pygoscelis",
+        "aptenodytes",
+        "larus",
+        "sterna",
+        "alcedo",
+        "merops",
+        "upupa",
+        "bucorvus",
+        "picus",
+        "dendrocopos",
+        "indicator",
+        "galbula",
+        "pterocles",
     )
 
     # Actinopterygii + Chondrichthyes (fish)
     _FISH_HINTS = (
-        "danio", "salmo", "oncorhynch", "ictalur", "oreochrom", "cyprinus",
-        "carassius", "brachydanio", "poecili", "oryzias", "xiphophorus",
-        "gasterosteus", "takifugu", "tetraodon", "gadus", "dicentrarchus",
-        "sparus", "pagrus", "lates", "seriola", "thunnus", "rachycentron",
-        "hippoglossus", "paralichthys", "scophthalmus", "solea", "mugil",
-        "channa", "clarias", "pangasius", "labeo", "catla", "tor ",
-        "epinephelus", "lutjanus", "acanthopagrus", "salarias", "syngnathus",
-        "hippocampus", "acipenser", "polyodon", "lepisosteus", "amia ",
-        "polypterus", "latimeria", "protopterus", "lepidosiren",
-        "squalus", "mustelus", "triakis", "heterodontus", "carcharhinus",
-        "negaprion", "ginglymostoma", "chiloscyllium", "scyliorhinus",
-        "raja ", "leucoraja", "dasyatis", "rhinobatos", "callorhinchus",
-        "liparis", "larimichthys", "siniperca",
+        "danio",
+        "salmo",
+        "oncorhynch",
+        "ictalur",
+        "oreochrom",
+        "cyprinus",
+        "carassius",
+        "brachydanio",
+        "poecili",
+        "oryzias",
+        "xiphophorus",
+        "gasterosteus",
+        "takifugu",
+        "tetraodon",
+        "gadus",
+        "dicentrarchus",
+        "sparus",
+        "pagrus",
+        "lates",
+        "seriola",
+        "thunnus",
+        "rachycentron",
+        "hippoglossus",
+        "paralichthys",
+        "scophthalmus",
+        "solea",
+        "mugil",
+        "channa",
+        "clarias",
+        "pangasius",
+        "labeo",
+        "catla",
+        "tor ",
+        "epinephelus",
+        "lutjanus",
+        "acanthopagrus",
+        "salarias",
+        "syngnathus",
+        "hippocampus",
+        "acipenser",
+        "polyodon",
+        "lepisosteus",
+        "amia ",
+        "polypterus",
+        "latimeria",
+        "protopterus",
+        "lepidosiren",
+        "squalus",
+        "mustelus",
+        "triakis",
+        "heterodontus",
+        "carcharhinus",
+        "negaprion",
+        "ginglymostoma",
+        "chiloscyllium",
+        "scyliorhinus",
+        "raja ",
+        "leucoraja",
+        "dasyatis",
+        "rhinobatos",
+        "callorhinchus",
+        "liparis",
+        "larimichthys",
+        "siniperca",
     )
     if any(_hint_match(org_lower, h) for h in _FISH_HINTS):
         return "fish"
@@ -117,33 +227,109 @@ def _species_category(organism: str, taxon_id: str = "") -> str:
 
     # Reptilia
     _REPTILE_HINTS = (
-        "python", "boa ", "elaphe", "pantherophis", "naja", "bungarus",
-        "crotalus", "vipera", "bothrops", "agkistrodon", "notechis",
-        "pseudonaja", "ophiophagus", "micrurus", "laticauda", "hydrophis",
-        "anolis", "iguana", "pogona", "eublepharis", "gekko", "lacerta",
-        "podarcis", "zootoca", "varanus", "heloderma", "tiliqua",
-        "thamnophis", "lampropeltis", "coluber", "natrix", "salvator",
-        "tupinambis", "chamaeleo", "furcifer", "brookesia", "sphenodon",
-        "crocodylus", "alligator", "caiman", "gavialis", "tomistoma",
-        "chelonia", "caretta", "dermochelys", "chrysemys", "trachemys",
-        "testudo", "terrapene", "emys", "mauremys", "pelodiscus",
-        "amblyrhynch", "cyclura", "conolophus", "ctenosaura",
+        "python",
+        "boa ",
+        "elaphe",
+        "pantherophis",
+        "naja",
+        "bungarus",
+        "crotalus",
+        "vipera",
+        "bothrops",
+        "agkistrodon",
+        "notechis",
+        "pseudonaja",
+        "ophiophagus",
+        "micrurus",
+        "laticauda",
+        "hydrophis",
+        "anolis",
+        "iguana",
+        "pogona",
+        "eublepharis",
+        "gekko",
+        "lacerta",
+        "podarcis",
+        "zootoca",
+        "varanus",
+        "heloderma",
+        "tiliqua",
+        "thamnophis",
+        "lampropeltis",
+        "coluber",
+        "natrix",
+        "salvator",
+        "tupinambis",
+        "chamaeleo",
+        "furcifer",
+        "brookesia",
+        "sphenodon",
+        "crocodylus",
+        "alligator",
+        "caiman",
+        "gavialis",
+        "tomistoma",
+        "chelonia",
+        "caretta",
+        "dermochelys",
+        "chrysemys",
+        "trachemys",
+        "testudo",
+        "terrapene",
+        "emys",
+        "mauremys",
+        "pelodiscus",
+        "amblyrhynch",
+        "cyclura",
+        "conolophus",
+        "ctenosaura",
     )
     if any(_hint_match(org_lower, h) for h in _REPTILE_HINTS):
         return "other_vertebrate"
 
     # Amphibia
     _AMPHIBIAN_HINTS = (
-        "xenopus", "rana ", "lithobates", "bufo", "rhinella", "bombina",
-        "hyla ", "pseudacris", "eleutherodactylus", "dendrobates",
-        "phyllobates", "allobates", "epipedobates", "ranitomeya",
-        "ambystoma", "notophthalmus", "plethodon", "cynops", "triturus",
-        "ichthyophis", "typhlonectes", "caecilia", "microcaecilia",
-        "andrias", "cryptobranchus", "salamandra", "lissotriton",
-        "nanorana", "quasipaa", "pipa", "hymenochirus",
-        "leptobrachium", "megophrys", "scaphiopus", "pelophylax",
-        "pyxicephalus", "conraua", "ceratobatrachus", "atelopus",
-        "mantella", "boophis",
+        "xenopus",
+        "rana ",
+        "lithobates",
+        "bufo",
+        "rhinella",
+        "bombina",
+        "hyla ",
+        "pseudacris",
+        "eleutherodactylus",
+        "dendrobates",
+        "phyllobates",
+        "allobates",
+        "epipedobates",
+        "ranitomeya",
+        "ambystoma",
+        "notophthalmus",
+        "plethodon",
+        "cynops",
+        "triturus",
+        "ichthyophis",
+        "typhlonectes",
+        "caecilia",
+        "microcaecilia",
+        "andrias",
+        "cryptobranchus",
+        "salamandra",
+        "lissotriton",
+        "nanorana",
+        "quasipaa",
+        "pipa",
+        "hymenochirus",
+        "leptobrachium",
+        "megophrys",
+        "scaphiopus",
+        "pelophylax",
+        "pyxicephalus",
+        "conraua",
+        "ceratobatrachus",
+        "atelopus",
+        "mantella",
+        "boophis",
     )
     if any(_hint_match(org_lower, h) for h in _AMPHIBIAN_HINTS):
         return "other_vertebrate"
@@ -284,9 +470,7 @@ def predict_sp_for_row(
             }
 
         groove_anchor = (
-            (int(result.anchor_cys1), int(result.anchor_cys2))
-            if result.anchor_cys1 is not None and result.anchor_cys2 is not None
-            else None
+            (int(result.anchor_cys1), int(result.anchor_cys2)) if result.anchor_cys1 is not None and result.anchor_cys2 is not None else None
         )
         refined = refine_signal_peptide(
             seq,
@@ -328,10 +512,7 @@ def predict_sp_for_row(
         "dispatch_mode": "inferred",
         "parser": parser_name,
         "mhc_class": inferred_class,
-        "chain": (
-            "alpha" if parser_name == "class_II_alpha"
-            else ("beta" if parser_name == "class_II_beta" else "alpha")
-        ),
+        "chain": ("alpha" if parser_name == "class_II_alpha" else ("beta" if parser_name == "class_II_beta" else "alpha")),
         "gene": "",
         "status": "ok",
         "mature_start": int(cys_start),
@@ -398,20 +579,22 @@ def evaluate(*, use_early_shortcuts: bool = True):
             within_3 += 1
 
         if abs(delta) > 3:
-            mismatches_gt3.append({
-                "accession": accession,
-                "organism": organism,
-                "category": cat or "unknown",
-                "gt_sp": gt_sp_len,
-                "cys_pred": int(prediction["mature_start"]),
-                "refined": refined,
-                "delta": delta,
-                "reviewed": reviewed,
-                "parser": str(prediction["parser"]),
-                "mhc_class": str(prediction["mhc_class"]),
-                "chain": str(prediction["chain"]),
-                "dispatch_mode": str(prediction["dispatch_mode"]),
-            })
+            mismatches_gt3.append(
+                {
+                    "accession": accession,
+                    "organism": organism,
+                    "category": cat or "unknown",
+                    "gt_sp": gt_sp_len,
+                    "cys_pred": int(prediction["mature_start"]),
+                    "refined": refined,
+                    "delta": delta,
+                    "reviewed": reviewed,
+                    "parser": str(prediction["parser"]),
+                    "mhc_class": str(prediction["mhc_class"]),
+                    "chain": str(prediction["chain"]),
+                    "dispatch_mode": str(prediction["dispatch_mode"]),
+                }
+            )
 
         # Per-category stats
         cat_key = cat or "unknown"
@@ -453,20 +636,21 @@ def evaluate(*, use_early_shortcuts: bool = True):
     print("OVERALL RESULTS")
     print("=" * 70)
     print(f"Total entries:    {total}")
-    print(f"Parsed:           {parsed} ({100*parsed/total:.1f}%)")
-    print(f"Unparsed:         {unparsed} ({100*unparsed/total:.1f}%)")
+    print(f"Parsed:           {parsed} ({100 * parsed / total:.1f}%)")
+    print(f"Unparsed:         {unparsed} ({100 * unparsed / total:.1f}%)")
     if by_dispatch:
         dispatch_summary = ", ".join(f"{k}={v}" for k, v in sorted(by_dispatch.items()))
         print(f"Dispatch mode:    {dispatch_summary}")
     print()
     if parsed > 0:
-        print(f"Exact match:      {exact}/{parsed} ({100*exact/parsed:.1f}%)")
-        print(f"Within +/-1 aa:   {within_1}/{parsed} ({100*within_1/parsed:.1f}%)")
-        print(f"Within +/-2 aa:   {within_2}/{parsed} ({100*within_2/parsed:.1f}%)")
-        print(f"Within +/-3 aa:   {within_3}/{parsed} ({100*within_3/parsed:.1f}%)")
+        print(f"Exact match:      {exact}/{parsed} ({100 * exact / parsed:.1f}%)")
+        print(f"Within +/-1 aa:   {within_1}/{parsed} ({100 * within_1 / parsed:.1f}%)")
+        print(f"Within +/-2 aa:   {within_2}/{parsed} ({100 * within_2 / parsed:.1f}%)")
+        print(f"Within +/-3 aa:   {within_3}/{parsed} ({100 * within_3 / parsed:.1f}%)")
 
     if deltas:
         import statistics
+
         print(f"\nMean delta:       {statistics.mean(deltas):+.2f} aa")
         print(f"Median delta:     {statistics.median(deltas):+.1f} aa")
         print(f"Std dev:          {statistics.stdev(deltas):.2f} aa")
@@ -489,9 +673,9 @@ def evaluate(*, use_early_shortcuts: bool = True):
         t = c["total"]
         print(
             f"{cat:<20} {t:>6} "
-            f"{c['exact']:>4} ({100*c['exact']/t:5.1f}%) "
-            f"{c['within_1']:>4} ({100*c['within_1']/t:5.1f}%) "
-            f"{c['within_2']:>4} ({100*c['within_2']/t:5.1f}%)"
+            f"{c['exact']:>4} ({100 * c['exact'] / t:5.1f}%) "
+            f"{c['within_1']:>4} ({100 * c['within_1'] / t:5.1f}%) "
+            f"{c['within_2']:>4} ({100 * c['within_2'] / t:5.1f}%)"
         )
 
     if by_class:
@@ -505,10 +689,10 @@ def evaluate(*, use_early_shortcuts: bool = True):
             t = c["total"]
             print(
                 f"{mhc_class:<8} {category:<18} {t:>6} "
-                f"{c['exact']:>4} ({100*c['exact']/t:5.1f}%) "
-                f"{c['within_1']:>4} ({100*c['within_1']/t:5.1f}%) "
-                f"{c['within_2']:>4} ({100*c['within_2']/t:5.1f}%) "
-                f"{c['within_3']:>4} ({100*c['within_3']/t:5.1f}%)"
+                f"{c['exact']:>4} ({100 * c['exact'] / t:5.1f}%) "
+                f"{c['within_1']:>4} ({100 * c['within_1'] / t:5.1f}%) "
+                f"{c['within_2']:>4} ({100 * c['within_2'] / t:5.1f}%) "
+                f"{c['within_3']:>4} ({100 * c['within_3'] / t:5.1f}%)"
             )
 
     # Per-reviewed breakdown
@@ -517,11 +701,7 @@ def evaluate(*, use_early_shortcuts: bool = True):
     for rev in sorted(by_reviewed.keys()):
         c = by_reviewed[rev]
         t = c["total"]
-        print(
-            f"{rev:<20} {t:>6} "
-            f"{c['exact']:>4} ({100*c['exact']/t:5.1f}%) "
-            f"{c['within_1']:>4} ({100*c['within_1']/t:5.1f}%)"
-        )
+        print(f"{rev:<20} {t:>6} {c['exact']:>4} ({100 * c['exact'] / t:5.1f}%) {c['within_1']:>4} ({100 * c['within_1'] / t:5.1f}%)")
 
     # Worst mismatches
     if mismatches_gt3:

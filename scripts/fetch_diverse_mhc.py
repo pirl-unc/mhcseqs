@@ -15,6 +15,7 @@ Usage:
 
 Re-run when upstream UniProt data is updated to refresh the dataset.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,11 +44,7 @@ QUERY_GROUPS = {
 }
 
 # UniProt keyword-based MHC query
-MHC_QUERY = (
-    "(keyword:KW-0490+OR+keyword:KW-0491"
-    "+OR+protein_name:%22histocompatibility%22"
-    "+OR+protein_name:%22MHC+class%22)"
-)
+MHC_QUERY = "(keyword:KW-0490+OR+keyword:KW-0491+OR+protein_name:%22histocompatibility%22+OR+protein_name:%22MHC+class%22)"
 
 # Patterns to EXCLUDE — clearly not MHC peptide-binding chains
 EXCLUDE_PATTERNS = re.compile(
@@ -137,17 +134,19 @@ def main():
         if not is_mhc(protein_name, gene_names):
             excluded += 1
             continue
-        kept.append({
-            "uniprot_accession": r["Entry"],
-            "protein_name": protein_name,
-            "gene_names": gene_names,
-            "organism": r.get("Organism", ""),
-            "organism_id": r.get("Organism (ID)", ""),
-            "length": r.get("Length", "0"),
-            "is_fragment": str(r.get("Fragment", "").strip().lower() == "fragment"),
-            "source_group": r["_group"],
-            "sequence": r.get("Sequence", ""),
-        })
+        kept.append(
+            {
+                "uniprot_accession": r["Entry"],
+                "protein_name": protein_name,
+                "gene_names": gene_names,
+                "organism": r.get("Organism", ""),
+                "organism_id": r.get("Organism (ID)", ""),
+                "length": r.get("Length", "0"),
+                "is_fragment": str(r.get("Fragment", "").strip().lower() == "fragment"),
+                "source_group": r["_group"],
+                "sequence": r.get("Sequence", ""),
+            }
+        )
 
     print(f"  Excluded (non-MHC): {excluded}")
     print(f"  Kept: {len(kept)}")
@@ -159,9 +158,15 @@ def main():
 
     # Write raw CSV
     fields = [
-        "uniprot_accession", "protein_name", "gene_names",
-        "organism", "organism_id", "length", "is_fragment",
-        "source_group", "sequence",
+        "uniprot_accession",
+        "protein_name",
+        "gene_names",
+        "organism",
+        "organism_id",
+        "length",
+        "is_fragment",
+        "source_group",
+        "sequence",
     ]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with open(args.output, "w", newline="", encoding="utf-8") as f:

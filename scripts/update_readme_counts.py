@@ -7,6 +7,7 @@ IMGT/IPD-MHC counts (from a build, or hardcoded baseline if no build exists).
 Usage:
     python scripts/update_readme_counts.py
 """
+
 from __future__ import annotations
 
 import csv
@@ -34,8 +35,15 @@ _GROUP_TO_CATEGORY = {
 }
 
 CATEGORIES = [
-    "human", "nhp", "murine", "ungulate", "carnivore",
-    "other_mammal", "bird", "fish", "other_vertebrate",
+    "human",
+    "nhp",
+    "murine",
+    "ungulate",
+    "carnivore",
+    "other_mammal",
+    "bird",
+    "fish",
+    "other_vertebrate",
 ]
 
 BUILT_CSV = Path.home() / ".cache" / "mhcseqs" / "mhc-full-seqs.csv"
@@ -110,10 +118,7 @@ def main():
         f"All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and {diverse_total:,}\n"
         f"diverse MHC sequences from UniProt) are merged into a single dataset:"
     )
-    summary_line = (
-        f"Covering {num_prefixes}+ species prefixes. Groove parse success rate on IMGT/IPD-MHC\n"
-        f"entries: 99.6%."
-    )
+    summary_line = f"Covering {num_prefixes}+ species prefixes. Groove parse success rate on IMGT/IPD-MHC\nentries: 99.6%."
 
     # Replace between "## Current data summary" and "## Structural decomposition"
     pattern = re.compile(

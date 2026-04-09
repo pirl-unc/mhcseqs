@@ -14,6 +14,7 @@ strategy.  The Trp41 marker must be >90% sensitive for C-like and >95% specific
 Usage:
     python scripts/validate_trp41_signal.py
 """
+
 from __future__ import annotations
 
 import csv
@@ -52,13 +53,9 @@ def main():
     # Trp41 presence by existing classification
     trp_by_existing: Counter[tuple[str, bool]] = Counter()
     # Confidence distribution
-    confidence_by_fold: dict[str, list[float]] = {
-        "c_like": [], "g_domain": [], "ambiguous": []
-    }
+    confidence_by_fold: dict[str, list[float]] = {"c_like": [], "g_domain": [], "ambiguous": []}
     # Separation distribution
-    sep_by_fold: dict[str, list[int]] = {
-        "c_like": [], "g_domain": [], "ambiguous": []
-    }
+    sep_by_fold: dict[str, list[int]] = {"c_like": [], "g_domain": [], "ambiguous": []}
     # Track Trp offset distribution for c_like pairs
     trp_offsets: list[int] = []
     # Track cases where classifiers disagree
@@ -95,16 +92,21 @@ def main():
             # Track disagreements (excluding ambiguous)
             old_binary = {"groove": "g_domain", "ig": "c_like"}.get(old_type)
             if old_binary and old_binary != new_type and new_type != "ambiguous":
-                disagreements.append({
-                    "accession": row.get("accession", "?"),
-                    "organism": row.get("organism", "?")[:30],
-                    "c1": c1, "c2": c2, "sep": sep,
-                    "old": old_type, "new": new_type,
-                    "trp_pos": new_ann.trp_position,
-                    "old_groove": f"{old_ann.groove_score:.1f}",
-                    "old_ig": f"{old_ann.ig_score:.1f}",
-                    "new_conf": f"{new_ann.confidence:.2f}",
-                })
+                disagreements.append(
+                    {
+                        "accession": row.get("accession", "?"),
+                        "organism": row.get("organism", "?")[:30],
+                        "c1": c1,
+                        "c2": c2,
+                        "sep": sep,
+                        "old": old_type,
+                        "new": new_type,
+                        "trp_pos": new_ann.trp_position,
+                        "old_groove": f"{old_ann.groove_score:.1f}",
+                        "old_ig": f"{old_ann.ig_score:.1f}",
+                        "new_conf": f"{new_ann.confidence:.2f}",
+                    }
+                )
 
     # --- Report --------------------------------------------------------------
     print(f"Sequences: {total_seqs} total, {seqs_with_pairs} with Cys pairs")
@@ -116,27 +118,13 @@ def main():
     print(f"{'Existing':<12} {'c_like':>8} {'g_domain':>10} {'ambiguous':>10} {'total':>8}")
     print("-" * 52)
     for old_type in ("groove", "ig", "ambiguous"):
-        row_counts = {
-            nt: cross_tab[(old_type, nt)]
-            for nt in ("c_like", "g_domain", "ambiguous")
-        }
+        row_counts = {nt: cross_tab[(old_type, nt)] for nt in ("c_like", "g_domain", "ambiguous")}
         row_total = sum(row_counts.values())
-        print(
-            f"{old_type:<12} {row_counts['c_like']:>8} "
-            f"{row_counts['g_domain']:>10} {row_counts['ambiguous']:>10} "
-            f"{row_total:>8}"
-        )
-    col_totals = {
-        nt: sum(cross_tab[(ot, nt)] for ot in ("groove", "ig", "ambiguous"))
-        for nt in ("c_like", "g_domain", "ambiguous")
-    }
+        print(f"{old_type:<12} {row_counts['c_like']:>8} {row_counts['g_domain']:>10} {row_counts['ambiguous']:>10} {row_total:>8}")
+    col_totals = {nt: sum(cross_tab[(ot, nt)] for ot in ("groove", "ig", "ambiguous")) for nt in ("c_like", "g_domain", "ambiguous")}
     total_all = sum(col_totals.values())
     print("-" * 52)
-    print(
-        f"{'total':<12} {col_totals['c_like']:>8} "
-        f"{col_totals['g_domain']:>10} {col_totals['ambiguous']:>10} "
-        f"{total_all:>8}"
-    )
+    print(f"{'total':<12} {col_totals['c_like']:>8} {col_totals['g_domain']:>10} {col_totals['ambiguous']:>10} {total_all:>8}")
     print()
 
     # Trp presence by existing classification
@@ -167,6 +155,7 @@ def main():
     # Trp offset distribution
     if trp_offsets:
         from collections import Counter as C
+
         offset_counts = C(trp_offsets)
         print("=== Trp offset distribution (offset from C1) ===")
         for off in sorted(offset_counts):
@@ -187,8 +176,7 @@ def main():
     # Disagreements
     if disagreements:
         print(f"=== Classifier disagreements ({len(disagreements)}) ===")
-        hdr = (f"{'Accession':<14} {'Organism':<32} {'c1':>4} {'c2':>4} "
-               f"{'sep':>4} {'old':<10} {'new':<10} {'trp':>4}")
+        hdr = f"{'Accession':<14} {'Organism':<32} {'c1':>4} {'c2':>4} {'sep':>4} {'old':<10} {'new':<10} {'trp':>4}"
         print(hdr)
         for d in disagreements[:30]:
             print(

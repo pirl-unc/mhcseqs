@@ -77,73 +77,24 @@ rows = mhcseqs.load_sequences_dict()
 
 ## Current data summary
 
-Three sources are merged into a single dataset:
+All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and 15,860
+diverse MHC sequences from UniProt) are merged into a single dataset:
 
-| Source | Entries | Species | Notes |
-|---|---:|---|---|
-| IMGT/HLA | 44,630 | Human | Downloaded at build time |
-| IPD-MHC | 12,380 | Non-human mammals, birds, fish | Downloaded at build time |
-| UniProt | 20,566 | 500+ species | Curated diverse MHC, B2M, H-2 references (shipped in package) |
-| **Total raw** | **77,576** | | |
-| **After merge/dedup** | **55,696** | | One representative per two-field allele |
-| **Groove OK** | **54,155** | | 97.2% of representatives |
+| Category | Class I | Class II | Total |
+|---|---:|---:|---:|
+| human | 17,462 | 7,878 | 25,340 |
+| nhp | 4,639 | 2,486 | 7,125 |
+| murine | 959 | 590 | 1,549 |
+| ungulate | 638 | 1,128 | 1,766 |
+| carnivore | 166 | 318 | 484 |
+| other_mammal | 949 | 739 | 1,688 |
+| bird | 11,910 | 6,686 | 18,596 |
+| fish | 2,492 | 7,053 | 9,545 |
+| other_vertebrate | 942 | 1,330 | 2,272 |
+| **total** | **40,157** | **28,208** | **68,365** |
 
-### By species category
-
-| Category | Count | Groove OK | Class I full | Class II full |
-|---|---:|---:|---:|---:|
-| human | 25,364 | 99.8% | 17,364 | 5,347 |
-| nhp | 7,125 | 98.0% | 4,582 | 1,429 |
-| bird | 9,312 | 99.1% | 553 | 558 |
-| fish | 4,859 | 97.2% | 777 | 1,259 |
-| ungulate | 1,768 | 96.2% | 603 | 303 |
-| murine | 1,625 | 89.0% | 466 | 158 |
-| carnivore | 484 | 99.6% | 164 | 0 |
-| other_mammal | 943 | 95.0% | 275 | 152 |
-| other_vertebrate | 1,137 | 96.2% | 327 | 129 |
-
-"Groove OK" includes both full-length and fragment parses. "Full" means both groove
-halves present (class I: α1 + α2, ~183 aa; class II: single chain's groove half with
-Ig support, ~88 aa groove + ~90 aa Ig). The remaining entries are **single-exon fragments**
-(one groove half only) — common in bird and fish submissions to IPD-MHC where only
-the polymorphic exon is sequenced. The parser correctly characterizes these as
-`alpha1_only`, `alpha2_only`, `beta1_only_fallback`, or `fragment_fallback`.
-
-Species categories: human, nhp (non-human primates), murine (mice, rats, rodents),
-ungulate (cattle, pig, horse, sheep, goat), carnivore (dog, cat),
-other_mammal (marsupials, monotremes, bats, cetaceans, rabbit),
-bird, fish, other_vertebrate (reptiles, amphibians).
-
-### Signal peptide detection accuracy
-
-Validated against 2,403 UniProt ground-truth SP annotations:
-
-| Species | Class I exact | Class II exact |
-|---|---|---|
-| Human | 99.2% | 88.4% |
-| NHP | 100.0% | 91.2% |
-| Bird | 94.4% | 89.3% |
-| Fish | 86.9% | 81.9% |
-| Other vertebrate | 68.2% | 86.1% |
-| **Overall** | **82.0% exact**, 89.9% within ±2 aa |
-
-False positive rate on 2,155 mature-only controls: 3.8%.
-
-## Data directory
-
-By default, `mhcseqs build` downloads FASTA files and writes output CSVs to
-`~/.cache/mhcseqs/` (override with `$MHCSEQS_DATA` or `--output-dir`).
-
-```
-~/.cache/mhcseqs/
-├── fasta/                     # Downloaded FASTA source files
-│   ├── hla_prot.fasta         # IMGT/HLA (human)
-│   └── ipd_mhc_prot.fasta    # IPD-MHC (non-human)
-├── mhc-seqs-raw.csv           # Every protein entry from all sources
-├── mhc-full-seqs.csv          # One representative per two-field allele (with grooves)
-├── mhc-merge-report.txt       # Deduplication decisions
-└── mhc-validation-report.txt  # Sanity checks
-```
+Covering 598+ species prefixes. Groove parse success rate on IMGT/IPD-MHC
+entries: 99.6%.
 
 ## Structural decomposition
 

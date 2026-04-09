@@ -19,10 +19,7 @@ def main(*, use_early_shortcuts: bool = True) -> None:
     from mhcseqs.domain_parsing import analyze_sequence, decompose_domains, refine_signal_peptide
 
     if not NEGATIVE_CONTROL_CSV.exists():
-        raise SystemExit(
-            f"Missing control CSV: {NEGATIVE_CONTROL_CSV}\n"
-            "Run: python scripts/enrich_sp_ground_truth.py"
-        )
+        raise SystemExit(f"Missing control CSV: {NEGATIVE_CONTROL_CSV}\nRun: python scripts/enrich_sp_ground_truth.py")
 
     with open(NEGATIVE_CONTROL_CSV, "r", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
@@ -56,9 +53,7 @@ def main(*, use_early_shortcuts: bool = True) -> None:
 
         if result.ok and result.mature_start > 0:
             groove_anchor = (
-                (int(result.anchor_cys1), int(result.anchor_cys2))
-                if result.anchor_cys1 is not None and result.anchor_cys2 is not None
-                else None
+                (int(result.anchor_cys1), int(result.anchor_cys2)) if result.anchor_cys1 is not None and result.anchor_cys2 is not None else None
             )
             predicted = refine_signal_peptide(
                 row["sequence"],
@@ -92,10 +87,7 @@ def main(*, use_early_shortcuts: bool = True) -> None:
         counts = by_kind_cat[key]
         total = counts["total"]
         print(
-            f"{key[0]:<22} {key[1]:<18} {total:>6} "
-            f"{counts['correct_zero_sp']:>10} "
-            f"{counts['abstain_zero_sp']:>10} "
-            f"{counts['false_positive_sp']:>10}"
+            f"{key[0]:<22} {key[1]:<18} {total:>6} {counts['correct_zero_sp']:>10} {counts['abstain_zero_sp']:>10} {counts['false_positive_sp']:>10}"
         )
 
 

@@ -103,18 +103,9 @@ def _load_local_metadata() -> tuple[dict[str, dict], dict[str, dict], dict[str, 
     mouse_rows = _read_csv(MOUSE_H2_CSV)
     raw_rows = _read_csv(DIVERSE_RAW_CSV)
 
-    curated = {
-        row["uniprot_accession"]: row
-        for row in diverse_rows
-    }
-    mouse = {
-        row["uniprot_accession"]: row
-        for row in mouse_rows
-    }
-    raw = {
-        row["uniprot_accession"]: row
-        for row in raw_rows
-    }
+    curated = {row["uniprot_accession"]: row for row in diverse_rows}
+    mouse = {row["uniprot_accession"]: row for row in mouse_rows}
+    raw = {row["uniprot_accession"]: row for row in raw_rows}
     return curated, mouse, raw
 
 
@@ -454,10 +445,7 @@ def main() -> None:
     curated, mouse, raw = _load_local_metadata()
     fetched = _fetch_uniprot_metadata(accessions)
 
-    enriched = [
-        _merge_row(row, curated=curated, mouse=mouse, raw=raw, fetched=fetched)
-        for row in gt_rows
-    ]
+    enriched = [_merge_row(row, curated=curated, mouse=mouse, raw=raw, fetched=fetched) for row in gt_rows]
     controls = _build_controls(enriched, include_fragment_controls=args.include_fragment_controls)
 
     _write_csv(GT_ENRICHED_CSV, enriched, ENRICHED_FIELDS)

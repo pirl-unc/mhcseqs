@@ -10,6 +10,7 @@ The model is deliberately simple and strongly regularized:
 The output is written to data/sp_boundary_model.json and can be consumed by
 mhcseqs.domain_parsing._score_sp_boundary_composition().
 """
+
 from __future__ import annotations
 
 import csv
@@ -183,10 +184,7 @@ def main() -> None:
         f.write("\n")
     print(f"Wrote {OUT_JSON.relative_to(ROOT)}")
     for group, payload in model["groups"].items():
-        print(
-            f"{group:>16}  positives={payload['n_positive']:4d}  "
-            f"negatives={payload['n_negative']:5d}"
-        )
+        print(f"{group:>16}  positives={payload['n_positive']:4d}  negatives={payload['n_negative']:5d}")
 
 
 if __name__ == "__main__":

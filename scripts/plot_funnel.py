@@ -109,9 +109,7 @@ def main():
     # Stage 2: kept vs excluded
     ax.barh(1, full_total, color="#2ecc71", edgecolor="white")
     ax.barh(1, excluded, left=full_total, color="#e0e0e0", edgecolor="white")
-    ax.text(
-        full_total / 2, 1, f"Representatives\n{full_total:,}", ha="center", va="center", fontsize=8, fontweight="bold"
-    )
+    ax.text(full_total / 2, 1, f"Representatives\n{full_total:,}", ha="center", va="center", fontsize=8, fontweight="bold")
     ax.text(full_total + excluded / 2, 1, f"Excluded\n{excluded:,}", ha="center", va="center", fontsize=8, color="#888")
 
     # Stage 3: groove outcomes
@@ -151,9 +149,7 @@ def main():
     fail_total = full_total - left
     if fail_total > 0:
         ax.barh(0, fail_total, left=left, color="#e74c3c", edgecolor="white")
-        ax.text(
-            left + fail_total / 2, 0, f"Failed\n{fail_total:,}", ha="center", va="center", fontsize=7, color="white"
-        )
+        ax.text(left + fail_total / 2, 0, f"Failed\n{fail_total:,}", ha="center", va="center", fontsize=7, color="white")
 
     ax.set_yticks(y_pos)
     ax.set_yticklabels(stages)
