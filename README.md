@@ -93,7 +93,7 @@ diverse MHC sequences from UniProt) are merged into a single dataset:
 | other_vertebrate | 942 | 1,330 | 2,272 |
 | **total** | **40,197** | **28,164** | **68,361** |
 
-Covering 598+ species prefixes. Groove parse success rate on IMGT/IPD-MHC
+Covering 558+ species. Groove parse success rate on IMGT/IPD-MHC
 entries: 99.6%.
 
 ## Structural decomposition

@@ -70,19 +70,19 @@ def load_built_counts() -> Counter:
 
 
 def load_diverse_counts() -> tuple[Counter, int]:
-    """Load counts from diverse MHC CSV. Returns (counts, num_prefixes)."""
+    """Load counts from diverse MHC CSV. Returns (counts, num_species)."""
     counts: Counter = Counter()
-    prefixes = set()
+    species = set()
     with open(DIVERSE_CSV, "r", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             cat = _GROUP_TO_CATEGORY.get(row.get("source_group", ""), "")
             mc = row.get("mhc_class", "")
-            gene = row.get("gene", "")
+            organism = row.get("organism", "")
             if cat and mc in ("I", "II"):
                 counts[(cat, mc)] += 1
-            if "-" in gene:
-                prefixes.add(gene.split("-")[0])
-    return counts, len(prefixes)
+            if organism:
+                species.add(organism)
+    return counts, len(species)
 
 
 def build_table(merged: Counter) -> str:
@@ -103,7 +103,7 @@ def build_table(merged: Counter) -> str:
 
 def main():
     built = load_built_counts()
-    diverse, num_prefixes = load_diverse_counts()
+    diverse, num_species = load_diverse_counts()
     merged = built + diverse
     total = sum(merged.values())
     diverse_total = sum(diverse.values())
@@ -118,7 +118,7 @@ def main():
         f"All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and {diverse_total:,}\n"
         f"diverse MHC sequences from UniProt) are merged into a single dataset:"
     )
-    summary_line = f"Covering {num_prefixes}+ species prefixes. Groove parse success rate on IMGT/IPD-MHC\nentries: 99.6%."
+    summary_line = f"Covering {num_species}+ species. Groove parse success rate on IMGT/IPD-MHC\nentries: 99.6%."
 
     # Replace between "## Current data summary" and "## Structural decomposition"
     pattern = re.compile(
@@ -135,7 +135,7 @@ def main():
         return
 
     README.write_text(new_text, encoding="utf-8")
-    print(f"Updated README.md with {total:,} total entries ({diverse_total:,} diverse, {num_prefixes} prefixes)")
+    print(f"Updated README.md with {total:,} total entries ({diverse_total:,} diverse, {num_species} species)")
 
 
 if __name__ == "__main__":
