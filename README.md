@@ -84,14 +84,14 @@ diverse MHC sequences from UniProt) are merged into a single dataset:
 |---|---:|---:|---:|
 | human | 17,462 | 7,878 | 25,340 |
 | nhp | 4,639 | 2,486 | 7,125 |
-| murine | 959 | 590 | 1,549 |
+| murine | 980 | 565 | 1,545 |
 | ungulate | 638 | 1,128 | 1,766 |
 | carnivore | 166 | 318 | 484 |
-| other_mammal | 949 | 739 | 1,688 |
+| other_mammal | 948 | 740 | 1,688 |
 | bird | 11,910 | 6,686 | 18,596 |
-| fish | 2,492 | 7,053 | 9,545 |
+| fish | 2,512 | 7,033 | 9,545 |
 | other_vertebrate | 942 | 1,330 | 2,272 |
-| **total** | **40,157** | **28,208** | **68,365** |
+| **total** | **40,197** | **28,164** | **68,361** |
 
 Covering 598+ species prefixes. Groove parse success rate on IMGT/IPD-MHC
 entries: 99.6%.
