@@ -265,6 +265,7 @@ def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, 
     monkeypatch.setattr("mhcseqs.pipeline._load_b2m_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline._load_mouse_h2_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline._load_diverse_mhc_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline._load_genbank_saha_references", lambda: [])
 
     build_raw_index([(fasta_path, "synthetic")], out_csv)
 

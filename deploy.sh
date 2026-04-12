@@ -32,16 +32,5 @@ pyproject-build
 echo "Checking distribution..."
 python -m twine check dist/*
 
-echo ""
-echo "Ready to upload mhcseqs $VERSION to PyPI."
-echo "Distributions:"
-ls -la dist/
-echo ""
-read -p "Upload to PyPI? [y/N] " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    python -m twine upload dist/*
-    echo "=== mhcseqs $VERSION deployed to PyPI ==="
-else
-    echo "Aborted. Distributions are in dist/ if you want to upload manually."
-fi
+python -m twine upload dist/*
+echo "=== mhcseqs $VERSION deployed to PyPI ==="
