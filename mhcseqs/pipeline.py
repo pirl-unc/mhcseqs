@@ -43,6 +43,9 @@ _MOUSE_H2_CSV = Path(__file__).resolve().parent / "mouse_h2_sequences.csv"
 # Legacy filename: this is the curated supplemental UniProt bundle for
 # underrepresented taxa outside the IMGT/IPD downloads.
 _DIVERSE_MHC_CSV = Path(__file__).resolve().parent / "diverse_mhc_sequences.csv"
+# Tasmanian devil SahaI alleles from GenBank (Siddle/Cheng et al. 2010-2015),
+# including the DFT2-relevant alleles from Caldwell et al. 2018.
+_GENBANK_SAHA_CSV = Path(__file__).resolve().parent / "genbank_saha_sequences.csv"
 
 _NUCLEOTIDE_LIKE_CHARS = set("ACGTUNWSMKRYBDHV")
 
@@ -390,6 +393,66 @@ _DIVERSE_GROUP_TO_CATEGORY = {
 }
 
 
+def _load_genbank_saha_references() -> List[dict]:
+    """Load Tasmanian devil SahaI alleles from NCBI GenBank.
+
+    These are partial class I alpha-chain sequences (mostly alpha-1 domain)
+    deposited outside IPD-MHC, including the alleles discussed in Caldwell
+    et al. 2018 (DFT2). Allele identifiers follow the GenBank convention
+    ``SahaI*N`` and are not assigned to a Saha-UA/UB/UC locus, so mhcgnomes
+    cannot parse them; downstream curation encodes them under the
+    ``~ref:SarcophilusHarrisii|<acc>:SahaI*N`` vocabulary.
+    """
+    if not _GENBANK_SAHA_CSV.exists():
+        return []
+    rows = []
+    with open(_GENBANK_SAHA_CSV, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            seq = row.get("sequence", "")
+            if not seq or len(seq) < MIN_MHC_SEQUENCE_LEN:
+                continue
+            allele_name = row["allele_name"]
+            gene = row.get("gene", "SahaI")
+            accession = row["accession"]
+            is_pseudogene = row.get("is_pseudogene", "False") == "True"
+            # alpha-1-only or partial-CDS fragments: mark questionable
+            note = row.get("note", "").lower()
+            is_fragment = "alpha-1" in note or "alpha 1" in note or len(seq) < 180
+
+            features = analyze_sequence(seq)
+            mature_start, has_sp, sp_seq = _signal_peptide_fields(
+                seq,
+                0,
+                "other_mammal",
+                "I",
+                features=features,
+            )
+            rows.append(
+                {
+                    "allele_raw": allele_name,
+                    "allele_normalized": allele_name,
+                    "two_field_allele": allele_name,
+                    "gene": gene,
+                    "mhc_class": "I",
+                    "chain": "alpha",
+                    "species": "Sarcophilus harrisii",
+                    "species_category": "other_mammal",
+                    "species_prefix": "Saha",
+                    "source": "genbank",
+                    "source_id": accession,
+                    "seq_len": str(len(seq)),
+                    "sequence": seq,
+                    "has_signal_peptide": str(has_sp),
+                    "signal_peptide_len": str(mature_start),
+                    "signal_peptide_seq": sp_seq,
+                    "is_null": "False",
+                    "is_questionable": str(is_fragment),
+                    "is_pseudogene": str(is_pseudogene),
+                }
+            )
+    return rows
+
+
 def _load_diverse_mhc_references() -> List[dict]:
     """Load curated supplemental UniProt MHC sequences.
 
@@ -628,6 +691,15 @@ def build_raw_index(
             records[key] = dr
             stats["parsed"] += 1
             stats["diverse_references"] = stats.get("diverse_references", 0) + 1
+
+    # Inject Tasmanian devil SahaI alleles from GenBank (non-IPD).
+    saha_rows = _load_genbank_saha_references()
+    for sr in saha_rows:
+        key = sr["allele_normalized"]
+        if key not in records:
+            records[key] = sr
+            stats["parsed"] += 1
+            stats["genbank_saha_references"] = stats.get("genbank_saha_references", 0) + 1
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     with open(out_csv, "w", newline="", encoding="utf-8") as f:
