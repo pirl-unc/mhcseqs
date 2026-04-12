@@ -369,16 +369,16 @@ wheels = [
 
 [[package]]
 name = "mhcgnomes"
-version = "3.21.0"
+version = "3.31.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/33/0f/bbadb4b014d31424183fff02beab033f868f2d7e5fcee9c1fba1be35a26e/mhcgnomes-3.21.0.tar.gz", hash = "sha256:cc160c4c8b0dc25ad8fa8d54a72ff9492a07a6cdf2e99f720e88aa146e761610", size = 841468, upload-time = "2026-04-06T15:24:56.647Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/a8/8eb3756e680ae7f2030c33adaf4f483b257682669670d746b1cf98b6a04d/mhcgnomes-3.31.1.tar.gz", hash = "sha256:7e2a773b94fb060105df809e618f34e47ec36159a4aeac783994776afe6596d7", size = 855793, upload-time = "2026-04-09T18:22:29.374Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/b7/555f52366635fa850c9913bb8c5d27403803f3a83a7cd3ffc8d1d5ef5f58/mhcgnomes-3.21.0-py3-none-any.whl", hash = "sha256:cee510f01b5ec8d4d73cb588b2968bd0c11c9ea25daa2f779a3b161920807ec0", size = 167443, upload-time = "2026-04-06T15:24:54.759Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/2d/2ff2ded7f3f12b9755c7554bcaa86f80dcd253137db632c917030ee8118f/mhcgnomes-3.31.1-py3-none-any.whl", hash = "sha256:bc9543c63b52989b86c9192d6a72fa8c00c06437b010649f8756f7550953c69c", size = 176598, upload-time = "2026-04-09T18:22:28.079Z" },
 ]
 
 [[package]]
@@ -401,7 +401,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mhcgnomes", specifier = ">=3.18.0" },
+    { name = "mhcgnomes", specifier = ">=3.30.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
 ]
