@@ -356,15 +356,30 @@ def _infer_chain(gene: str, mhc_class: str) -> str:
     return ""
 
 
-# Canonical mammalian class I α1 N-terminal motif (G-{P,S}-H-S-{L,M}).
-# HLA/BoLA/SLA classical use GPHSL/M; mouse H-2, SLA-6, marsupials use GSHSL/M.
-# Search aperture 50aa covers classical 21/24aa SPs and SLA-6's extended 49aa
-# leader without drifting into the α1 body.
+# Mature-chain motif anchors for SP refinement.
+# The refiner is species/class-category driven and can miss strong, conserved
+# N-terminal motifs of accessory and non-classical genes. Each anchor is a
+# tight regex that over-rides the refiner when it matches and disagrees by
+# ≥3aa. Apertures differ per anchor because canonical leader lengths differ.
+
+# Class I mammal α1 start: G-{P,S}-H-S-{L,M}. HLA/BoLA/SLA classical use
+# GPHSL/M; mouse H-2, SLA-6, marsupials use GSHSL/M. 50aa aperture covers
+# classical 21/24aa SPs and SLA-6's extended 49aa leader without drifting
+# into the α1 body. Validated against the α1-α2 disulfide geometry (C1 at
+# motif + 101 ± 5) to reject interior false matches.
 _CLASS_I_MAMMAL_A1_MOTIF = re.compile(r"G[SP]HS[LM]")
 _MOTIF_APERTURE = 50
-# Canonical class I α1-α2 disulfide: C101 from mature_start.
 _CANONICAL_C1_OFFSET = 101
 _C1_OFFSET_TOLERANCE = 5
+
+# Class II DMB β1 start: F[VLMI][VLMIFAT]H[VLMIF][AE]S. Mammalian DMB is
+# FVAHVESTCL-family; avian DMB is FV[VL]HM[AE]S-family. The motif is
+# DMB-specific across the full class II corpus (β and α chains): verified
+# zero false positives against 3,045 α chains and 6,903 non-DMB β chains.
+# 35aa aperture suffices — DMB SPs top out at ~27aa; tighter than the class
+# I aperture because DMB has no known extended-leader variants.
+_CLASS_II_DMB_MOTIF = re.compile(r"F[VLMI][VLMIFAT]H[VLMIF][AE]S")
+_DMB_MOTIF_APERTURE = 35
 
 
 def _class1_mammal_motif_anchor(
@@ -393,6 +408,23 @@ def _class1_mammal_motif_anchor(
     return 0
 
 
+def _dmb_motif_anchor(seq: str) -> int:
+    """Locate the canonical DMB class II β1 start motif.
+
+    DMB is the accessory class II β chain that stabilises empty HLA-DM
+    heterodimers. Unlike classical DRB/DPB/DQB (which start with D or R
+    after SP cleavage), DMB mature chains begin with F[VLMI]...H...[AE]S —
+    e.g. mammalian `FVAHVESTCL`, avian `FVVHVASSCP`. The motif is
+    gene-agnostic (no reliance on the `DMB` gene token being parsed) and
+    specific: it does not match any non-DMB class II β entry in the IPD
+    + UniProt corpus.
+
+    Returns the motif position, or 0 if no match.
+    """
+    m = _CLASS_II_DMB_MOTIF.search(seq[:_DMB_MOTIF_APERTURE])
+    return m.start() if m else 0
+
+
 def _signal_peptide_fields(
     seq: str,
     mature_start: int,
@@ -414,6 +446,17 @@ def _signal_peptide_fields(
     # disagree by ≥3aa and Cys geometry supports the motif.
     if mhc_class == "I" and species_category in MAMMAL_CATEGORIES:
         motif_start = _class1_mammal_motif_anchor(seq, features)
+        if motif_start > 0 and abs(motif_start - refined_start) >= 3:
+            refined_start = motif_start
+    # Motif anchor for class II DMB: the accessory β chain has a distinct
+    # F[VLMI]...H...[AE]S mature N-terminus that the classical class II β
+    # refiner doesn't recognise, so it over-calls (avian DMB) or under-calls
+    # (mammalian DMB, often sp=0 on truncation). Applied to all class II
+    # (both chains) rather than gated on `chain == "beta"`; the regex is
+    # DMB-specific — verified zero matches across 3,045 class II α chains —
+    # so α entries are inert regardless.
+    elif mhc_class == "II":
+        motif_start = _dmb_motif_anchor(seq)
         if motif_start > 0 and abs(motif_start - refined_start) >= 3:
             refined_start = motif_start
     has_sp = refined_start >= 15 and seq[:1].upper() == "M"
