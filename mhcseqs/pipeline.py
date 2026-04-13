@@ -366,6 +366,13 @@ _MOTIF_APERTURE = 50
 _CANONICAL_C1_OFFSET = 101
 _C1_OFFSET_TOLERANCE = 5
 
+# Canonical DMB (class II M β chain) mature β1 start: F[VLMI][VLMIFAT]H[VLMIF][AE]S.
+# Mammalian DMB: FVAHVESTCL-family (most entries). Avian DMB: FV[VL]HM[AE]S
+# variants (chicken, quail, prairie chicken). The motif is DMB-specific: zero
+# false positives against DRB/DPB/DQB/DOB across 7,000+ class II β entries.
+_CLASS_II_DMB_MOTIF = re.compile(r"F[VLMI][VLMIFAT]H[VLMIF][AE]S")
+_DMB_MOTIF_APERTURE = 35
+
 
 def _class1_mammal_motif_anchor(
     seq: str,
@@ -393,6 +400,23 @@ def _class1_mammal_motif_anchor(
     return 0
 
 
+def _dmb_motif_anchor(seq: str) -> int:
+    """Locate the canonical DMB class II β1 start motif.
+
+    DMB is the accessory class II β chain that stabilises empty HLA-DM
+    heterodimers. Unlike classical DRB/DPB/DQB (which start with D or R
+    after SP cleavage), DMB mature chains begin with F[VLMI]...H...[AE]S —
+    e.g. mammalian `FVAHVESTCL`, avian `FVVHVASSCP`. The motif is
+    gene-agnostic (no reliance on the `DMB` gene token being parsed) and
+    specific: it does not match any non-DMB class II β entry in the IPD
+    + UniProt corpus.
+
+    Returns the motif position, or 0 if no match.
+    """
+    m = _CLASS_II_DMB_MOTIF.search(seq[:_DMB_MOTIF_APERTURE])
+    return m.start() if m else 0
+
+
 def _signal_peptide_fields(
     seq: str,
     mature_start: int,
@@ -414,6 +438,14 @@ def _signal_peptide_fields(
     # disagree by ≥3aa and Cys geometry supports the motif.
     if mhc_class == "I" and species_category in MAMMAL_CATEGORIES:
         motif_start = _class1_mammal_motif_anchor(seq, features)
+        if motif_start > 0 and abs(motif_start - refined_start) >= 3:
+            refined_start = motif_start
+    # Motif anchor for class II DMB: the accessory β chain has a distinct
+    # F[VLMI]...H...[AE]S mature N-terminus that the classical class II β
+    # refiner doesn't recognise, so it over-calls (avian DMB) or under-calls
+    # (mammalian DMB, often sp=0 on truncation).
+    elif mhc_class == "II":
+        motif_start = _dmb_motif_anchor(seq)
         if motif_start > 0 and abs(motif_start - refined_start) >= 3:
             refined_start = motif_start
     has_sp = refined_start >= 15 and seq[:1].upper() == "M"
