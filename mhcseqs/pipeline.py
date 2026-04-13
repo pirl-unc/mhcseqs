@@ -22,7 +22,7 @@ from .alleles import (
     parse_allele_name,
     parse_gene_class,
 )
-from .domain_grammar import NON_MHC_ACCESSIONS
+from .domain_grammar import MAMMAL_CATEGORIES, NON_MHC_ACCESSIONS
 from .domain_parsing import (
     NON_GROOVE_GENES,
     AlleleRecord,
@@ -356,6 +356,43 @@ def _infer_chain(gene: str, mhc_class: str) -> str:
     return ""
 
 
+# Canonical mammalian class I α1 N-terminal motif (G-{P,S}-H-S-{L,M}).
+# HLA/BoLA/SLA classical use GPHSL/M; mouse H-2, SLA-6, marsupials use GSHSL/M.
+# Search aperture 50aa covers classical 21/24aa SPs and SLA-6's extended 49aa
+# leader without drifting into the α1 body.
+_CLASS_I_MAMMAL_A1_MOTIF = re.compile(r"G[SP]HS[LM]")
+_MOTIF_APERTURE = 50
+# Canonical class I α1-α2 disulfide: C101 from mature_start.
+_CANONICAL_C1_OFFSET = 101
+_C1_OFFSET_TOLERANCE = 5
+
+
+def _class1_mammal_motif_anchor(
+    seq: str,
+    features: Optional[SequenceFeatures],
+) -> int:
+    """Locate the canonical class I mammal α1 start motif.
+
+    Returns the motif position (mature_start candidate) when either:
+    (a) Cys-pair geometry is consistent with it (C1 at motif + 101 ± 5), or
+    (b) no Cys pairs are present (null / truncated alleles — the motif is
+        the only anchor available).
+
+    Returns 0 if no motif is found or if Cys geometry rejects it.
+    """
+    m = _CLASS_I_MAMMAL_A1_MOTIF.search(seq[:_MOTIF_APERTURE])
+    if not m:
+        return 0
+    candidate = m.start()
+    pairs = list(features.cys_pairs) if features is not None else []
+    if not pairs:
+        return candidate
+    c1 = pairs[0][0]
+    if abs(c1 - (candidate + _CANONICAL_C1_OFFSET)) <= _C1_OFFSET_TOLERANCE:
+        return candidate
+    return 0
+
+
 def _signal_peptide_fields(
     seq: str,
     mature_start: int,
@@ -372,6 +409,13 @@ def _signal_peptide_fields(
         mhc_class,
         features=features,
     )
+    # Motif anchor: for class I mammals, the canonical mature α1 starts with
+    # G[SP]HS[LM]. Use that position instead of the refiner's when they
+    # disagree by ≥3aa and Cys geometry supports the motif.
+    if mhc_class == "I" and species_category in MAMMAL_CATEGORIES:
+        motif_start = _class1_mammal_motif_anchor(seq, features)
+        if motif_start > 0 and abs(motif_start - refined_start) >= 3:
+            refined_start = motif_start
     has_sp = refined_start >= 15 and seq[:1].upper() == "M"
     sp_seq = seq[:refined_start] if has_sp else ""
     return refined_start, has_sp, sp_seq
