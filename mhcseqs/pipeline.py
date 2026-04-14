@@ -381,6 +381,16 @@ _C1_OFFSET_TOLERANCE = 5
 _CLASS_II_DMB_MOTIF = re.compile(r"F[VLMI][VLMIFAT]H[VLMIF][AE]S")
 _DMB_MOTIF_APERTURE = 35
 
+# Class II DOB β1 start: D[SP]PEDFV[IT]Q. The DO accessory β chain has a
+# tight, super-conserved mature N-terminus starting with DSPEDFVIQ
+# (mammalian consensus). One pig variant uses DPPED. The motif is
+# DOB-specific across the full class II corpus: verified zero false
+# positives against all non-DOB class II entries. 50aa aperture covers
+# pig SLA-DOB1 which carries a 13aa 5'-UTR-derived prefix before the
+# true M, pushing the motif to position 40.
+_CLASS_II_DOB_MOTIF = re.compile(r"D[SP]PEDFV[IT]Q")
+_DOB_MOTIF_APERTURE = 50
+
 
 def _class1_mammal_motif_anchor(
     seq: str,
@@ -425,6 +435,39 @@ def _dmb_motif_anchor(seq: str) -> int:
     return m.start() if m else 0
 
 
+def _dob_motif_anchor(seq: str) -> int:
+    """Locate the canonical DOB class II β1 start motif.
+
+    DOB is the other accessory class II β chain (pairs with DOA to
+    negatively regulate DM peptide loading). Mature DOB starts with
+    D[SP]PEDFV[IT]Q — a much tighter motif than DMB's. Covers mammalian
+    DSPEDFVIQ consensus and the rare pig DPPEDFVIQ variant. Specific:
+    zero false positives across all non-DOB class II entries.
+
+    Returns the motif position, or 0 if no match.
+    """
+    m = _CLASS_II_DOB_MOTIF.search(seq[:_DOB_MOTIF_APERTURE])
+    return m.start() if m else 0
+
+
+# Margin by which a motif anchor must beat the refiner's call before overriding.
+_MOTIF_OVERRIDE_MIN_DIFF = 3
+
+
+def _apply_motif_anchor(refined_start: int, motif_start: int) -> int:
+    """Override `refined_start` with `motif_start` when the motif anchor
+    disagrees with the refiner by at least ``_MOTIF_OVERRIDE_MIN_DIFF`` aa.
+
+    Called once per matching motif; the caller picks which motif to use
+    based on MHC class / species. Returning ``refined_start`` unchanged
+    when `motif_start` is 0 (no motif found) or within the tolerance
+    window lets motif anchors be additive without bespoke guard code.
+    """
+    if motif_start > 0 and abs(motif_start - refined_start) >= _MOTIF_OVERRIDE_MIN_DIFF:
+        return motif_start
+    return refined_start
+
+
 def _signal_peptide_fields(
     seq: str,
     mature_start: int,
@@ -441,24 +484,19 @@ def _signal_peptide_fields(
         mhc_class,
         features=features,
     )
-    # Motif anchor: for class I mammals, the canonical mature α1 starts with
-    # G[SP]HS[LM]. Use that position instead of the refiner's when they
-    # disagree by ≥3aa and Cys geometry supports the motif.
+    # Motif anchors override the refiner when a gene-specific conserved
+    # mature N-terminal motif is present. Each anchor is no-op when its
+    # motif doesn't match — α chains, classical DRB/DPB/DQB, etc. pass
+    # through unchanged. Class I and class II are mutually exclusive so
+    # only one branch runs per row.
     if mhc_class == "I" and species_category in MAMMAL_CATEGORIES:
-        motif_start = _class1_mammal_motif_anchor(seq, features)
-        if motif_start > 0 and abs(motif_start - refined_start) >= 3:
-            refined_start = motif_start
-    # Motif anchor for class II DMB: the accessory β chain has a distinct
-    # F[VLMI]...H...[AE]S mature N-terminus that the classical class II β
-    # refiner doesn't recognise, so it over-calls (avian DMB) or under-calls
-    # (mammalian DMB, often sp=0 on truncation). Applied to all class II
-    # (both chains) rather than gated on `chain == "beta"`; the regex is
-    # DMB-specific — verified zero matches across 3,045 class II α chains —
-    # so α entries are inert regardless.
+        # G[SP]HS[LM] α1 motif, validated by α1-α2 disulfide geometry.
+        refined_start = _apply_motif_anchor(refined_start, _class1_mammal_motif_anchor(seq, features))
     elif mhc_class == "II":
-        motif_start = _dmb_motif_anchor(seq)
-        if motif_start > 0 and abs(motif_start - refined_start) >= 3:
-            refined_start = motif_start
+        # DMB F[VLMI]..H..[AE]S β1 motif (accessory class II β).
+        refined_start = _apply_motif_anchor(refined_start, _dmb_motif_anchor(seq))
+        # DOB D[SP]PEDFV[IT]Q β1 motif (accessory class II β).
+        refined_start = _apply_motif_anchor(refined_start, _dob_motif_anchor(seq))
     has_sp = refined_start >= 15 and seq[:1].upper() == "M"
     sp_seq = seq[:refined_start] if has_sp else ""
     return refined_start, has_sp, sp_seq
