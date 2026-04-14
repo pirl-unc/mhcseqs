@@ -421,6 +421,7 @@ SP_EXCLUDED_M3_M1: frozenset[tuple[str, str]] = frozenset(
         ("basic", "basic"),
         ("basic", "cysteine"),
         ("basic", "proline"),
+        ("proline", "small"),
         ("proline", "aliphatic"),
         ("proline", "aromatic"),
         ("proline", "hydroxyl"),
@@ -667,10 +668,9 @@ SP_BOUNDARY_AA_CLASS: dict[str, str] = {
 TM_HYDROPHOBIC = frozenset("AILMFVWCGY")
 TM_CHARGED = frozenset("DEKRH")
 
-SP_CLEAVAGE_RESIDUES = frozenset("AGSC")
 SP_CLEAVAGE_STRONG = frozenset("AG")
 SP_HYDROPHOBIC = frozenset("AILMFVW")
-SP_SMALL_ALIPHATIC = frozenset("AVTSIL")
+SP_SMALL_ALIPHATIC = frozenset("AVTSILGC")
 SP_CHARGED = frozenset("DEKR")
 KD_SCALE: dict[str, float] = {
     "I": 4.5,
