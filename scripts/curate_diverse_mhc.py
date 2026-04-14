@@ -32,7 +32,7 @@ from pathlib import Path
 
 CLASS_I_PATTERN = re.compile(
     r"(class\s*I[^IV]|class\s*Ia\b|class I alpha|class\s*1\b|"
-    r"\bBF[12]?\b|\bYF[12]?\b|MHC-Y|H-2 class I|"
+    r"\bBF[12]?\b|\bYF[12]?\b|MHC-Y|"
     r"MHC class I heavy chain|MHC I\b|MhcI\b)",
     re.IGNORECASE,
 )
