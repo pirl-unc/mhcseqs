@@ -603,8 +603,10 @@ def _word_match(keyword: str, text: str) -> bool:
         suffix = keyword[1:]
         return bool(re.search(re.escape(suffix) + r"\b", text))
     if keyword.endswith((" ", "-")):
-        # Explicit prefix/substring match (the trailing char is intentional)
-        return keyword in text
+        # Explicit prefix match (the trailing char is intentional); anchor at a
+        # word boundary so e.g. "sus " only matches Sus and not the "-sus "
+        # tail of "cynoglossus semilaevis".
+        return bool(re.search(r"\b" + re.escape(keyword), text))
     # Use word boundary matching
     return bool(re.search(r"\b" + re.escape(keyword) + r"\b", text))
 

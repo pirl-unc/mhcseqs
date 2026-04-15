@@ -84,8 +84,18 @@ def classify_mhc(protein_name: str, gene_names: str) -> tuple[str, str] | None:
     if CLASS_I_PATTERN.search(combined):
         return ("I", "alpha")
 
-    # Generic "MHC class II" or "mhc2" prefix or "MHCII" — infer chain from gene name
-    if re.search(r"(class\s*II|\bmhc2|MHCII)", combined, re.IGNORECASE):
+    # mhc2/MHCII tokens are MHC-specific and always reliable class II indicators.
+    if re.search(r"\bmhc2|MHCII", combined, re.IGNORECASE):
+        chain = _infer_class_ii_chain(gene_names, protein_name)
+        return ("II", chain)
+
+    # Bare "class II" needs MHC context — otherwise non-MHC labels like
+    # "Class II amelogenin" (a dental protein) would be misclassified.
+    if re.search(r"class\s*II", combined, re.IGNORECASE) and re.search(
+        r"(histocompat|\bMHC\b|\bHLA\b|\bH-?2[-\s]|\bRT1-|\bBo[LlNn][AaGg]|\bSLA-|\bOLA-|\bDLA-|\bELA-|\bD[A-Z][AB]\d*\b|\bBL[AB]\d*\b)",
+        combined,
+        re.IGNORECASE,
+    ):
         chain = _infer_class_ii_chain(gene_names, protein_name)
         return ("II", chain)
 
