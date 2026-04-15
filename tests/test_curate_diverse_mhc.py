@@ -1,7 +1,7 @@
 import csv
 from pathlib import Path
 
-from scripts.curate_diverse_mhc import curate_row, normalize_gene, resolve_gene_annotation
+from scripts.curate_diverse_mhc import classify_mhc, curate_row, normalize_gene, resolve_gene_annotation
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -164,6 +164,28 @@ def test_curate_row_preserves_opaque_label_without_promoting_it_to_gene():
     assert curated["gene_status"] == "opaque_unassigned"
     assert stats["rescued_no_gene"] == 1
     assert stats["opaque_gene_label"] == 1
+
+
+def test_classify_mhc_long_form_class_ii_names():
+    """`H-2 class II histocompatibility antigen, ... alpha/beta chain` UniProt
+    naming must not be misclassified as class I.
+
+    Regression for a regex bug where `H-2 class I` (literal alternative in
+    CLASS_I_PATTERN) matched the prefix of `H-2 class II ...` and short-
+    circuited the alternation before CLASS_II_* patterns got a chance.
+    """
+    assert classify_mhc("H-2 class II histocompatibility antigen, E-S beta chain-like", "") == ("II", "beta")
+    assert classify_mhc("H-2 class II histocompatibility antigen, A-U alpha chain-like", "") == ("II", "alpha")
+    assert classify_mhc("H-2 class II histocompatibility antigen, I-A alpha chain", "H2-Aa") == ("II", "alpha")
+    assert classify_mhc("H-2 class II histocompatibility antigen, I-E beta chain", "H2-Eb1") == ("II", "beta")
+
+
+def test_classify_mhc_genuine_class_i_still_resolves():
+    """Genuine class I names (HLA / H-2 / generic) must still classify as I."""
+    assert classify_mhc("HLA class I histocompatibility antigen, A alpha chain", "HLA-A") == ("I", "alpha")
+    assert classify_mhc("H-2 class I, histocompatibility antigen, K-d alpha chain", "H2-K1") == ("I", "alpha")
+    assert classify_mhc("H-2 class I heavy chain", "H2-K1") == ("I", "alpha")
+    assert classify_mhc("Class I histocompatibility antigen, F10 alpha chain-like", "") == ("I", "alpha")
 
 
 def test_curate_row_still_rejects_unstructured_no_gene_sequence():
