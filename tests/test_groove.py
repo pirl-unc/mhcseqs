@@ -806,6 +806,28 @@ def test_detect_h_region_no_sp():
         assert h_start > 5 or h_end - h_start < 10
 
 
+def test_refine_signal_peptide_rejects_mature_only_input():
+    """When the sequence has no detectable h-region and the sequence-level
+    predictor says no SP, the Cys-pair-derived mature_start must be
+    overridden to 0. Regression: a mature-only HLA-DMA fragment was
+    getting SP=24 called before this gate.
+    """
+    from mhcseqs.domain_parsing import analyze_sequence, refine_signal_peptide
+
+    mature_only_dma = "VPEAPTPMWPDDLQNHTFLHTVYCQDGSPSVGLSEAYDEDQLFFFDFSQNTRVPRLPEFADWAQEQGDAPAILFDKEFCEWMIQQIGPKLDGKIPVSRGFPIAEVFTLKPL"
+    features = analyze_sequence(mature_only_dma)
+    assert features.h_region[1] - features.h_region[0] < 6
+    assert features.sp_estimate == 0
+    # Simulate a Cys-pair-derived mature_start that the gate must override.
+    assert refine_signal_peptide(mature_only_dma, 24, "human", "II", features=features) == 0
+
+    # Positive control: real SP should still refine to a positive position.
+    hla_a_full = "MAVMAPRTLLLLLSGALALTQTWA" + HLA_A0201_MATURE
+    real_features = analyze_sequence(hla_a_full)
+    refined = refine_signal_peptide(hla_a_full, 24, "human", "I", features=real_features)
+    assert refined > 0
+
+
 def test_estimate_sp_from_h_region():
     """SP estimate from h-region should be close to true SP length."""
     hla_a_full = "MAVMAPRTLLLLLSGALALTQTWA" + HLA_A0201_MATURE

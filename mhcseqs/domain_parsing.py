@@ -3955,6 +3955,18 @@ def refine_signal_peptide(
     ):
         return features.sp_shortcut_estimate
 
+    # Leaderless gate: every real-SP entry in the benchmark has a detectable
+    # h-region (≥6 aa).  When the h-region is absent and the sequence-level
+    # SP predictor also says 0, the Cys-pair-derived mature_start is almost
+    # certainly a false positive on a mature-only input — override to 0.
+    if (
+        features is not None
+        and (features.h_region[1] - features.h_region[0]) < 6
+        and features.sp_estimate == 0
+        and features.sp_shortcut_state != "sp_present"
+    ):
+        return 0
+
     group = _refinement_group(species_category)
     window = _REFINEMENT_WINDOW_BY_GROUP[group]
 
