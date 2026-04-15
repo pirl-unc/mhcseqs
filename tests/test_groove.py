@@ -796,6 +796,24 @@ def test_detect_h_region_finds_sp_core():
     assert h_start < 24, f"h-region should start within SP, got {h_start}"
 
 
+def test_detect_h_region_tolerates_single_charged_residue():
+    """A hydrophobic window with one glutamate/aspartate in the middle should
+    still be recognized as the h-region, even when a less-hydrophobic but
+    charged-free late window exists elsewhere.
+
+    Regression: per-residue charged penalty (was `charged * 1.5`) was
+    unnormalized, so one E in an 8-aa window cost 1.5 points — enough to
+    flip the h-region detection to a late, weaker hydrophobic cluster on
+    sequences like `MWLHRASLWLLGEVLGASL...`.
+    """
+    # Early h-region LWLLGEVL (75% hydrophobic, 1 E) vs late cluster
+    # FYHTGVAL (50% hydrophobic, 0 charged): the early one is the real SP.
+    seq = "MWLHRASLWLLGEVLGASLRGGHCFYHTGVALRPGRGEPRFIAVGYV"
+    h_start, h_end = detect_h_region(seq)
+    assert 5 <= h_start <= 10, f"h-region should start in early cluster, got {h_start}"
+    assert h_end - h_start >= 8
+
+
 def test_detect_h_region_no_sp():
     """Mature-only sequence should not have a strong h-region at the N-terminus."""
     # HLA-A*02:01 mature starts with GSHSMR... (hydrophilic)

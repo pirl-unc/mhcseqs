@@ -1375,12 +1375,18 @@ def detect_h_region(seq: str, *, limit: int = 50) -> tuple[int, int]:
             hydro = sum(1 for aa in window if aa in _SP_HYDROPHOBIC)
             charged = sum(1 for aa in window if aa in _SP_CHARGED)
             frac = hydro / win_len
+            charged_frac = charged / win_len
             # Score: hydrophobic fraction drives the signal, charged residues
-            # penalize.  Prefer windows that start after position ~2 (skip
-            # initial Met + n-region).
-            score = frac * 4.0 - charged * 1.5
+            # penalize (normalized by window length so one charged residue
+            # in an otherwise hydrophobic 8-aa window doesn't outweigh the
+            # hydrophobic signal).  Prefer windows that start after position
+            # ~2 (skip initial Met + n-region) but also prefer early windows
+            # overall, since the SP h-region is always in the first ~25 aa.
+            score = frac * 4.0 - charged_frac * 10.0
             if start < 2:
                 score -= 0.5
+            elif start > 20:
+                score -= 0.5 * (start - 20) / 10.0
             if score > best_score:
                 best_score = score
                 best_span = (start, start + win_len)
