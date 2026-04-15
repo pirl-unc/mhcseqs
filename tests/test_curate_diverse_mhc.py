@@ -180,6 +180,20 @@ def test_classify_mhc_long_form_class_ii_names():
     assert classify_mhc("H-2 class II histocompatibility antigen, I-E beta chain", "H2-Eb1") == ("II", "beta")
 
 
+def test_classify_mhc_rejects_non_mhc_class_ii_labels():
+    """Non-MHC proteins that happen to have "class II" in their description
+    (e.g. "Class II amelogenin" - a dental protein) must not be classified
+    as MHC. Require an MHC context token alongside the bare "class II" phrase.
+    """
+    assert classify_mhc("Amelogenin, Y isoform (Class II amelogenin)", "AMELY") is None
+    assert classify_mhc("Amelogenin, Y isoform (Class II amelogenin)", "") is None
+    # Positive controls: zebrafish mhc2d / MHCII gene tokens must still classify.
+    mhc2_result = classify_mhc("Uncharacterized protein precursor", "mhc2d8.37a2")
+    assert mhc2_result is not None and mhc2_result[0] == "II"
+    mhcii_result = classify_mhc("Uncharacterized protein precursor", "MHCII zgc:101701")
+    assert mhcii_result is not None and mhcii_result[0] == "II"
+
+
 def test_classify_mhc_genuine_class_i_still_resolves():
     """Genuine class I names (HLA / H-2 / generic) must still classify as I."""
     assert classify_mhc("HLA class I histocompatibility antigen, A alpha chain", "HLA-A") == ("I", "alpha")
