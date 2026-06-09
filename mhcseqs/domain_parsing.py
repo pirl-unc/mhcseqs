@@ -5023,6 +5023,79 @@ def _append_long_sp_flag(flags: list[str], mature_start: int) -> None:
         flags.append(f"long_sp({mature_start})")
 
 
+_OVERCAPTURE_CHARGED = frozenset("RKDE")
+
+
+def detect_sp_internal_met_overcapture(seq: str, mature_start: int) -> Optional[int]:
+    """Detect signal-peptide over-capture from an upstream weak-Kozak start codon.
+
+    Some records — overwhelmingly unreviewed UniProt/TrEMBL entries and a few
+    submitter-deposited GenBank/IPD sequences — are translated from an in-frame
+    ATG *upstream* of the true start codon.  Ribosomes leaky-scan past such a
+    weak-Kozak AUG to a stronger downstream one (the -3 purine / +4 G context
+    dominates initiation), but a naive longest-ORF translation grabs the upstream
+    AUG and prepends a stretch of translated 5'-UTR to the real signal peptide.
+
+    At the amino-acid level the artifact looks like an unusually long (>25 aa)
+    "signal peptide" whose N-terminal portion is a charged/polar segment with no
+    hydrophobic h-region, followed by an internal Met that begins a clean,
+    self-contained signal peptide cleaving at the *same* mature start.
+
+    A genuine SP n-region is also short and positively charged (the
+    "positive-inside" rule), so composition alone cannot separate the two — e.g.
+    the real HLA class I leader ``MRV|MAPRTL...`` and HLA-DPA1 ``MRPEDR|MFHIRA...``
+    both have a charged head before the h-region.  The discriminator is *length*:
+    a real n-region is <= ~8 aa, so this requires the discarded prefix to be at
+    least 10 aa — longer than any plausible n-region.
+
+    Returns the internal Met position (the inferred true start codon) when the
+    over-capture signature is present, else None.
+
+    This is a *QC signal, not a correction*.  TrEMBL has no manually curated SP
+    ground truth (where a Signal feature exists at all it is SignalP-predicted on
+    the same over-captured N-terminus, so it shares the error), and the only
+    independent confirmation is the source CDS / Kozak context, which is not
+    available for every entry.  Callers must not rewrite the sequence on this
+    signal alone.
+    """
+    if mature_start <= 25 or mature_start >= len(seq):
+        return None
+    _, full_conf = infer_signal_peptide(seq)
+    best: Optional[tuple[int, float]] = None
+    for m in range(10, mature_start):  # prefix must exceed a plausible n-region
+        if seq[m] != "M":
+            continue
+        if mature_start - m < 12:  # remaining segment too short to be a real SP
+            continue
+        sub_pos, sub_conf = infer_signal_peptide(seq[m:])
+        if sub_pos <= 0:
+            continue
+        if abs((m + sub_pos) - mature_start) > 2:  # must cleave at the same mature start
+            continue
+        if sub_conf < 0.5 or sub_conf < full_conf:  # internal SP must be at least as good
+            continue
+        if best is None or sub_conf > best[1]:
+            best = (m, sub_conf)
+    if best is None:
+        return None
+    m = best[0]
+    prefix = seq[:m]
+    h_start, h_end = detect_h_region(prefix)
+    if h_end - h_start >= 6:  # prefix itself looks like a leader -> not over-capture
+        return None
+    charged = sum(c in _OVERCAPTURE_CHARGED for c in prefix) / len(prefix)
+    if charged < 0.2:  # spurious UTR-derived prefixes are charged/polar
+        return None
+    return m
+
+
+def _append_sp_overcapture_flag(flags: list[str], seq: str, mature_start: int) -> None:
+    """Record a QC flag when the SP looks over-captured from an upstream AUG."""
+    rescued = detect_sp_internal_met_overcapture(seq, mature_start)
+    if rescued is not None:
+        flags.append(f"sp_internal_met_overcapture({rescued})")
+
+
 def _domains_match_grammar(grammar: GrammarSpec, domains: ExtractedDomains) -> bool:
     """Return True when the materialized groove segments satisfy the grammar."""
     return all(bool(getattr(domains, field_name)) for field_name, _role in grammar.groove_segments)
@@ -5045,6 +5118,7 @@ def _build_primary_result(
     mature_start = selection.mature_start
     anchor_pair = (selection.anchor.c1, selection.anchor.c2)
     _append_long_sp_flag(local_flags, mature_start)
+    _append_sp_overcapture_flag(local_flags, seq, mature_start)
     domains = _extract_primary_domains(
         seq,
         grammar=grammar,
