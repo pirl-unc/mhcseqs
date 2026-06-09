@@ -5024,6 +5024,25 @@ def _append_long_sp_flag(flags: list[str], mature_start: int) -> None:
 
 
 _OVERCAPTURE_CHARGED = frozenset("RKDE")
+# Minimum SP length to even consider; over-capture inflates SP length, real SPs
+# in the benchmark rarely exceed this.
+_OVERCAPTURE_MIN_SP = 25
+# A real SP n-region is short (positive-inside rule, <= ~8 aa); a discarded prefix
+# longer than this cannot be a genuine n-region, so it is the over-capture cutoff.
+_OVERCAPTURE_MIN_PREFIX = 10
+# The internal-Met SP must itself be long enough to be a real signal peptide.
+_OVERCAPTURE_MIN_SUB_SP = 12
+# The internal-Met SP must score at least this confidently to count as real.
+_OVERCAPTURE_MIN_SUB_CONF = 0.5
+# h-region scan within the prefix; >= this length means the prefix is itself a
+# plausible leader (so not over-capture).
+_OVERCAPTURE_MAX_PREFIX_HREGION = 6
+# Spurious UTR-derived prefixes are charged/polar; require this charged fraction.
+_OVERCAPTURE_MIN_PREFIX_CHARGED = 0.2
+# Window of residues after a candidate internal Met passed to the SP detector.
+# The SP + cleavage site fall well within this; verified result-identical to
+# scanning the full tail across the dataset, but avoids copying the whole protein.
+_OVERCAPTURE_SUB_WINDOW = 60
 
 
 def detect_sp_internal_met_overcapture(seq: str, mature_start: int) -> Optional[int]:
@@ -5048,32 +5067,42 @@ def detect_sp_internal_met_overcapture(seq: str, mature_start: int) -> Optional[
     a real n-region is <= ~8 aa, so this requires the discarded prefix to be at
     least 10 aa — longer than any plausible n-region.
 
-    Returns the internal Met position (the inferred true start codon) when the
-    over-capture signature is present, else None.
-
     This is a *QC signal, not a correction*.  TrEMBL has no manually curated SP
     ground truth (where a Signal feature exists at all it is SignalP-predicted on
     the same over-captured N-terminus, so it shares the error), and the only
     independent confirmation is the source CDS / Kozak context, which is not
     available for every entry.  Callers must not rewrite the sequence on this
     signal alone.
+
+    Parameters
+    ----------
+    seq : str
+        Full protein sequence (including the putative signal peptide).
+    mature_start : int
+        Predicted mature start (== SP length) to evaluate for over-capture.
+
+    Returns
+    -------
+    Optional[int]
+        The internal Met position (the inferred true start codon) when the
+        over-capture signature is present, else ``None``.
     """
-    if mature_start <= 25 or mature_start >= len(seq):
+    if mature_start <= _OVERCAPTURE_MIN_SP or mature_start >= len(seq):
         return None
     _, full_conf = infer_signal_peptide(seq)
     best: Optional[tuple[int, float]] = None
-    for m in range(10, mature_start):  # prefix must exceed a plausible n-region
+    for m in range(_OVERCAPTURE_MIN_PREFIX, mature_start):  # prefix > plausible n-region
         if seq[m] != "M":
             continue
-        if mature_start - m < 12:  # remaining segment too short to be a real SP
+        if mature_start - m < _OVERCAPTURE_MIN_SUB_SP:  # remaining SP too short to be real
             continue
-        sub_pos, sub_conf = infer_signal_peptide(seq[m:])
+        sub_pos, sub_conf = infer_signal_peptide(seq[m : m + _OVERCAPTURE_SUB_WINDOW])
         if sub_pos <= 0:
             continue
         if abs((m + sub_pos) - mature_start) > 2:  # must cleave at the same mature start
             continue
-        if sub_conf < 0.5 or sub_conf < full_conf:  # internal SP must be at least as good
-            continue
+        if sub_conf < _OVERCAPTURE_MIN_SUB_CONF or sub_conf < full_conf:
+            continue  # internal SP must be a real SP and at least as good as the full one
         if best is None or sub_conf > best[1]:
             best = (m, sub_conf)
     if best is None:
@@ -5081,11 +5110,11 @@ def detect_sp_internal_met_overcapture(seq: str, mature_start: int) -> Optional[
     m = best[0]
     prefix = seq[:m]
     h_start, h_end = detect_h_region(prefix)
-    if h_end - h_start >= 6:  # prefix itself looks like a leader -> not over-capture
-        return None
+    if h_end - h_start >= _OVERCAPTURE_MAX_PREFIX_HREGION:
+        return None  # prefix itself looks like a leader -> not over-capture
     charged = sum(c in _OVERCAPTURE_CHARGED for c in prefix) / len(prefix)
-    if charged < 0.2:  # spurious UTR-derived prefixes are charged/polar
-        return None
+    if charged < _OVERCAPTURE_MIN_PREFIX_CHARGED:
+        return None  # spurious UTR-derived prefixes are charged/polar
     return m
 
 

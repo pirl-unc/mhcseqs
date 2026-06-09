@@ -10,6 +10,7 @@ cleaves at the same mature start.
 This is a QC signal only — see ``detect_sp_internal_met_overcapture`` docstring.
 """
 
+from mhcseqs import parse_class_ii_alpha
 from mhcseqs.domain_parsing import detect_sp_internal_met_overcapture
 
 # Mamu-DPA1*02:01:01:01 (IPD-MHC).  Full record translates from MDINYRPHNVCPEDR
@@ -84,3 +85,10 @@ def test_no_internal_met_returns_none():
     # No internal Met in the SP region -> nothing to rescue.
     seq = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGSHSLRYF" + "A" * 200
     assert detect_sp_internal_met_overcapture(seq, 31) is None
+
+
+def test_flag_surfaces_through_parser():
+    # Guards the wiring: the QC flag must reach AlleleRecord.flags via the parse
+    # path, not just the standalone detector.
+    record = parse_class_ii_alpha(MAMU_DPA1, allele="Mamu-DPA1*02:01", gene="DPA1")
+    assert "sp_internal_met_overcapture(15)" in record.flags
