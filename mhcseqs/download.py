@@ -24,12 +24,16 @@ SOURCES = {
 }
 
 
-def download_fasta(key: str, dest_dir: Path) -> Path:
-    """Download a FASTA source file if not already present. Returns local path."""
+def download_fasta(key: str, dest_dir: Path, *, force: bool = False) -> Path:
+    """Download a FASTA source file. Returns local path.
+
+    A cached copy is reused unless *force* is set, in which case it is always
+    re-downloaded (used by ``mhcseqs data refresh`` / ``build --force-download``).
+    """
     info = SOURCES[key]
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / info["filename"]
-    if dest.exists() and dest.stat().st_size > 0:
+    if not force and dest.exists() and dest.stat().st_size > 0:
         print(f"  {info['filename']} already downloaded ({dest.stat().st_size:,} bytes)")
         return dest
     print(f"  Downloading {info['filename']} from {info['url']} ...")
@@ -48,9 +52,9 @@ def download_fasta(key: str, dest_dir: Path) -> Path:
     return dest
 
 
-def download_all(dest_dir: Path) -> dict[str, Path]:
+def download_all(dest_dir: Path, *, force: bool = False) -> dict[str, Path]:
     """Download all FASTA sources. Returns {key: local_path}."""
     paths = {}
     for key in SOURCES:
-        paths[key] = download_fasta(key, dest_dir)
+        paths[key] = download_fasta(key, dest_dir, force=force)
     return paths

@@ -147,12 +147,14 @@ def default_data_dir() -> str:
 def build(
     output_dir: str | None = None,
     data_dir: str | None = None,
+    force_download: bool = False,
 ) -> BuildPaths:
     """Run the full build pipeline: download, parse, extract grooves.
 
     If *output_dir* is ``None`` (default), CSVs are written to
     :func:`default_data_dir` (``~/.cache/mhcseqs``).
     FASTA downloads are stored in a ``fasta/`` subdirectory of the data dir.
+    Set *force_download* to re-fetch source FASTA files even when cached.
 
     Returns a :class:`BuildPaths` with the paths to the generated files.
     """
@@ -169,7 +171,7 @@ def build(
     else:
         dd = Path(data_dir)
 
-    paths = download_all(dd)
+    paths = download_all(dd, force=force_download)
     fasta_inputs = [
         (paths["imgt_hla"], SOURCES["imgt_hla"]["label"]),
         (paths["ipd_mhc"], SOURCES["ipd_mhc"]["label"]),
