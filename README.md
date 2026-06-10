@@ -33,6 +33,18 @@ mhcseqs build --output-dir output/
 # Look up a specific allele
 mhcseqs lookup "HLA-A*02:01"
 
+# Inspect cached downloads and built CSVs (path, size, age)
+mhcseqs data list
+
+# Re-download source FASTAs (IMGT/HLA + IPD-MHC publish from a rolling "Latest")
+mhcseqs data refresh
+mhcseqs build --force-download   # equivalently, rebuild with fresh sources
+
+# Delete cached files
+mhcseqs data clear               # source FASTAs
+mhcseqs data clear --built       # also remove built CSVs/reports
+mhcseqs data clear --built-only  # only built CSVs/reports
+
 # Check version
 mhcseqs --version
 ```

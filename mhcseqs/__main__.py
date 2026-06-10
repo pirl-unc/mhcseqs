@@ -1,8 +1,11 @@
 """CLI entry point for mhcseqs.
 
 Usage:
-    mhcseqs build [--output-dir DIR] [--data-dir DIR]
-    mhcseqs lookup ALLELE [--data-dir DIR]
+    mhcseqs build [--output-dir DIR] [--data-dir DIR] [--force-download]
+    mhcseqs lookup ALLELE [--output-dir DIR]
+    mhcseqs data list
+    mhcseqs data refresh [--source imgt_hla|ipd_mhc]
+    mhcseqs data clear [--source ...] [--built | --built-only]
     python -m mhcseqs build
     python -m mhcseqs lookup "HLA-A*02:01"
 """
@@ -16,6 +19,8 @@ import sys
 from pathlib import Path
 
 from . import default_data_dir
+from .datafiles import clear as clear_data
+from .datafiles import fasta_dir, inventory
 from .download import SOURCES, download_all
 from .pipeline import build_full_seqs, build_raw_index
 from .validate import format_validation_report, validate_build
@@ -30,7 +35,7 @@ def cmd_build(args):
     print("=" * 60)
     print("Step 1/4: Downloading FASTA source files")
     print("=" * 60)
-    paths = download_all(data_dir)
+    paths = download_all(data_dir, force=args.force_download)
     print()
 
     fasta_inputs = [
@@ -141,6 +146,71 @@ def cmd_lookup(args):
         sys.exit(1)
 
 
+def _human_size(n: int) -> str:
+    size = float(n)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} GB"
+
+
+def _human_age(mtime: float) -> str:
+    import time
+
+    secs = max(0.0, time.time() - mtime)
+    days = secs / 86400
+    if days >= 1:
+        return f"{days:.0f}d ago"
+    hours = secs / 3600
+    if hours >= 1:
+        return f"{hours:.0f}h ago"
+    return f"{secs / 60:.0f}m ago"
+
+
+def cmd_data(args):
+    dd = Path(default_data_dir())
+    action = args.data_command
+
+    if action == "list":
+        print(f"Data directory: {dd}")
+        print(f"{'FILE':<26} {'KIND':<7} {'SIZE':>10} {'AGE':>9}  STATUS")
+        for item in inventory(dd):
+            if item.exists:
+                status = item.url or "built"
+                print(f"{item.path.name:<26} {item.kind:<7} {_human_size(item.size):>10} {_human_age(item.mtime):>9}  {status}")
+            else:
+                print(f"{item.path.name:<26} {item.kind:<7} {'—':>10} {'—':>9}  (not present)")
+        return
+
+    if action == "refresh":
+        from .download import download_fasta
+
+        keys = [args.source] if args.source else list(SOURCES)
+        print(f"Refreshing source FASTA(s): {', '.join(keys)}")
+        for k in keys:
+            download_fasta(k, fasta_dir(dd), force=True)
+        print("Done.")
+        return
+
+    if action == "clear":
+        # Default: clear source FASTAs. --built also/only clears built CSVs.
+        keys = [args.source] if args.source else None
+        removed = clear_data(
+            dd,
+            sources=not args.built_only,
+            built=args.built or args.built_only,
+            source_keys=keys,
+        )
+        if removed:
+            for p in removed:
+                print(f"Removed {p}")
+            print(f"Cleared {len(removed)} file(s).")
+        else:
+            print("Nothing to clear.")
+        return
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="mhcseqs",
@@ -167,6 +237,11 @@ def main():
         default=None,
         help="Directory for downloaded FASTA files (default: ~/.cache/mhcseqs/fasta)",
     )
+    build_parser.add_argument(
+        "--force-download",
+        action="store_true",
+        help="Re-download source FASTA files even when a cached copy exists",
+    )
 
     # lookup
     lookup_parser = subparsers.add_parser("lookup", help="Look up an allele from built CSVs")
@@ -178,12 +253,46 @@ def main():
         help="Directory where built CSVs are located (default: ~/.cache/mhcseqs)",
     )
 
+    # data — manage cached source FASTAs and built CSVs
+    data_parser = subparsers.add_parser("data", help="Manage cached downloads and built CSVs")
+    data_sub = data_parser.add_subparsers(dest="data_command")
+    data_sub.add_parser("list", help="List cached source and built data files")
+    refresh_parser = data_sub.add_parser("refresh", help="Re-download source FASTA(s)")
+    refresh_parser.add_argument(
+        "--source",
+        choices=list(SOURCES),
+        default=None,
+        help="Only refresh this source (default: all)",
+    )
+    clear_parser = data_sub.add_parser("clear", help="Delete cached source FASTA(s)")
+    clear_parser.add_argument(
+        "--source",
+        choices=list(SOURCES),
+        default=None,
+        help="Only clear this source FASTA (default: all sources)",
+    )
+    clear_parser.add_argument(
+        "--built",
+        action="store_true",
+        help="Also delete built CSVs/reports (in addition to source FASTAs)",
+    )
+    clear_parser.add_argument(
+        "--built-only",
+        action="store_true",
+        help="Delete only built CSVs/reports, keep source FASTAs",
+    )
+
     args = parser.parse_args()
 
     if args.command == "build":
         cmd_build(args)
     elif args.command == "lookup":
         cmd_lookup(args)
+    elif args.command == "data":
+        if not args.data_command:
+            data_parser.print_help()
+            sys.exit(1)
+        cmd_data(args)
     else:
         parser.print_help()
         sys.exit(1)
