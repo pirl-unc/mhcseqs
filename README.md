@@ -94,7 +94,7 @@ diverse MHC sequences from UniProt) are merged into a single dataset:
 
 | Category | Class I | Class II | Total |
 |---|---:|---:|---:|
-| human | 17,462 | 7,878 | 25,340 |
+| human | 17,841 | 8,013 | 25,854 |
 | nhp | 4,639 | 2,486 | 7,125 |
 | murine | 980 | 565 | 1,545 |
 | ungulate | 638 | 1,128 | 1,766 |
@@ -103,10 +103,10 @@ diverse MHC sequences from UniProt) are merged into a single dataset:
 | bird | 11,906 | 6,690 | 18,596 |
 | fish | 2,439 | 7,106 | 9,545 |
 | other_vertebrate | 940 | 1,332 | 2,272 |
-| **total** | **40,185** | **28,243** | **68,428** |
+| **total** | **40,564** | **28,378** | **68,942** |
 
 Covering 558+ species. Groove parse success rate on IMGT/IPD-MHC
-entries: 99.6%.
+entries: 99.3%.
 
 ## Structural decomposition
 

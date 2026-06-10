@@ -69,6 +69,31 @@ def load_built_counts() -> Counter:
     return counts
 
 
+# Groove statuses that mean no groove could be extracted at all. Every other
+# status (ok, *_fallback, *_only, inferred_from_alpha3) yielded at least a
+# partial groove and counts as a successful parse.
+_GROOVE_FAILURE_STATUSES = {"", "missing_groove"}
+
+
+def load_groove_success_rate() -> tuple[float, int, int]:
+    """Compute groove parse success rate on IMGT/IPD-MHC entries.
+
+    Returns (percent, n_success, n_total). Success = a (possibly partial) groove
+    was extracted, i.e. groove_status is not in :data:`_GROOVE_FAILURE_STATUSES`.
+    """
+    total = 0
+    success = 0
+    with open(BUILT_CSV, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row.get("source", "") not in ("imgt", "ipd_mhc"):
+                continue
+            total += 1
+            if row.get("groove_status", "") not in _GROOVE_FAILURE_STATUSES:
+                success += 1
+    pct = 100.0 * success / total if total else 0.0
+    return pct, success, total
+
+
 def load_diverse_counts() -> tuple[Counter, int]:
     """Load counts from diverse MHC CSV. Returns (counts, num_species)."""
     counts: Counter = Counter()
@@ -118,7 +143,11 @@ def main():
         f"All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and {diverse_total:,}\n"
         f"diverse MHC sequences from UniProt) are merged into a single dataset:"
     )
-    summary_line = f"Covering {num_species}+ species. Groove parse success rate on IMGT/IPD-MHC\nentries: 99.6%."
+    groove_pct, _, _ = load_groove_success_rate()
+    summary_line = (
+        f"Covering {num_species}+ species. Groove parse success rate on IMGT/IPD-MHC\n"
+        f"entries: {groove_pct:.1f}%."
+    )
 
     # Replace between "## Current data summary" and "## Structural decomposition"
     pattern = re.compile(
