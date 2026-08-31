@@ -42,7 +42,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from curate_diverse_mhc import (
     classify_mhc,
-    derive_prefix,
+    derive_species_alias,
     resolve_gene_annotation,
 )
 from evaluate_sp_ground_truth import GT_RAW_CSV, _species_category
@@ -167,7 +167,7 @@ def _gene_from_protein_name(protein_name: str, organism: str, mhc_class: str, ch
     UniProt names such as ``F10 alpha chain`` or ``DR beta 1 chain`` into the
     gene namespace used by the rest of the package.
     """
-    prefix = derive_prefix(organism)
+    prefix = derive_species_alias(organism)
     text = protein_name or ""
 
     m = re.search(r"\(MHC class [^)]* antigen ([A-Z0-9-]+)\)", text, re.IGNORECASE)
@@ -175,8 +175,6 @@ def _gene_from_protein_name(protein_name: str, organism: str, mhc_class: str, ch
         raw = m.group(1).upper()
         bare = raw.replace("-", "")
         if bare.startswith("HLA"):
-            if prefix.upper() == "HOSA":
-                return (f"HLA-{bare[3:]}", "protein_name_parenthetical")
             bare = bare[3:]
         if bare.startswith(("DRA", "DRB", "DQA", "DQB", "DPA", "DPB", "DMA", "DMB", "DOA", "DOB", "DXA", "DXB")):
             return (f"{prefix}-{bare}" if prefix else bare, "protein_name_parenthetical")
@@ -216,7 +214,7 @@ def _classify_from_names(
 ) -> dict[str, str]:
     cls = classify_mhc(protein_name, gene_names) or ("", "")
     mhc_class, chain = cls
-    prefix = derive_prefix(organism)
+    prefix = derive_species_alias(organism)
     gene, raw_gene_label, gene_status = resolve_gene_annotation(gene_names, protein_name, prefix)
 
     if not gene and mhc_class in {"I", "II"}:
@@ -395,6 +393,7 @@ def _build_controls(rows: list[dict[str, str]], *, include_fragment_controls: bo
                 mhc_class=mhc_class,
                 chain=chain or None,
                 gene=row.get("gene", ""),
+                species=row.get("organism", ""),
             )
         except Exception:
             continue

@@ -121,9 +121,6 @@ from .domain_grammar import (
     CLASS_I_ALPHA2_END_AFTER_CYS2,
     CLASS_II_ALPHA_GENE_PREFIXES,
     CLASS_II_BETA_GENE_PREFIXES,
-    GENE_CLASS_I_PATTERNS,
-    GENE_CLASS_II_ALPHA_PATTERNS,
-    GENE_CLASS_II_BETA_PATTERNS,
     IG_DOMAIN_END_AFTER_CYS2,
     IG_SEP_MAX,
     IG_SEP_MIN,
@@ -4266,18 +4263,26 @@ def find_cys_pairs(
 # ---------------------------------------------------------------------------
 
 
+def _normalized_gene_token(gene: str, allele: str = "") -> str:
+    """Return an unprefixed uppercase gene token for dispatch checks."""
+    raw = str(gene or allele or "").strip()
+    if gene and not raw.startswith("~") and "-" in raw:
+        body = raw.split("-", 1)[1].split("*", 1)[0]
+        if body.upper() in {"H60A", "H60B", "H60C"}:
+            return body.upper()
+    try:
+        inferred = infer_gene(raw)
+    except Exception:
+        inferred = ""
+    return str(inferred or raw).strip().upper()
+
+
 def _class_ii_chain_from_name(
     *,
     gene: str,
     allele: str,
 ) -> Optional[str]:
-    gene_token = str(gene or "").strip().upper()
-    if not gene_token and allele:
-        try:
-            gene_token = infer_gene(allele)
-        except Exception:
-            gene_token = ""
-        gene_token = str(gene_token or "").strip().upper()
+    gene_token = _normalized_gene_token(gene, allele)
 
     if not gene_token:
         return None
@@ -5775,6 +5780,7 @@ def _decompose_domains_cached(
     chain: str,
     allele: str,
     gene: str,
+    species: str,
     use_early_shortcuts: bool,
 ) -> AlleleRecord:
     """Cache exact-sequence parses for repeated proteins with identical metadata."""
@@ -5785,6 +5791,7 @@ def _decompose_domains_cached(
         chain=chain or None,
         allele=allele,
         gene=gene,
+        species=species or None,
         features=features,
         use_early_shortcuts=use_early_shortcuts,
     )
@@ -5797,6 +5804,7 @@ def decompose_domains(
     chain: Optional[str] = None,
     allele: str = "",
     gene: str = "",
+    species: Optional[str] = None,
     mutations: Sequence[object] = (),
     features: Optional[SequenceFeatures] = None,
     use_early_shortcuts: bool = True,
@@ -5818,20 +5826,16 @@ def decompose_domains(
             str(chain or ""),
             allele,
             gene,
+            str(species or ""),
             use_early_shortcuts,
         )
 
-    gene_token = str(gene or "").strip().upper()
-    if not gene_token and allele:
-        try:
-            gene_token = str(infer_gene(allele) or "").strip().upper()
-        except Exception:
-            gene_token = ""
+    gene_token = _normalized_gene_token(gene, allele)
 
     # Filter non-MHC genes (TAP1, CIITA, HM13, etc.).
-    # Uses mhcgnomes >= 3.18 parse_gene_class() when available, falls back
-    # to local NON_MHC_GENE_NAMES set.
-    if is_non_mhc_gene(gene or allele):
+    # mhcgnomes 3.40 classification uses the species constraint when present;
+    # the helper retains a small local set for unscoped non-MHC labels.
+    if is_non_mhc_gene(gene or allele, species=species):
         return _attach_parse_candidate(
             AlleleRecord(
                 allele=allele,
@@ -5846,12 +5850,11 @@ def decompose_domains(
             )
         )
 
-    # Infer class from gene name when mhcgnomes can't resolve the full allele.
-    # Uses mhcgnomes >= 3.18 parse_gene_class() for suffix-based classification
-    # (F10 → class I, BLB → class II beta, DRA → class II alpha, etc.),
-    # falls back to local GENE_CLASS_*_PATTERNS for mhcgnomes < 3.18.
+    # Infer class from the species-aware mhcgnomes 3.40 classifier. Ambiguous
+    # unscoped gene labels remain unresolved rather than using duplicate local
+    # suffix rules that can disagree with the ontology.
     if nc not in ("I", "II") and (gene or allele):
-        gc = parse_gene_class(gene or allele)
+        gc = parse_gene_class(gene or allele, species=species)
         if gc is not None:
             gc_class = gc.get("mhc_class")
             gc_chain = gc.get("chain")
@@ -5861,17 +5864,6 @@ def decompose_domains(
                 nc = "II"
                 if gc_chain in ("alpha", "beta"):
                     chain = gc_chain
-        else:
-            # Fallback for mhcgnomes < 3.18
-            gene_raw = str(gene or "").strip()
-            if any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_I_PATTERNS):
-                nc = "I"
-            elif any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_II_ALPHA_PATTERNS):
-                nc = "II"
-                chain = "alpha"
-            elif any(gene_raw.startswith(p) or gene_raw == p for p in GENE_CLASS_II_BETA_PATTERNS):
-                nc = "II"
-                chain = "beta"
 
     if gene_token in {"B2M", "BETA-2-MICROGLOBULIN"}:
         chain_token = str(chain or "").strip().lower()

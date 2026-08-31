@@ -102,7 +102,7 @@ CLASS_II_BETA_FRAGMENT_MAX_LEN = 120
 MAX_PLAUSIBLE_SP = 50
 PRIMARY_PARSE_CANDIDATE_KEEP = 2
 
-NON_GROOVE_GENES = frozenset({"MICA", "MICB", "MIC1", "MIC2", "HFE", "B2M", "MR1"})
+NON_GROOVE_GENES = frozenset({"MICA", "MICB", "MIC1", "MIC2", "HFE", "B2M", "MR1", "H60A", "H60B", "H60C"})
 NON_CLASSICAL_CLASS_I_GENE_PATTERNS = (
     "MHC1L",
     "MHC1S",
@@ -170,6 +170,8 @@ NON_MHC_GENE_NAMES = frozenset(
         "Arhgap45",
         "Ciita",
         "CIITA",
+        "C2ta",
+        "C*2ta",
     }
 )
 

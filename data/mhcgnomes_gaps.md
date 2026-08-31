@@ -1,5 +1,10 @@
 # mhcgnomes Gene Resolution Gaps
 
+> Historical snapshot (mhcgnomes 3.31 and earlier). The standard gene/species
+> pairs in the current corpus parse at 100% with mhcgnomes 3.41.0. See
+> `mhcgnomes_benchmark.csv`; current prefix policy is documented in
+> `species_prefix_audit_20260831.md`.
+
 Generated from 2403 GT + 2155 control sequences. These gene names appear with
 gold-standard class/chain annotations but `mhcgnomes.infer_mhc_class()` returns empty.
 

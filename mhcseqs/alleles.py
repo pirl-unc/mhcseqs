@@ -12,7 +12,12 @@ import importlib
 import re
 from typing import Any, Optional
 
-from .species import normalize_mhc_species
+from .species import (
+    extract_latin_binomial,
+    find_mhc_prefix_aliases,
+    full_species_name_alias,
+    normalize_mhc_species,
+)
 
 # ---------------------------------------------------------------------------
 # MHC class normalization
@@ -88,15 +93,90 @@ def _coerce_allele_name(allele: Optional[str]) -> str:
         token = "H2-" + token[3:]
         upper = token.upper()
     _HLA_SHORT_GENES = {"A", "B", "C", "E", "F", "G"}
-    short_match = re.match(r"^(?:HLA-)?([A-Z]+)(\d)$", upper)
+    short_match = re.match(r"^(?:HLA-)?([A-Z]+)(\d+)$", upper)
     if short_match:
-        gene, field = short_match.groups()
+        gene, digits = short_match.groups()
         if gene in _HLA_SHORT_GENES:
-            return f"HLA-{gene}*0{field}"
+            allele_digits = digits.zfill(2) if len(digits) == 1 else digits
+            return f"HLA-{gene}*{allele_digits}"
     return token
 
 
-def parse_allele_name(allele: Optional[str], *, species: Optional[str] = None) -> Optional[Any]:
+def _molecule_result_types(mhcgnomes: Any) -> tuple[type, ...]:
+    """Result types that denote an MHC molecule rather than a loose label."""
+    return tuple(
+        result_type for name in ("Allele", "Gene", "AlleleWithoutGene", "Pair") if isinstance((result_type := getattr(mhcgnomes, name, None)), type)
+    )
+
+
+def _source_alias_candidates(
+    value: str,
+    *,
+    species: Optional[str],
+    mhcgnomes: Any,
+) -> tuple[list[str], bool]:
+    """Rewrite a source-attested prefix to an unambiguous full taxon name.
+
+    The boolean return value marks a genuinely ambiguous prefix. Such a name
+    must not be handed to mhcgnomes without species context because its global
+    alias table may otherwise choose one valid claimant silently.
+    """
+    _, body, entries = find_mhc_prefix_aliases(value, species=species)
+    if not body:
+        return [value], False
+
+    if species:
+        if not entries:
+            return [value], False
+        target = mhcgnomes.Species.get(species)
+        target_name = getattr(target, "name", None) or species
+        return [f"{full_species_name_alias(target_name)}-{body}"], False
+
+    # A formal genus/group system such as DLA or BoLA is intentionally an
+    # umbrella rather than an ambiguous species claim. Let mhcgnomes resolve
+    # those ontology-backed group aliases directly.
+    if any(entry.scope == "genus" and entry.status == "formal_system" for entry in entries):
+        return [value], False
+
+    binomials = {extract_latin_binomial(entry.species).casefold() for entry in entries}
+    if len(binomials) != 1:
+        return [], True
+
+    target = mhcgnomes.Species.get(entries[0].species)
+    if target is None:
+        return [value], False
+    return [f"{full_species_name_alias(target.name)}-{body}"], False
+
+
+def _is_unattested_generated_prefix(candidate: str, parsed: Any) -> bool:
+    """Return whether an explicit short prefix is only mechanically derived."""
+    species = getattr(parsed, "species", None)
+    species_name = getattr(species, "name", None)
+    if not species_name or "-" not in candidate:
+        return False
+
+    prefix = candidate.split("-", 1)[0]
+    normalized_prefix = re.sub(r"[^A-Za-z0-9]+", "", prefix).casefold()
+    if normalized_prefix == full_species_name_alias(species_name).casefold():
+        return False
+
+    _, body, entries = find_mhc_prefix_aliases(candidate, species=species_name)
+    if body and entries:
+        return False
+
+    words = re.findall(r"[A-Za-z]+", extract_latin_binomial(species_name))
+    if len(words) < 2:
+        return False
+    generated = {(words[0][:width] + words[1][:width]).casefold() for width in (2, 4, 5)}
+    return normalized_prefix in generated
+
+
+def parse_allele_name(
+    allele: Optional[str],
+    *,
+    species: Optional[str] = None,
+    require_explicit_species: bool = False,
+) -> Optional[Any]:
     """Parse an allele string with mhcgnomes.
 
     Parameters
@@ -107,6 +187,9 @@ def parse_allele_name(allele: Optional[str], *, species: Optional[str] = None) -
         Latin binomial of the species (e.g. "Homo sapiens", "Crocodylus porosus").
         When provided, passed to mhcgnomes as the ``species`` parameter so the
         parser can validate and disambiguate the allele for that organism.
+    require_explicit_species : bool, optional
+        Reject names whose species was inferred or supplied only by a parser
+        default. This is useful for validating untrusted curation inputs.
     """
     if not allele:
         return None
@@ -116,23 +199,36 @@ def parse_allele_name(allele: Optional[str], *, species: Optional[str] = None) -
     if not raw:
         return None
 
-    # Build kwargs: use species= if mhcgnomes supports it, else default_species
-    import inspect
-
-    parse_params = inspect.signature(parse_fn).parameters
-    kwargs: dict = {}
+    kwargs: dict[str, Any] = {
+        "required_result_types": _molecule_result_types(mhcgnomes),
+        "raise_on_error": False,
+        "require_explicit_species": require_explicit_species,
+    }
     if species:
-        if "species" in parse_params:
-            kwargs["species"] = species
-        elif "default_species" in parse_params:
-            kwargs["default_species"] = species
+        kwargs["species"] = species
+    else:
+        # Do not let a generic or malformed token silently become human.
+        kwargs["default_species"] = None
 
     coerced = _coerce_allele_name(raw)
-    candidates = []
+    initial_candidates = []
     if coerced:
-        candidates.append(coerced)
-    if raw not in candidates:
-        candidates.append(raw)
+        initial_candidates.append(coerced)
+    if raw not in initial_candidates:
+        initial_candidates.append(raw)
+
+    candidates = []
+    for initial in initial_candidates:
+        source_candidates, ambiguous = _source_alias_candidates(
+            initial,
+            species=species,
+            mhcgnomes=mhcgnomes,
+        )
+        if ambiguous:
+            return None
+        for candidate in source_candidates:
+            if candidate not in candidates:
+                candidates.append(candidate)
 
     for candidate in candidates:
         try:
@@ -140,28 +236,28 @@ def parse_allele_name(allele: Optional[str], *, species: Optional[str] = None) -
         except Exception:
             parsed = None
         if parsed is not None:
+            if _is_unattested_generated_prefix(candidate, parsed):
+                continue
             return parsed
-
-    # Fallback: try without species constraint (for IMGT/IPD alleles
-    # that already embed the species prefix in the name)
-    if kwargs:
-        for candidate in candidates:
-            try:
-                parsed = parse_fn(candidate)
-            except Exception:
-                parsed = None
-            if parsed is not None:
-                return parsed
 
     return None
 
 
-def _canonicalize_parsed_allele(parsed: Any, allele_fields: int = 2) -> str:
-    target_fields = max(1, int(allele_fields))
-    restrict_fn = getattr(parsed, "restrict_allele_fields", None)
-    if callable(restrict_fn):
-        parsed = restrict_fn(target_fields)
+def _canonicalize_parsed_name(parsed: Any, allele_fields: Optional[int] = None) -> str:
+    if allele_fields is not None:
+        target_fields = max(1, int(allele_fields))
+        restrict_fn = getattr(parsed, "restrict_allele_fields", None)
+        if callable(restrict_fn):
+            parsed = restrict_fn(target_fields)
+
     to_string = getattr(parsed, "to_string", None)
+    species = getattr(parsed, "species", None)
+    species_name = getattr(species, "name", None)
+    species_alias = full_species_name_alias(species_name)
+    if callable(to_string) and species_alias:
+        body = str(to_string(include_species=False))
+        if body:
+            return f"{species_alias}-{body}"
     if callable(to_string):
         return str(to_string())
     return str(parsed)
@@ -171,15 +267,17 @@ def normalize_allele_name(name: str) -> str:
     """Normalize an allele name to canonical two-field protein resolution.
 
     Examples:
-        "HLA-A*02:01" -> "HLA-A*02:01"
-        "A*02:01" -> "HLA-A*02:01"
-        "A0201" -> "HLA-A*02:01"
-        "HLA-A*02:01:01:02L" -> "HLA-A*02:01L"
+        "HLA-A*02:01" -> "HomoSapiens-A*02:01"
+        "A0201" -> "HomoSapiens-A*02:01"
+        "HLA-A*02:01:01:02L" -> "HomoSapiens-A*02:01L"
+
+    Bare gene/allele forms such as ``A*02:01`` require species context and are
+    rejected here rather than silently defaulting to human.
     """
     parsed = parse_allele_name(name)
     if parsed is None:
         raise ValueError(f"mhcgnomes failed to parse allele: {name!r}")
-    return _canonicalize_parsed_allele(parsed, allele_fields=2)
+    return _canonicalize_parsed_name(parsed, allele_fields=2)
 
 
 def infer_gene(allele: str) -> str:
@@ -203,23 +301,23 @@ def infer_gene(allele: str) -> str:
     return token
 
 
-def infer_mhc_class(allele: Optional[str]) -> Optional[str]:
+def infer_mhc_class(allele: Optional[str], *, species: Optional[str] = None) -> Optional[str]:
     """Infer MHC class ("I" or "II") from allele name via mhcgnomes.
 
-    Uses ``parse_gene_class()`` first (lenient suffix-based classification
-    available in mhcgnomes >= 3.18), then falls back to full allele parsing.
+    Uses ``parse_gene_class()`` first (species-aware classification in
+    mhcgnomes >= 3.40), then falls back to full allele parsing.
     """
     if not allele:
         return None
-    # Try lenient gene-class inference first (mhcgnomes >= 3.18)
-    result = parse_gene_class(allele)
+    # Try species-aware gene-class inference first.
+    result = parse_gene_class(allele, species=species)
     if result is not None:
         cls = result.get("mhc_class")
         if cls in ("I", "II"):
             return cls
     # Fall back to full allele parsing
     try:
-        parsed = parse_allele_name(allele)
+        parsed = parse_allele_name(allele, species=species)
     except Exception:
         return None
     if parsed is None:
@@ -227,11 +325,11 @@ def infer_mhc_class(allele: Optional[str]) -> Optional[str]:
     return normalize_mhc_class(getattr(parsed, "mhc_class", None), default=None)
 
 
-def parse_gene_class(gene: Optional[str]) -> Optional[dict]:
-    """Classify a gene name by MHC class/chain using mhcgnomes (>= 3.18).
+def parse_gene_class(gene: Optional[str], *, species: Optional[str] = None) -> Optional[dict]:
+    """Classify a gene name by MHC class/chain using mhcgnomes (>= 3.40).
 
     Returns a dict with keys ``mhc_class``, ``chain``, ``non_mhc``,
-    or None if the function is not available (mhcgnomes < 3.18).
+    or None when the gene cannot be resolved safely.
 
     This is the lenient classification path that recognizes IPD-MHC
     suffixes like F10, BLB, Q9, E-S, DRA, DAB, etc. without requiring
@@ -244,7 +342,22 @@ def parse_gene_class(gene: Optional[str]) -> Optional[dict]:
         fn = getattr(mhcgnomes, "parse_gene_class", None)
         if fn is None:
             return None
-        result = fn(str(gene).strip())
+        kwargs = {"species": species} if species else {"default_species": None}
+        candidates, ambiguous = _source_alias_candidates(
+            str(gene).strip(),
+            species=species,
+            mhcgnomes=mhcgnomes,
+        )
+        if ambiguous:
+            return None
+        result = None
+        for candidate in candidates:
+            result = fn(candidate, raise_on_error=False, **kwargs)
+            if result is not None and not _is_unattested_generated_prefix(candidate, result):
+                break
+            result = None
+        if result is None:
+            return None
         # Result is a GeneClassInfo dataclass — extract fields
         mhc_class = str(getattr(result, "mhc_class", "") or "")
         chain_val = getattr(result, "chain", None)
@@ -263,28 +376,39 @@ def parse_gene_class(gene: Optional[str]) -> Optional[dict]:
             "mhc_class": mhc_class,
             "chain": str(chain_val) if chain_val else None,
             "non_mhc": bool(non_mhc),
+            "source": str(getattr(result, "source", "") or ""),
         }
     except Exception:
         pass
     return None
 
 
-def is_non_mhc_gene(gene: Optional[str]) -> bool:
+def is_non_mhc_gene(gene: Optional[str], *, species: Optional[str] = None) -> bool:
     """Check if a gene name is a known non-MHC gene in the MHC region.
 
     Returns True for genes like TAP1, TAP2, CIITA, HM13, PRR3 that
     appear in MHC-region datasets but don't encode groove proteins.
-    Uses mhcgnomes >= 3.18 when available, falls back to a local set.
+    Uses species-aware mhcgnomes 3.40 classification, with the local set only
+    for unscoped helper-gene labels that do not carry a species identity.
     """
     if not gene:
         return False
-    result = parse_gene_class(gene)
-    if result is not None:
-        return bool(result.get("non_mhc", False))
-    # Fallback for mhcgnomes < 3.18
+    # Local curation is an override, not merely a compatibility fallback.
+    # mhcgnomes 3.40 can otherwise split names such as Kdm5d and Daxx into
+    # syntactically valid mouse K/D alleles (tracked upstream in #133).
     from .domain_grammar import NON_MHC_GENE_NAMES
 
-    return gene.strip() in NON_MHC_GENE_NAMES or gene.strip().upper() in {g.upper() for g in NON_MHC_GENE_NAMES}
+    token = gene.strip()
+    candidates = {token}
+    if not token.startswith("~") and "-" in token:
+        candidates.add(token.split("-", 1)[1])
+    known_non_mhc = {g.upper() for g in NON_MHC_GENE_NAMES}
+    if any(candidate.upper() in known_non_mhc for candidate in candidates):
+        return True
+    result = parse_gene_class(gene, species=species)
+    if result is not None:
+        return bool(result.get("non_mhc", False))
+    return False
 
 
 def infer_species_identity(allele: Optional[str]) -> Optional[str]:

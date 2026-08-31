@@ -1,5 +1,10 @@
 # MHC Domain Parsing Status — 2026-03-27
 
+> Historical status snapshot. Its nomenclature-gap section predates
+> mhcgnomes 3.41.0 and the full-binomial migration; see
+> `species_prefix_audit_20260831.md` and `mhcgnomes_benchmark.csv` for current
+> results.
+
 ## Overall Numbers
 
 | Metric | Value |

@@ -32,16 +32,16 @@ def test_gene_from_protein_name_handles_class_ii_arm_tokens():
         "II",
         "alpha",
     )
-    assert gene == "Nana-DRA"
+    assert gene == "NajaNaja-DRA"
     assert status == "protein_name_token"
 
 
-def test_gene_from_protein_name_preserves_hla_parenthetical_names():
+def test_gene_from_protein_name_canonicalizes_hla_parenthetical_names():
     gene, status = _gene_from_protein_name(
         "HLA class II histocompatibility antigen, DR alpha chain (MHC class II antigen HLA-DRA)",
         "Homo sapiens",
         "II",
         "alpha",
     )
-    assert gene == "HLA-DRA"
+    assert gene == "HomoSapiens-DRA"
     assert status == "protein_name_parenthetical"

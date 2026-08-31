@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
 from .alleles import (
+    _canonicalize_parsed_name,
     allele_suffix_flags,
     infer_gene,
     infer_mhc_class,
@@ -32,7 +33,7 @@ from .domain_parsing import (
     is_class_ii_alpha_gene,
     refine_signal_peptide,
 )
-from .species import get_latin_name, normalize_mhc_species
+from .species import extract_latin_binomial, full_species_name_alias, get_latin_name, normalize_mhc_species
 
 # Minimum protein length to include (allows groove-bearing fragments)
 MIN_MHC_SEQUENCE_LEN = 70
@@ -206,7 +207,7 @@ def _resolve_header_allele(header: str):
             parsed = parse_allele_name(token)
             if parsed is None:
                 continue
-            normalized = parsed.to_string()
+            normalized = _canonicalize_parsed_name(parsed)
             gene = getattr(parsed.gene, "name", None) if getattr(parsed, "gene", None) else None
             species = getattr(parsed.species, "name", None) if getattr(parsed, "species", None) else None
             mhc_class = normalize_mhc_class(getattr(parsed, "mhc_class", None))
@@ -227,7 +228,7 @@ def _infer_species_prefix(allele: Optional[str]) -> str:
         parsed = None
     if parsed is not None:
         species = getattr(parsed, "species", None)
-        prefix = getattr(species, "mhc_prefix", None)
+        prefix = full_species_name_alias(getattr(species, "name", None))
         if prefix:
             return str(prefix)
     # Fallback: extract prefix before the dash
@@ -307,6 +308,7 @@ def _load_mouse_h2_references() -> List[dict]:
                 gene=gene,
                 allele=allele_name,
                 chain=chain,
+                species="Mus musculus",
                 features=features,
             )
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
@@ -620,7 +622,7 @@ def _load_diverse_mhc_references() -> List[dict]:
             # wrong or unknown — UniProt annotations frequently misclassify
             # RT1/H-2 class II genes (DOb, Ba, Eb, DQA, etc.) as class I.
             if gene:
-                pgc = parse_gene_class(gene)
+                pgc = parse_gene_class(gene, species=extract_latin_binomial(organism))
                 if pgc and pgc.get("mhc_class") in ("I", "II"):
                     mhc_class = pgc["mhc_class"]
                     if pgc.get("chain"):
@@ -734,6 +736,7 @@ def build_raw_index(
                 gene=gene or "",
                 allele=normalized,
                 chain=chain,
+                species=species_raw,
                 features=features,
             )
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
@@ -843,6 +846,7 @@ def _try_domain_parse(
     gene: str,
     allele: str,
     chain: str = "",
+    species: str = "",
     features: Optional[SequenceFeatures] = None,
 ) -> Optional[AlleleRecord]:
     try:
@@ -861,6 +865,7 @@ def _try_domain_parse(
                 chain=chain_hint,
                 allele=allele,
                 gene=gene,
+                species=species or None,
                 features=features,
             )
     except Exception:
@@ -977,6 +982,7 @@ def _try_assemble_overlap(
         gene=anchor.get("gene", ""),
         allele=group_key,
         chain=anchor.get("chain", ""),
+        species=anchor.get("species", ""),
     )
     if groove is None or not groove.ok:
         return None
@@ -992,6 +998,7 @@ def _groove_signature(row: dict) -> Optional[Tuple[str, str]]:
         gene=row.get("gene", ""),
         allele=row.get("allele_normalized", ""),
         chain=row.get("chain", ""),
+        species=row.get("species", ""),
     )
     if groove is None or not groove.ok:
         return None
@@ -1463,6 +1470,7 @@ def build_full_seqs(
                 gene=rep.get("gene", ""),
                 allele=rep.get("allele_normalized", ""),
                 chain=rep.get("chain", ""),
+                species=rep.get("species", ""),
             )
             stats["with_representative"] += 1
             stats[f"policy_{policy}"] += 1
@@ -1478,6 +1486,7 @@ def build_full_seqs(
                 gene=fallback.get("gene", ""),
                 allele=fallback.get("allele_normalized", ""),
                 chain=fallback.get("chain", ""),
+                species=fallback.get("species", ""),
             )
             if groove and groove.ok:
                 stats["with_representative"] += 1

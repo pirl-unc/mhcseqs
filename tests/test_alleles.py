@@ -4,8 +4,11 @@ from mhcseqs.alleles import (
     infer_gene,
     infer_mhc_class,
     infer_species,
+    is_non_mhc_gene,
     normalize_allele_name,
     normalize_mhc_class,
+    parse_allele_name,
+    parse_gene_class,
 )
 
 
@@ -63,13 +66,87 @@ def test_allele_suffix_flags_h2_haplotype_not_null():
 
 
 def test_normalize_allele_name_full():
-    assert normalize_allele_name("HLA-A*02:01") == "HLA-A*02:01"
+    assert normalize_allele_name("HLA-A*02:01") == "HomoSapiens-A*02:01"
 
 
 def test_normalize_allele_name_compact():
     result = normalize_allele_name("A0201")
-    assert "02" in result
-    assert "01" in result
+    assert result == "HomoSapiens-A*02:01"
+
+
+def test_bare_allele_does_not_silently_default_to_human():
+    assert parse_allele_name("A*02:01") is None
+
+
+def test_generated_short_alias_is_not_accepted_without_external_evidence():
+    assert parse_allele_name("CyanCaer-DAB1") is None
+    assert parse_gene_class("CyanCaer-DAB1") is None
+    assert normalize_allele_name("CyanistesCaeruleus-DAB1") == "CyanistesCaeruleus-DAB1"
+
+
+def test_source_attested_long_tail_prefix_normalizes_to_full_binomial():
+    parsed = parse_allele_name("Acsi-UA", species="Acipenser sinensis")
+    assert parsed.species.name == "Acipenser sinensis"
+    assert parsed.gene.name == "UA"
+
+
+def test_source_attested_concatenated_prefix_is_supported():
+    parsed = parse_allele_name("XimuDXB", species="Xiphophorus multilineatus")
+    assert parsed.species.name == "Xiphophorus multilineatus"
+    assert parsed.gene.name == "DXB"
+
+
+def test_historical_nomenclature_prefixes_are_supported():
+    assert parse_allele_name("HL-A-A*02:01").species.name == "Homo sapiens"
+    assert parse_allele_name("H-2-Kb").species.name == "Mus musculus"
+    assert parse_allele_name("RhLA-A1*001:01").species.name == "Macaca mulatta"
+    assert parse_allele_name("GPLA-DRA").species.name == "Cavia porcellus"
+    assert parse_allele_name("XL-A-DAB").species.name == "Xenopus laevis"
+    assert parse_allele_name("B-BF2", species="Gallus gallus").species.name == "Gallus gallus"
+
+
+def test_colliding_attested_prefix_requires_species_context():
+    assert parse_allele_name("Gogo-DAB") is None
+    parsed = parse_allele_name("Gogo-DAB", species="Gobio gobio")
+    assert parsed.species.name == "Gobio gobio"
+
+    assert parse_allele_name("RAJA-UA") is None
+    assert parse_allele_name("RAJA-UA", species="Rana japonica").species.name == "Rana japonica"
+
+
+def test_parse_allele_name_preserves_strict_species_constraint():
+    assert parse_allele_name("HLA-A*02:01", species="Bos taurus") is None
+    assert parse_allele_name("BoLA-DRB3*01:01", species="Homo sapiens") is None
+
+
+def test_parse_allele_name_rejects_non_molecule_results():
+    assert parse_allele_name("MHC class II") is None
+    assert parse_allele_name("HLA-DR15") is None
+    assert parse_allele_name("H2-b") is None
+
+
+def test_parse_allele_name_exposes_and_can_require_species_provenance():
+    explicit = parse_allele_name("Gaga-BLB2*02")
+    inferred = parse_allele_name("BLB2*02")
+    assert explicit.species_source == "explicit"
+    assert inferred.species_source == "inferred"
+    assert parse_allele_name("BLB2*02", require_explicit_species=True) is None
+
+
+def test_parse_gene_class_is_species_aware():
+    assert parse_gene_class("BLB") is None
+    result = parse_gene_class("BLB", species="Falco peregrinus")
+    assert result == {
+        "mhc_class": "II",
+        "chain": "beta",
+        "non_mhc": False,
+        "source": "heuristic_suffix",
+    }
+
+
+def test_local_non_mhc_names_override_allele_like_mhcgnomes_parse():
+    assert is_non_mhc_gene("Kdm5d", species="Mus musculus")
+    assert is_non_mhc_gene("Daxx", species="Mus musculus")
 
 
 def test_infer_gene_hla_a():
@@ -135,6 +212,7 @@ def test_coerce_allele_name_hla_short_forms():
     assert _coerce_allele_name("E1") == "HLA-E*01"
     assert _coerce_allele_name("G1") == "HLA-G*01"
     assert _coerce_allele_name("HLA-A2") == "HLA-A*02"
+    assert _coerce_allele_name("A0201") == "HLA-A*0201"
 
 
 def test_coerce_allele_name_rejects_non_hla():

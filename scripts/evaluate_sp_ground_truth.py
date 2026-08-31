@@ -435,6 +435,7 @@ def predict_sp_for_row(
                 mhc_class=mhc_class,
                 chain=chain or None,
                 gene=gene,
+                species=row.get("organism", ""),
                 features=features,
                 use_early_shortcuts=use_early_shortcuts,
             )

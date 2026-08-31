@@ -6,11 +6,12 @@ suitable for shipping with the mhcseqs package.
 
 Curation steps:
   1. Classify MHC class and chain from protein/gene names
-  2. Extract or construct a species prefix from the organism name
+  2. Construct a full-binomial species alias from the organism name
   3. Normalize gene names (split concatenated prefixes, fix bare genes)
-  4. Filter out entries where species, gene, or class can't be determined
-  5. Filter out genomic loci that aren't real MHC gene names
-  6. Apply minimum length threshold (default 80 aa)
+  4. Preserve source gene labels while canonicalizing output to that alias
+  5. Filter non-MHC-region genes and unresolved genomic loci
+  6. Filter entries where species, gene, or class can't be determined
+  7. Apply minimum length threshold (default 80 aa)
 
 Output: mhcseqs/diverse_mhc_sequences.csv (shipped with the package)
 
@@ -60,6 +61,7 @@ GENOMIC_LOCUS_RE = re.compile(
     r"[A-Z]+_G\d{5,}|"  # e.g., AMEX_G25088, HHUSO_G36862
     r"[A-Z]+_LOCUS\d+|"  # e.g., SPARVUS_LOCUS3216176
     r"BAC[-_]\d|"  # BAC clone names (not gene names)
+    r"ENS[A-Z0-9]*G\d+|"  # Ensembl stable gene identifiers
     r"FSCOSCO|KUDE01|IRJ41|NDU88|DR999|EPR50|PFLUV|"  # genome project IDs
     r"[A-Z0-9]{4,}_[A-Z]?\d{5,}|"  # generic genome scaffold loci
     r"[A-Z]{3,}_[A-Z0-9]{2,}\d{5,}"  # e.g., PODLI_1B036551
@@ -160,21 +162,16 @@ def _infer_class_ii_chain(gene_names: str, protein_name: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def derive_prefix(organism: str) -> str:
-    """Derive 4-letter MHC prefix from Latin name.
+def derive_species_alias(organism: str) -> str:
+    """Return the full scientific-name alias used for canonical output.
 
-    Convention: first 2 letters of genus + first 2 of species epithet.
-    E.g., Phasianus colchicus → Phco, Danio rerio → Dare.
-    Returns capitalized prefix or empty string.
+    Unlike the previous 2+2 helper, this preserves identity without inventing
+    a short code. Literature/database prefixes already present in source gene
+    strings are still retained by ``normalize_gene``.
     """
-    # Strip parenthetical common names
-    latin = organism.split("(")[0].strip()
-    parts = latin.split()
-    if len(parts) >= 2:
-        return (parts[0][:2] + parts[1][:2]).capitalize()
-    if len(parts) == 1:
-        return parts[0][:4].capitalize()
-    return ""
+    from mhcseqs.species import full_species_name_alias
+
+    return full_species_name_alias(organism)
 
 
 def derive_species_tag(organism: str) -> str:
@@ -190,6 +187,39 @@ def derive_species_tag(organism: str) -> str:
     if len(parts) == 1:
         return parts[0].capitalize()
     return ""
+
+
+def canonicalize_gene_species_alias(gene: str, organism: str) -> str:
+    """Render a curated gene with its full-binomial species alias.
+
+    Source-attested short prefixes remain available in ``raw_gene_label`` and
+    in ``~ortho`` metadata. They are not reused as canonical identities.
+    """
+    if not gene or gene.startswith("~") or gene == "B2M":
+        return gene
+
+    from mhcseqs.alleles import _canonicalize_parsed_name, parse_allele_name
+    from mhcseqs.species import extract_latin_binomial
+
+    species_alias = derive_species_alias(organism)
+    if not species_alias:
+        return gene
+
+    body = gene.split("-", 1)[1] if "-" in gene else gene
+    h60_match = re.fullmatch(r"H60\*?([abc])", body, re.IGNORECASE)
+    if h60_match:
+        return f"{species_alias}-H60{h60_match.group(1).lower()}"
+
+    latin = extract_latin_binomial(organism)
+    parsed = parse_allele_name(gene, species=latin)
+    if parsed is not None:
+        canonical = _canonicalize_parsed_name(parsed)
+        _, parsed_body = canonical.split("-", 1)
+        return f"{species_alias}-{parsed_body}"
+
+    if "-" in gene:
+        _, body = gene.split("-", 1)
+    return f"{species_alias}-{body}"
 
 
 # ---------------------------------------------------------------------------
@@ -217,11 +247,23 @@ def _is_opaque_numbering(tok: str, organism_prefix: str) -> bool:
     gene_part = tok.split("-", 1)[-1] if "-" in tok else tok
     gene_part = gene_part.split("_", 1)[-1] if "_" in gene_part else gene_part
     gp_upper = gene_part.upper()
-    prefix_upper = organism_prefix.upper()
-    if gp_upper.startswith(prefix_upper):
-        rest = gp_upper[len(prefix_upper) :]
-        if rest and rest.isdigit():
-            return True
+    prefixes = {organism_prefix}
+    try:
+        import mhcgnomes
+
+        species = mhcgnomes.Species.get(organism_prefix)
+        if species is not None:
+            prefixes.update(species.all_mhc_prefixes)
+            prefixes.add(species.mhc_prefix)
+    except (ImportError, AttributeError):
+        pass
+
+    for prefix in sorted(prefixes, key=len, reverse=True):
+        prefix_upper = prefix.upper()
+        if gp_upper.startswith(prefix_upper):
+            rest = gp_upper[len(prefix_upper) :]
+            if rest and rest.isdigit():
+                return True
     return False
 
 
@@ -267,7 +309,7 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
         if _is_opaque_numbering(tok, organism_prefix):
             continue
 
-        m = re.match(r"^([A-Za-z]{2,5})([-_])([A-Za-z].*)$", tok)
+        m = re.match(r"^([A-Za-z]{2,64})([-_])([A-Za-z].*)$", tok)
         if m:
             tok_prefix, _sep, gene_part = m.group(1), m.group(2), m.group(3)
             # Check if the gene part is opaque numbering
@@ -277,7 +319,7 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
             # re-prefix with the actual organism prefix.  Legitimate uses
             # (e.g. Gogo on Gobio gobio) pass through because capitalize()
             # matches the organism_prefix.
-            if tok_prefix.upper() in _TRANSFERRED_PREFIXES and organism_prefix and tok_prefix.capitalize() != organism_prefix:
+            if tok_prefix.upper() in _TRANSFERRED_PREFIXES and organism_prefix and tok_prefix.casefold() != organism_prefix.casefold():
                 return f"{organism_prefix}-{gene_part.upper()}", _is_canonical_gene(gene_part)
             canonical = _is_canonical_gene(gene_part)
             return f"{tok_prefix.capitalize()}-{gene_part.upper()}", canonical
@@ -301,13 +343,13 @@ def normalize_gene(gene_names: str, protein_name: str, organism_prefix: str) -> 
                     return f"{organism_prefix}-{gene_part.upper()}", True
                 return f"HLA-{gene_part.upper()}", True
 
-        # Concatenated prefix+gene: 4-letter prefix (matching organism) + gene
-        # E.g., XimuDAB → Ximu-DAB, MaeuDBB → Maeu-DBB, SahaI → Saha-I
-        if organism_prefix and len(tok_stripped) > 4:
-            candidate_prefix = tok_stripped[:4].capitalize()
-            if candidate_prefix == organism_prefix and tok_stripped[4:5].isupper():
-                gene_part = tok_stripped[4:]
-                return f"{candidate_prefix}-{gene_part}", _is_canonical_gene(gene_part)
+        # Concatenated canonical alias + gene, such as
+        # XiphophorusMultilineatusDAB. Short literature prefixes are handled
+        # separately below and are never synthesized here.
+        if organism_prefix and tok_stripped.casefold().startswith(organism_prefix.casefold()):
+            gene_part = tok_stripped[len(organism_prefix) :]
+            if gene_part[:1].isupper():
+                return f"{organism_prefix}-{gene_part}", _is_canonical_gene(gene_part)
 
         # Literature prefix: 3-4 letter capitalized prefix + uppercase gene,
         # where prefix differs from organism (PochUA on Zhch → Poch-UA)
@@ -405,7 +447,7 @@ _ORTHOLOG_NOMENCLATURE = [
     # (gene regex, mhcgnomes source prefix — must resolve via Species.get())
     (re.compile(r"(^|-)H2[-.]", re.IGNORECASE), "H2"),
     (re.compile(r"(^|-)H-2", re.IGNORECASE), "H2"),
-    (re.compile(r"(^|-)RT1[-.]", re.IGNORECASE), "Rano"),
+    (re.compile(r"(^|-)RT1[-.]", re.IGNORECASE), "RT1"),
 ]
 
 
@@ -484,6 +526,17 @@ def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
         return None, stats
     mhc_class, chain = cls
 
+    # Reject curated MHC-region contaminants before allele-like token splitting
+    # can turn Kdm5d/Daxx into plausible mouse K/D alleles.
+    from mhcseqs.alleles import is_non_mhc_gene
+    from mhcseqs.species import extract_latin_binomial
+
+    latin = extract_latin_binomial(organism)
+    source_gene_tokens = gene_names.replace(";", " ").split()
+    if any(is_non_mhc_gene(token, species=latin) for token in source_gene_tokens):
+        stats["non_mhc_gene"] += 1
+        return None, stats
+
     combined = f"{protein_name} {gene_names}"
     has_i = CLASS_I_PATTERN.search(combined)
     has_ii = CLASS_II_ALPHA_PATTERN.search(combined) or CLASS_II_BETA_PATTERN.search(combined)
@@ -491,7 +544,7 @@ def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
         stats["ambiguous_class"] += 1
         return None, stats
 
-    prefix = derive_prefix(organism)
+    prefix = derive_species_alias(organism)
     if not prefix:
         stats["no_prefix"] += 1
         return None, stats
@@ -541,6 +594,8 @@ def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
             ref_id = gene.split("-", 1)[1] if "-" in gene else gene
             accession = row.get("uniprot_accession", "")
             gene = f"~ref:{species_tag}|{accession}:{ref_id}"
+
+        gene = canonicalize_gene_species_alias(gene, organism)
 
         stats["kept"] += 1
 
@@ -628,6 +683,7 @@ def main():
         "uniprot_accession",
         "gene",
         "gene_status",
+        "raw_gene_label",
         "organism",
         "organism_id",
         "length",
@@ -639,7 +695,7 @@ def main():
     ]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with open(args.output, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+        w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore", lineterminator="\n")
         w.writeheader()
         w.writerows(kept)
 
