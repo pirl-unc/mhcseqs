@@ -297,7 +297,7 @@ Monodelphis domestica,MODO,exact,external_database,https://rest.uniprot.org/unip
 Monodon monoceros,Momo,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=40151; designation=Momo(Momo)
 Monopterus albus,Moal,exact,external_database,https://rest.uniprot.org/uniprotkb/V9PDN1;https://rest.uniprot.org/uniprotkb/V9PDN4;https://rest.uniprot.org/uniprotkb/V9PDN8,attested in the retained source label for V9PDN1;V9PDN4;V9PDN8
 Motacilla alba,Moal,exact,external_database,https://rest.uniprot.org/uniprotkb/E2E2T7;https://rest.uniprot.org/uniprotkb/E2E2T8;https://rest.uniprot.org/uniprotkb/E2E2U0,attested in the retained source label for E2E2T7;E2E2T8;E2E2U0
-Mus musculus,H2,exact,formal_system,https://www.informatics.jax.org/downloads/datasets/misc/H2Haplotypes/H2_haplotypes.html,attested in the retained source label for 
+Mus musculus,H2,exact,formal_system,https://www.informatics.jax.org/downloads/datasets/misc/H2Haplotypes/H2_haplotypes.html,source established by the cited registry or literature
 Mus musculus,H-2,exact,literature_historical,https://pubmed.ncbi.nlm.nih.gov/2329006/,
 Myotis vivesi,Myvi,exact,external_database,https://rest.uniprot.org/uniprotkb/D6QSQ7;https://rest.uniprot.org/uniprotkb/D6QSQ8,attested in the retained source label for D6QSQ7;D6QSQ8
 Nanorana parkeri,Napa,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A172LRJ1;https://rest.uniprot.org/uniprotkb/A0A172LRJ2;https://rest.uniprot.org/uniprotkb/A0A172LRJ3,attested in the retained source label for A0A172LRJ1;A0A172LRJ2;A0A172LRJ3
@@ -328,7 +328,7 @@ Ornithorhynchus anatinus,Oran,exact,external_database,https://rest.uniprot.org/u
 Oryctolagus,RLA,genus,formal_system,https://pubmed.ncbi.nlm.nih.gov/32522857/,
 Oryctolagus,RbH-1,genus,literature_historical,https://openalex.org/W2093336722,
 Oryctolagus,RL-A,genus,literature_historical,https://openalex.org/W2093336722,
-Oryctolagus cuniculus,RLA,exact,formal_system,https://pubmed.ncbi.nlm.nih.gov/32522857/,attested in the retained source label for 
+Oryctolagus cuniculus,RLA,exact,formal_system,https://pubmed.ncbi.nlm.nih.gov/32522857/,source established by the cited registry or literature
 Oryzias dancena,Orda,exact,external_database,https://rest.uniprot.org/uniprotkb/C0JW30;https://rest.uniprot.org/uniprotkb/C0JW31;https://rest.uniprot.org/uniprotkb/C0JW44,attested in the retained source label for C0JW30;C0JW31;C0JW44
 Oryzias latipes,Orla,exact,external_database,https://rest.uniprot.org/uniprotkb/F5HRI2;https://rest.uniprot.org/uniprotkb/H2LR16;https://rest.uniprot.org/uniprotkb/D5MPV6,attested in the retained source label for F5HRI2;H2LR16;D5MPV6
 Oryzias luzonensis,Orlu,exact,external_database,https://rest.uniprot.org/uniprotkb/C0JW58;https://rest.uniprot.org/uniprotkb/C0JW59;https://rest.uniprot.org/uniprotkb/C0JW60,attested in the retained source label for C0JW58;C0JW59;C0JW60
@@ -378,7 +378,7 @@ Rana ornativentris,RAJA,exact,external_database,https://rest.uniprot.org/uniprot
 Rana tagoi,RAJA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1S5RAW9;https://rest.uniprot.org/uniprotkb/A0A1S5RAX4;https://rest.uniprot.org/uniprotkb/A0A1S5RAX5,attested in the retained source label for A0A1S5RAW9;A0A1S5RAX4;A0A1S5RAX5
 Rattus,RT1,genus,formal_system,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,
 Rattus norvegicus,Rano,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Murids; taxon=10116; designation=Rano
-Rattus norvegicus,RT1,exact,formal_system,https://www.ebi.ac.uk/ipd/mhc/,attested in the retained source label for 
+Rattus norvegicus,RT1,exact,formal_system,https://www.ebi.ac.uk/ipd/mhc/,source established by the cited registry or literature
 Rattus norvegicus,Ag-B,exact,literature_historical,https://doi.org/10.1016/S0026-0495(83)80010-9,
 Rattus norvegicus,AgB,exact,literature_historical,https://doi.org/10.1016/S0026-0495(83)80010-9,
 Rattus norvegicus,H-1,exact,literature_historical,https://doi.org/10.1016/S0026-0495(83)80010-9,

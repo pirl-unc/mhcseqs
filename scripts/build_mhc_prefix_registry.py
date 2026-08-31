@@ -166,6 +166,10 @@ def load_legacy_source_aliases(audit_path: Path) -> list[dict[str, str]]:
             if prefix in GENERIC_SOURCE_LABELS:
                 continue
             status = "external_database" if audit_row["status"] == "external_uniprot_label" else "formal_system"
+            accessions = audit_row["example_accessions"]
+            notes = (
+                "attested in the retained source label for " + accessions if accessions else "source established by the cited registry or literature"
+            )
             result.append(
                 _row(
                     audit_row["species"],
@@ -173,7 +177,7 @@ def load_legacy_source_aliases(audit_path: Path) -> list[dict[str, str]]:
                     "exact",
                     status,
                     audit_row["evidence"],
-                    "attested in the retained source label for " + audit_row["example_accessions"],
+                    notes,
                 )
             )
     return result

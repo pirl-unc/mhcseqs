@@ -44,7 +44,7 @@ The packaged [`mhc_prefix_aliases.csv`](../mhcseqs/mhc_prefix_aliases.csv)
 extends the corpus audit with the current IPD-MHC register and historical
 nomenclature papers. It contains 460 source-attested `(taxon, prefix)` rows:
 
-| Evidence class | Aliases | Source | 
+| Evidence class | Aliases | Source |
 |---|---:|---|
 | `ipd_current` | 137 | All designation tokens for the 125 organisms in the IPD-MHC taxonomy register. |
 | `formal_system` | 14 | HLA, H2, RT1, BoLA, SLA, ELA, OLA, CLA, DLA, FLA, RLA, Gaga, Sasa, and Dare. |
