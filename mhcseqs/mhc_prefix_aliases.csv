@@ -1,0 +1,461 @@
+species,prefix,scope,status,evidence,notes
+Abramis brama,Abbr,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A8E5GK18;https://rest.uniprot.org/uniprotkb/A0A8E5GK38;https://rest.uniprot.org/uniprotkb/A0A8E5GK40,attested in the retained source label for A0A8E5GK18;A0A8E5GK38;A0A8E5GK40
+Abramis brama,Arbr,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A8E5GKZ6,attested in the retained source label for A0A8E5GKZ6
+Acipenser dabryanus,Acda,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A5J6DDJ2;https://rest.uniprot.org/uniprotkb/A0A5J6DDJ4;https://rest.uniprot.org/uniprotkb/A0A5J6DDK3,attested in the retained source label for A0A5J6DDJ2;A0A5J6DDJ4;A0A5J6DDK3
+Acipenser sinensis,Acsi,exact,external_database,https://rest.uniprot.org/uniprotkb/E0X5M3;https://rest.uniprot.org/uniprotkb/E0X5M4;https://rest.uniprot.org/uniprotkb/E0X5M5,attested in the retained source label for E0X5M3;E0X5M4;E0X5M5
+Acrocephalus arundinaceus,Acar,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2N005;https://rest.uniprot.org/uniprotkb/A0A0S2N008;https://rest.uniprot.org/uniprotkb/A0A0S2N010,attested in the retained source label for A0A0S2N005;A0A0S2N008;A0A0S2N010
+Acrocephalus arundinaceus,Acaru,exact,external_database,https://rest.uniprot.org/uniprotkb/Q7YP77;https://rest.uniprot.org/uniprotkb/Q7YP78,attested in the retained source label for Q7YP77;Q7YP78
+Acrocephalus schoenobaenus,Acsc,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0K0PE26;https://rest.uniprot.org/uniprotkb/A0A0K0PET5;https://rest.uniprot.org/uniprotkb/A0A0K0PF00,attested in the retained source label for A0A0K0PE26;A0A0K0PET5;A0A0K0PF00
+Acrocephalus scirpaceus,Acsci,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MYP1;https://rest.uniprot.org/uniprotkb/A0A0S2MYP9;https://rest.uniprot.org/uniprotkb/A0A0S2MYQ1,attested in the retained source label for A0A0S2MYP1;A0A0S2MYP9;A0A0S2MYQ1
+Aegolius funereus,Aefu,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8W4;https://rest.uniprot.org/uniprotkb/B3F8W5,attested in the retained source label for B3F8W4;B3F8W5
+Aegypius monachus,Aemo,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDM7,attested in the retained source label for A9LDM7
+Agalychnis callidryas,Agca,exact,external_database,https://rest.uniprot.org/uniprotkb/I6PNB5;https://rest.uniprot.org/uniprotkb/I6PNB7;https://rest.uniprot.org/uniprotkb/I6PNB9,attested in the retained source label for I6PNB5;I6PNB7;I6PNB9
+Agelaius phoeniceus,Agph,exact,external_database,https://rest.uniprot.org/uniprotkb/O46804;https://rest.uniprot.org/uniprotkb/O46805;https://rest.uniprot.org/uniprotkb/O46806,attested in the retained source label for O46804;O46805;O46806
+Alauda razae,Alra,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6M6C8U2;https://rest.uniprot.org/uniprotkb/A0A6M6C8W6;https://rest.uniprot.org/uniprotkb/A0A6M6CA79,attested in the retained source label for A0A6M6C8U2;A0A6M6C8W6;A0A6M6CA79
+Alouatta pigra,Alpi,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=182253; designation=Alpi
+Amblyrhynchus cristatus,Amcr,exact,external_database,https://rest.uniprot.org/uniprotkb/B3UZY4;https://rest.uniprot.org/uniprotkb/B3UZY5;https://rest.uniprot.org/uniprotkb/B3UZY6,attested in the retained source label for B3UZY4;B3UZY5;B3UZY6
+Ambystoma mexicanum,Amme,exact,external_database,https://rest.uniprot.org/uniprotkb/Q9GIJ2;https://rest.uniprot.org/uniprotkb/Q9GIP7;https://rest.uniprot.org/uniprotkb/Q9GIP8,attested in the retained source label for Q9GIJ2;Q9GIP7;Q9GIP8
+Ambystoma mexicanum,Anme,exact,external_database,https://rest.uniprot.org/uniprotkb/A5JVU8;https://rest.uniprot.org/uniprotkb/A5JVU9;https://rest.uniprot.org/uniprotkb/A5JVV0,attested in the retained source label for A5JVU8;A5JVU9;A5JVV0
+Ambystoma tigrinum,Amti,exact,external_database,https://rest.uniprot.org/uniprotkb/Q0ZUB9;https://rest.uniprot.org/uniprotkb/Q0ZUC0;https://rest.uniprot.org/uniprotkb/Q0ZUC1,attested in the retained source label for Q0ZUB9;Q0ZUC0;Q0ZUC1
+Amphilophus citrinellus,Amci,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1S6K7L2;https://rest.uniprot.org/uniprotkb/A0A1S6K7L3;https://rest.uniprot.org/uniprotkb/A0A1S6K7L4,attested in the retained source label for A0A1S6K7L2;A0A1S6K7L3;A0A1S6K7L4
+Anarhynchus nivosus,Chni,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A7M3UR59;https://rest.uniprot.org/uniprotkb/A0A7M3UR60;https://rest.uniprot.org/uniprotkb/A0A7M3UR61,attested in the retained source label for A0A7M3UR59;A0A7M3UR60;A0A7M3UR61
+Anas platyrhynchos,Anpl,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1L5SLP1;https://rest.uniprot.org/uniprotkb/A0A1L5SLP6;https://rest.uniprot.org/uniprotkb/A0A1L5SLQ3,attested in the retained source label for A0A1L5SLP1;A0A1L5SLP6;A0A1L5SLQ3
+Andrias davidianus,Anda,exact,external_database,https://rest.uniprot.org/uniprotkb/U5QAM4;https://rest.uniprot.org/uniprotkb/U5QAM9;https://rest.uniprot.org/uniprotkb/U5QAN4,attested in the retained source label for U5QAM4;U5QAM9;U5QAN4
+Anser indicus,Anin,exact,external_database,https://rest.uniprot.org/uniprotkb/E8Z790;https://rest.uniprot.org/uniprotkb/E8Z791;https://rest.uniprot.org/uniprotkb/E8Z792,attested in the retained source label for E8Z790;E8Z791;E8Z792
+Anthropoides paradiseus,Grpa,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0P0UVN5;https://rest.uniprot.org/uniprotkb/A0A0P0UW04;https://rest.uniprot.org/uniprotkb/A0A0P0UW15,attested in the retained source label for A0A0P0UVN5;A0A0P0UW04;A0A0P0UW15
+Anthropoides virgo,Grvir,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0N7KC06;https://rest.uniprot.org/uniprotkb/A0A0P0UVM3;https://rest.uniprot.org/uniprotkb/A0A0P0UW05,attested in the retained source label for A0A0N7KC06;A0A0P0UVM3;A0A0P0UW05
+Antigone antigone,Gran,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0P0UVP7;https://rest.uniprot.org/uniprotkb/A0A0P0UVU8;https://rest.uniprot.org/uniprotkb/A0A0P0UW01,attested in the retained source label for A0A0P0UVP7;A0A0P0UVU8;A0A0P0UW01
+Antigone canadensis,Grcan,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0P0UW56;https://rest.uniprot.org/uniprotkb/A0A0P0UW58;https://rest.uniprot.org/uniprotkb/A0A0P0UW75,attested in the retained source label for A0A0P0UW56;A0A0P0UW58;A0A0P0UW75
+Antigone vipio,Grvip,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0N7KC05;https://rest.uniprot.org/uniprotkb/A0A0P0UVX8;https://rest.uniprot.org/uniprotkb/A0A0P0UVX9,attested in the retained source label for A0A0N7KC05;A0A0P0UVX8;A0A0P0UVX9
+Aotus azarai,Aoaz,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=30591; designation=Aoaz
+Aotus lemurinus,Aole,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=43147; designation=Aole(Aole)
+Aotus nancymaae,Aona,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=37293; designation=Aona
+Aotus nigriceps,Aoni,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=57175; designation=Aoni
+Aotus trivirgatus,Aotr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9505; designation=Aotr
+Aotus trivirgatus,OmLA,exact,literature_historical,https://www.eva.mpg.de/documents/Springer/Groot_Nomenclature_Immunogenetics_2020_3174021.pdf,
+Aotus vociferans,Aovo,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=57176; designation=Aovo
+Apteryx owenii,Apow,exact,external_database,https://rest.uniprot.org/uniprotkb/E9NHE9;https://rest.uniprot.org/uniprotkb/E9NHF0;https://rest.uniprot.org/uniprotkb/E9NHF1,attested in the retained source label for E9NHE9;E9NHF0;E9NHF1
+Aquarana catesbeiana,Lica,exact,external_database,https://rest.uniprot.org/uniprotkb/I6PNC5;https://rest.uniprot.org/uniprotkb/I6PNC6;https://rest.uniprot.org/uniprotkb/I6PRN0,attested in the retained source label for I6PNC5;I6PNC6;I6PRN0
+Aquila chrysaetos,Aqch,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDM8,attested in the retained source label for A9LDM8
+Archoplites interruptus,Arin,exact,external_database,https://rest.uniprot.org/uniprotkb/B5LT76;https://rest.uniprot.org/uniprotkb/B5LT77;https://rest.uniprot.org/uniprotkb/B5LT78,attested in the retained source label for B5LT76;B5LT77;B5LT78
+Ardea alba,Aral,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J696;https://rest.uniprot.org/uniprotkb/E2J697;https://rest.uniprot.org/uniprotkb/E2J6C0,attested in the retained source label for E2J696;E2J697;E2J6C0
+Ardea cinerea,Arci,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J690;https://rest.uniprot.org/uniprotkb/E2J691;https://rest.uniprot.org/uniprotkb/E2J692,attested in the retained source label for E2J690;E2J691;E2J692
+Ardeola bacchus,Arba,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J694;https://rest.uniprot.org/uniprotkb/E2J695;https://rest.uniprot.org/uniprotkb/E2J6B8,attested in the retained source label for E2J694;E2J695;E2J6B8
+Asio flammeus,Asfl,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8W2;https://rest.uniprot.org/uniprotkb/B3F8W3,attested in the retained source label for B3F8W2;B3F8W3
+Asio otus,Asot,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDQ6;https://rest.uniprot.org/uniprotkb/B3F8T6;https://rest.uniprot.org/uniprotkb/B3F8T7,attested in the retained source label for A9LDQ6;B3F8T6;B3F8T7
+Astur gentilis,Acge,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDM6,attested in the retained source label for A9LDM6
+Ateles belzebuth,Atbe,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9507; designation=Atbe
+Ateles fusciceps,Atfu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9508; designation=Atfu
+Athene noctua,Atno,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDQ7;https://rest.uniprot.org/uniprotkb/B3F8V9;https://rest.uniprot.org/uniprotkb/B3F8W0,attested in the retained source label for A9LDQ7;B3F8V9;B3F8W0
+Balaenoptera acutorostrata,Baac,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9767; designation=Baac(Baac)
+Balaenoptera edeni,Baed,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9769; designation=Baed(Baed)
+Balaenoptera musculus,Bamu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9771; designation=Bamu
+Balaenoptera musculus brevicauda,Bamu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=3108004; designation=Bamubr(Bamu)
+Balaenoptera musculus brevicauda,Bamubr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=3108004; designation=Bamubr(Bamu)
+Balaenoptera ricei,Bari,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=2746895; designation=Bari(Bari)
+Balearica pavonina,Bapa,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0P0UVQ5;https://rest.uniprot.org/uniprotkb/A0A0P0UVZ7;https://rest.uniprot.org/uniprotkb/A0A0P0UW34,attested in the retained source label for A0A0P0UVQ5;A0A0P0UVZ7;A0A0P0UW34
+Balearica regulorum,Bare,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0N7KC09;https://rest.uniprot.org/uniprotkb/A0A0P0UW21;https://rest.uniprot.org/uniprotkb/A0A0P0UW25,attested in the retained source label for A0A0N7KC09;A0A0P0UW21;A0A0P0UW25
+Bos,BoLA,genus,formal_system,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,
+Bos,BL-A,genus,literature_historical,https://pubmed.ncbi.nlm.nih.gov/2329006/,
+Bos frontalis,Bofr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Bovines; taxon=30520; designation=Bofr
+Bos grunniens,Bogr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Bovines; taxon=30521; designation=Bogr
+Bos sp.,BoLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Bovines; taxon=29061; designation=BoLA
+Brachyramphus marmoratus,Brma,exact,external_database,https://rest.uniprot.org/uniprotkb/N0A1U8;https://rest.uniprot.org/uniprotkb/N0A1V3;https://rest.uniprot.org/uniprotkb/N0A1V6,attested in the retained source label for N0A1U8;N0A1V3;N0A1V6
+Bubalus bubalis,Bubu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Bovines; taxon=89462; designation=Bubu
+Bubo africanus,Buaf,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8V6;https://rest.uniprot.org/uniprotkb/B3F8V7;https://rest.uniprot.org/uniprotkb/B3F8V8,attested in the retained source label for B3F8V6;B3F8V7;B3F8V8
+Bubo blakistoni,Bubl,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A223ZXQ0;https://rest.uniprot.org/uniprotkb/A0A224A979;https://rest.uniprot.org/uniprotkb/A0A224A9H9,attested in the retained source label for A0A223ZXQ0;A0A224A979;A0A224A9H9
+Bubo bubo,Bubbu,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDQ3,attested in the retained source label for A9LDQ3
+Bubo bubo,Bubu,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8U8;https://rest.uniprot.org/uniprotkb/B3F8U9;https://rest.uniprot.org/uniprotkb/B3F8V0,attested in the retained source label for B3F8U8;B3F8U9;B3F8V0
+Bubo scandiacus,Busc,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8U6;https://rest.uniprot.org/uniprotkb/B3F8U7,attested in the retained source label for B3F8U6;B3F8U7
+Bubulcus ibis,Buib,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J6A7;https://rest.uniprot.org/uniprotkb/E2J6A8;https://rest.uniprot.org/uniprotkb/E2J6C8,attested in the retained source label for E2J6A7;E2J6A8;E2J6C8
+Bucanetes githagineus,Bugi,exact,external_database,https://rest.uniprot.org/uniprotkb/E2E2S2,attested in the retained source label for E2E2S2
+Bugeranus carunculatus,Buca,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6B9UJ47;https://rest.uniprot.org/uniprotkb/A0A6B9UJ57;https://rest.uniprot.org/uniprotkb/A0A6B9UKZ2,attested in the retained source label for A0A6B9UJ47;A0A6B9UJ57;A0A6B9UKZ2
+Bugeranus carunculatus,Grcar,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0N7KC07;https://rest.uniprot.org/uniprotkb/A0A0P0UVQ3;https://rest.uniprot.org/uniprotkb/A0A0P0UVX6,attested in the retained source label for A0A0N7KC07;A0A0P0UVQ3;A0A0P0UVX6
+Buteo buteo,Buteo,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDM9,attested in the retained source label for A9LDM9
+Cachryx defensor,Ctde,exact,external_database,https://rest.uniprot.org/uniprotkb/B5LN06,attested in the retained source label for B5LN06
+Calidris canutus,Caca,exact,external_database,https://rest.uniprot.org/uniprotkb/L0H763;https://rest.uniprot.org/uniprotkb/L0H773;https://rest.uniprot.org/uniprotkb/L0H785,attested in the retained source label for L0H763;L0H773;L0H785
+Callicebus moloch,Camo,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9523; designation=Camo
+Callithrix jacchus,Caja,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9483; designation=Caja
+Callithrix jacchus,MaLA,exact,literature_historical,https://www.eva.mpg.de/documents/Springer/Groot_Nomenclature_Immunogenetics_2020_3174021.pdf,
+Callithrix pygmaea,Capy,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9493; designation=Capy
+Callithrix pygmaea,Cepy,exact,literature_historical,https://www.eva.mpg.de/documents/Springer/Groot_Nomenclature_Immunogenetics_2020_3174021.pdf,
+Canis,DLA,genus,formal_system,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,
+Canis,DL-A,genus,literature_historical,https://pubmed.ncbi.nlm.nih.gov/4939370/,
+Canis adustus,Caad,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=68723; designation=Caad(DLA)
+Canis adustus,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=68723; designation=Caad(DLA)
+Canis aureus,Caau,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=68724; designation=Caau(DLA)
+Canis aureus,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=68724; designation=Caau(DLA)
+Canis latrans,Cala,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=9614; designation=Cala(DLA)
+Canis latrans,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=9614; designation=Cala(DLA)
+Canis lupus,Calu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=9612; designation=Calu(DLA)
+Canis lupus,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=9612; designation=Calu(DLA)
+Canis lupus baileyi,Caba,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=143281; designation=Caba(DLA)
+Canis lupus baileyi,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=143281; designation=Caba(DLA)
+Canis mesomelas,Came,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=68725; designation=Came(DLA)
+Canis mesomelas,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=68725; designation=Came(DLA)
+Canis rufus,Caru,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=45781; designation=Caru(DLA)
+Canis rufus,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=45781; designation=Caru(DLA)
+Canis simensis,Casi,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=32534; designation=Casi(DLA)
+Canis simensis,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=32534; designation=Casi(DLA)
+Capra,CLA,genus,formal_system,https://pubmed.ncbi.nlm.nih.gov/8134633/,
+Capra hircus,Cahi,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Capra; taxon=9925; designation=Cahi
+Carassius gibelio,Cagi,exact,external_database,https://rest.uniprot.org/uniprotkb/X5J5T9;https://rest.uniprot.org/uniprotkb/X5J5U0;https://rest.uniprot.org/uniprotkb/X5J5U1,attested in the retained source label for X5J5T9;X5J5U0;X5J5U1
+Carassius langsdorfii,caau,exact,external_database,https://rest.uniprot.org/uniprotkb/F8WRI6;https://rest.uniprot.org/uniprotkb/F8WRI8,attested in the retained source label for F8WRI6;F8WRI8
+Carduelis carduelis,Caca,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A126AC28;https://rest.uniprot.org/uniprotkb/A0A384M0C9;https://rest.uniprot.org/uniprotkb/A0A384M0E6,attested in the retained source label for A0A126AC28;A0A384M0C9;A0A384M0E6
+Carollia perspicillata,Cape,exact,external_database,https://rest.uniprot.org/uniprotkb/H9U5N9;https://rest.uniprot.org/uniprotkb/H9U5P0;https://rest.uniprot.org/uniprotkb/H9U5P1,attested in the retained source label for H9U5N9;H9U5P0;H9U5P1
+Cavia porcellus,GPL-A,exact,literature_historical,https://pmc.ncbi.nlm.nih.gov/articles/PMC2190138/,
+Cavia porcellus,GPLA,exact,literature_historical,https://pmc.ncbi.nlm.nih.gov/articles/PMC2190138/,
+Cebus albifrons,Ceal,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9514; designation=Ceal
+Cebus apella,Ceap,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9515; designation=Ceap
+Cebus capucinus,Ceca,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9516; designation=Ceca
+Cebus imitator,Ceim,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=2715852; designation=Ceim
+Cebus kaapori,Ceka,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=37294; designation=Ceka
+Cebus olivaceus,Ceol,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=37295; designation=Ceol
+Cephalorhynchus hectori,Cehe,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=37035; designation=Cehe(Cehe)
+Cercocebus atys,Ceat,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9531; designation=Ceat
+Cercopithecus mitis,Cemi,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=36225; designation=Cemi
+Cercopithecus neglectus,Cene,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=36227; designation=Cene
+Chersophilus duponti,Chdu,exact,external_database,https://rest.uniprot.org/uniprotkb/E2E2S7,attested in the retained source label for E2E2S7
+Chiloscyllium plagiosum,Chpl,exact,external_database,https://rest.uniprot.org/uniprotkb/I6ZPI8;https://rest.uniprot.org/uniprotkb/I6ZPJ1;https://rest.uniprot.org/uniprotkb/I7A066,attested in the retained source label for I6ZPI8;I6ZPJ1;I7A066
+Chlorocebus aethiops,Chae,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9534; designation=Chae
+Chlorocebus pygerythrus,Chpy,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=60710; designation=Chpy
+Chlorocebus sabaeus,Chsa,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=60711; designation=Chsa
+Chondrostoma nasus,Chna,exact,external_database,https://rest.uniprot.org/uniprotkb/S6DEV0;https://rest.uniprot.org/uniprotkb/S6DEV7;https://rest.uniprot.org/uniprotkb/S6DEW1,attested in the retained source label for S6DEV0;S6DEV7;S6DEW1
+Chroicocephalus scopulinus,Lasc,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0M3KPA8;https://rest.uniprot.org/uniprotkb/A0A0M3KPC0;https://rest.uniprot.org/uniprotkb/E9KNA9,attested in the retained source label for A0A0M3KPA8;A0A0M3KPC0;E9KNA9
+Chrysolophus pictus,Chpi,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0U1ZBS1;https://rest.uniprot.org/uniprotkb/A0A0U1ZCR0;https://rest.uniprot.org/uniprotkb/A0A0U1ZCW0,attested in the retained source label for A0A0U1ZBS1;A0A0U1ZCR0;A0A0U1ZCW0
+Ciconia boyciana,Cibo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1L7N0D8;https://rest.uniprot.org/uniprotkb/A0A1L7N0D9;https://rest.uniprot.org/uniprotkb/A0A1L7N0E1,attested in the retained source label for A0A1L7N0D8;A0A1L7N0D9;A0A1L7N0E1
+Circaetus gallicus,Ciga,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN0,attested in the retained source label for A9LDN0
+Circus aeruginosus,Ciae,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN1,attested in the retained source label for A9LDN1
+Clarias batrachus,Clba,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A059PJ06;https://rest.uniprot.org/uniprotkb/A0A059PJ43;https://rest.uniprot.org/uniprotkb/A0A059PJ45,attested in the retained source label for A0A059PJ06;A0A059PJ43;A0A059PJ45
+Clarias gariepinus,Clga,exact,external_database,https://rest.uniprot.org/uniprotkb/C1IQ54;https://rest.uniprot.org/uniprotkb/C1IQ55;https://rest.uniprot.org/uniprotkb/C1IQ56,attested in the retained source label for C1IQ54;C1IQ55;C1IQ56
+Clarias magur,Cyca,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A8J4TGY8,attested in the retained source label for A0A8J4TGY8
+Clarias magur,Icpu,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A8J4TR97;https://rest.uniprot.org/uniprotkb/A0A8J4U181;https://rest.uniprot.org/uniprotkb/A0A8J4U9Q8,attested in the retained source label for A0A8J4TR97;A0A8J4U181;A0A8J4U9Q8
+Colobus guereza,Cogu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=33548; designation=Cogu
+Conolophus subcristatus,Cosu,exact,external_database,https://rest.uniprot.org/uniprotkb/B3UZY9;https://rest.uniprot.org/uniprotkb/B3UZZ0;https://rest.uniprot.org/uniprotkb/B3UZZ1,attested in the retained source label for B3UZY9;B3UZZ0;B3UZZ1
+Coregonus sp.,Cosp,exact,external_database,https://rest.uniprot.org/uniprotkb/G9F8I9;https://rest.uniprot.org/uniprotkb/G9F8J0;https://rest.uniprot.org/uniprotkb/G9F8J1,attested in the retained source label for G9F8I9;G9F8J0;G9F8J1
+Coronella austriaca,Coau,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A161HPN2;https://rest.uniprot.org/uniprotkb/A0A161HQF2;https://rest.uniprot.org/uniprotkb/A0A161HQG5,attested in the retained source label for A0A161HPN2;A0A161HQF2;A0A161HQG5
+Corvus corax,Coco,exact,external_database,https://rest.uniprot.org/uniprotkb/E2E2T0,attested in the retained source label for E2E2T0
+Coturnix japonica,Coja,exact,external_database,https://rest.uniprot.org/uniprotkb/Q76LI6;https://rest.uniprot.org/uniprotkb/Q76LI7;https://rest.uniprot.org/uniprotkb/Q76LJ0,attested in the retained source label for Q76LI6;Q76LI7;Q76LJ0
+Crocodylus acutus,Crac,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXW7;https://rest.uniprot.org/uniprotkb/V9HY01;https://rest.uniprot.org/uniprotkb/V9HY05,attested in the retained source label for V9HXW7;V9HY01;V9HY05
+Crocodylus intermedius,Crin,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXX9;https://rest.uniprot.org/uniprotkb/V9HY41;https://rest.uniprot.org/uniprotkb/V9HY44,attested in the retained source label for V9HXX9;V9HY41;V9HY44
+Crocodylus johnstoni,Crjo,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXW2;https://rest.uniprot.org/uniprotkb/V9HXZ3;https://rest.uniprot.org/uniprotkb/V9HXZ5,attested in the retained source label for V9HXW2;V9HXZ3;V9HXZ5
+Crocodylus mindorensis,Crmi,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXW3;https://rest.uniprot.org/uniprotkb/V9HXZ4;https://rest.uniprot.org/uniprotkb/V9HY00,attested in the retained source label for V9HXW3;V9HXZ4;V9HY00
+Crocodylus moreletii,Crmo,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXY4;https://rest.uniprot.org/uniprotkb/V9HXY5;https://rest.uniprot.org/uniprotkb/V9HY55,attested in the retained source label for V9HXY4;V9HXY5;V9HY55
+Crocodylus niloticus,Crni,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXW5;https://rest.uniprot.org/uniprotkb/V9HXW6;https://rest.uniprot.org/uniprotkb/V9HXZ8,attested in the retained source label for V9HXW5;V9HXW6;V9HXZ8
+Crocodylus palustris,Crpa,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HY09;https://rest.uniprot.org/uniprotkb/V9HY16;https://rest.uniprot.org/uniprotkb/V9HY97,attested in the retained source label for V9HY09;V9HY16;V9HY97
+Crocodylus porosus,Crpo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0A7TX23;https://rest.uniprot.org/uniprotkb/A0A0B4UEY0;https://rest.uniprot.org/uniprotkb/A0A0B4UFU8,attested in the retained source label for A0A0A7TX23;A0A0B4UEY0;A0A0B4UFU8
+Crocodylus rhombifer,Crrh,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXY0;https://rest.uniprot.org/uniprotkb/V9HY43;https://rest.uniprot.org/uniprotkb/V9HY47,attested in the retained source label for V9HXY0;V9HY43;V9HY47
+Crocodylus siamensis,Crsi,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXX0;https://rest.uniprot.org/uniprotkb/V9HY14;https://rest.uniprot.org/uniprotkb/V9HY22,attested in the retained source label for V9HXX0;V9HY14;V9HY22
+Ctenopharyngodon idella,Citd,exact,external_database,https://rest.uniprot.org/uniprotkb/B2X123;https://rest.uniprot.org/uniprotkb/B2X125,attested in the retained source label for B2X123;B2X125
+Ctenopharyngodon idella,Ctid,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6B9LQW5;https://rest.uniprot.org/uniprotkb/A0A6B9LQX2;https://rest.uniprot.org/uniprotkb/A0A6B9LR26,attested in the retained source label for A0A6B9LQW5;A0A6B9LQX2;A0A6B9LR26
+Ctenophorus decresii,Ctde,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A2P1A4H2;https://rest.uniprot.org/uniprotkb/A0A2P9JZP2;https://rest.uniprot.org/uniprotkb/A0A2P9JZP3,attested in the retained source label for A0A2P1A4H2;A0A2P9JZP2;A0A2P9JZP3
+Ctenosaura clarki,Ctcl,exact,external_database,https://rest.uniprot.org/uniprotkb/B5LN07,attested in the retained source label for B5LN07
+Cuon alpinus,Cual,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=68730; designation=Cual(DLA)
+Cuon alpinus,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=68730; designation=Cual(DLA)
+Cyanistes caeruleus,Cyca,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MZR1;https://rest.uniprot.org/uniprotkb/A0A0S2MZR8;https://rest.uniprot.org/uniprotkb/A0A0S2MZS2,attested in the retained source label for A0A0S2MZR1;A0A0S2MZR8;A0A0S2MZS2
+Cyanistes caeruleus,paca,exact,external_database,https://rest.uniprot.org/uniprotkb/Q2A642;https://rest.uniprot.org/uniprotkb/Q2A643;https://rest.uniprot.org/uniprotkb/Q2A644,attested in the retained source label for Q2A642;Q2A643;Q2A644
+Cyclura carinata,Cyca,exact,external_database,https://rest.uniprot.org/uniprotkb/B5LN10,attested in the retained source label for B5LN10
+Cyclura cornuta,Cyco,exact,external_database,https://rest.uniprot.org/uniprotkb/B5LN09,attested in the retained source label for B5LN09
+Cyclura rileyi,Cyri,exact,external_database,https://rest.uniprot.org/uniprotkb/B5LN08,attested in the retained source label for B5LN08
+Cynoglossus semilaevis,Cyse,exact,external_database,https://rest.uniprot.org/uniprotkb/D2CZH6;https://rest.uniprot.org/uniprotkb/F8QMU2;https://rest.uniprot.org/uniprotkb/G9BDC2,attested in the retained source label for D2CZH6;F8QMU2;G9BDC2
+Cyprinus carpio,CyCa,exact,external_database,https://rest.uniprot.org/uniprotkb/W5RSK9;https://rest.uniprot.org/uniprotkb/W5RSL1;https://rest.uniprot.org/uniprotkb/W5RSL2,attested in the retained source label for W5RSK9;W5RSL1;W5RSL2
+Danio rerio,Dare,exact,formal_system,https://pubmed.ncbi.nlm.nih.gov/18439319/,attested in the retained source label for A0AB13A9E5;A0AC58HZ21
+Danio rerio,Brre,exact,external_database,https://rest.uniprot.org/uniprotkb/Q31357,attested in the retained source label for Q31357
+Delphinapterus leucas,Dele,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9749; designation=Dele(Dele)
+Delphinus delphis,Dede,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9728; designation=Dede(Dede)
+Desmodus rotundus,Dero,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1I9VYB6;https://rest.uniprot.org/uniprotkb/A0A1I9VYB7;https://rest.uniprot.org/uniprotkb/A0A1I9VYB8,attested in the retained source label for A0A1I9VYB6;A0A1I9VYB7;A0A1I9VYB8
+Dicentrarchus labrax,Dila,exact,external_database,https://rest.uniprot.org/uniprotkb/G9BBT9;https://rest.uniprot.org/uniprotkb/G9BBU0;https://rest.uniprot.org/uniprotkb/G9BBU1,attested in the retained source label for G9BBT9;G9BBU0;G9BBU1
+Egernia stokesii,Egst,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0K0N3L9,attested in the retained source label for A0A0K0N3L9
+Egretta eulophotes,Egeu,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1W5S5Z2;https://rest.uniprot.org/uniprotkb/A0A1W5S975;https://rest.uniprot.org/uniprotkb/A0A059PXZ8,attested in the retained source label for A0A1W5S5Z2;A0A1W5S975;A0A059PXZ8
+Egretta eulophotes,Egue,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J6C6;https://rest.uniprot.org/uniprotkb/E2J6C7,attested in the retained source label for E2J6C6;E2J6C7
+Egretta garzetta,Egga,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J6A9;https://rest.uniprot.org/uniprotkb/E2J6B0;https://rest.uniprot.org/uniprotkb/E2J6D0,attested in the retained source label for E2J6A9;E2J6B0;E2J6D0
+Egretta sacra,Egsa,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J6B1;https://rest.uniprot.org/uniprotkb/E2J6B2;https://rest.uniprot.org/uniprotkb/E2J6D2,attested in the retained source label for E2J6B1;E2J6B2;E2J6D2
+Elanus caeruleus,Elca,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN2,attested in the retained source label for A9LDN2
+Emberiza cioides,Emci,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1D7YVK5;https://rest.uniprot.org/uniprotkb/A0A1D7YVL0;https://rest.uniprot.org/uniprotkb/A0A1D7YVL2,attested in the retained source label for A0A1D7YVK5;A0A1D7YVL0;A0A1D7YVL2
+Emberiza jankowskii,Emja,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1D7YVM6;https://rest.uniprot.org/uniprotkb/A0A1D7YVN6;https://rest.uniprot.org/uniprotkb/A0A1D7YVN7,attested in the retained source label for A0A1D7YVM6;A0A1D7YVN6;A0A1D7YVN7
+Epidalea calamita,Buca,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0D4D8C3,attested in the retained source label for A0A0D4D8C3
+Epinephelus akaara,Epak,exact,external_database,https://rest.uniprot.org/uniprotkb/B2CC08;https://rest.uniprot.org/uniprotkb/B2CC09;https://rest.uniprot.org/uniprotkb/B2CC10,attested in the retained source label for B2CC08;B2CC09;B2CC10
+Epinephelus coioides,Epco,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A193DVK8;https://rest.uniprot.org/uniprotkb/A0A193DVL4;https://rest.uniprot.org/uniprotkb/A0A193DVL5,attested in the retained source label for A0A193DVK8;A0A193DVL4;A0A193DVL5
+Equus,ELA,genus,formal_system,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,
+Equus caballus,Eqca,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Equids; taxon=9796; designation=Eqca
+Erithacus rubecula,Erru,exact,external_database,https://rest.uniprot.org/uniprotkb/E2E2T3,attested in the retained source label for E2E2T3
+Eschrichtius robustus,Esro,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9764; designation=Esro(Esro)
+Espadarana prosoblepon,Espr,exact,external_database,https://rest.uniprot.org/uniprotkb/I6PNC2;https://rest.uniprot.org/uniprotkb/I6PNC3;https://rest.uniprot.org/uniprotkb/I6PNC4,attested in the retained source label for I6PNC2;I6PNC3;I6PNC4
+Eubalaena australis,Euau,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=160595; designation=Euau(Euau)
+Eubalaena glacialis,Eugl,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=27606; designation=Eugl(Eugl)
+Eurillas virens,Anvi,exact,external_database,https://rest.uniprot.org/uniprotkb/Q30E80;https://rest.uniprot.org/uniprotkb/Q30E81;https://rest.uniprot.org/uniprotkb/Q30E82,attested in the retained source label for Q30E80;Q30E81;Q30E82
+Falco biarmicus,Fabi,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDR2,attested in the retained source label for A9LDR2
+Falco cherrug,Fach,exact,external_database,https://rest.uniprot.org/uniprotkb/I3ZR13,attested in the retained source label for I3ZR13
+Falco columbarius,Facol,exact,external_database,https://rest.uniprot.org/uniprotkb/I3ZR11,attested in the retained source label for I3ZR11
+Falco concolor,Facon,exact,external_database,https://rest.uniprot.org/uniprotkb/I3ZR08,attested in the retained source label for I3ZR08
+Falco eleonorae,Fael,exact,external_database,https://rest.uniprot.org/uniprotkb/I3ZR05;https://rest.uniprot.org/uniprotkb/I3ZR07,attested in the retained source label for I3ZR05;I3ZR07
+Falco fasciinucha,Fafa,exact,external_database,https://rest.uniprot.org/uniprotkb/I3ZR12,attested in the retained source label for I3ZR12
+Falco femoralis,Fafe,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDR1,attested in the retained source label for A9LDR1
+Falco naumanni,Fana,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDQ9,attested in the retained source label for A9LDQ9
+Falco peregrinus,Fape,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDQ8;https://rest.uniprot.org/uniprotkb/I3ZR06,attested in the retained source label for A9LDQ8;I3ZR06
+Falco rusticolus,Faru,exact,external_database,https://rest.uniprot.org/uniprotkb/I3ZR10,attested in the retained source label for I3ZR10
+Falco subbuteo,Fasu,exact,external_database,https://rest.uniprot.org/uniprotkb/I3ZR09,attested in the retained source label for I3ZR09
+Falco tinnunculus,Fati,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDR0,attested in the retained source label for A9LDR0
+Felis,FLA,genus,formal_system,https://pubmed.ncbi.nlm.nih.gov/2492667/,
+Fringilla coelebs,Frcoe,exact,external_database,https://www.ncbi.nlm.nih.gov/nuccore/DQ257477,GenBank/retired UniProt gene label for the published chaffinch MHC-I fragment
+Fulica atra,Fuat,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0N7KC10;https://rest.uniprot.org/uniprotkb/A0A0P0UWC6;https://rest.uniprot.org/uniprotkb/W8E2U4,attested in the retained source label for A0A0N7KC10;A0A0P0UWC6;W8E2U4
+Gadus morhua,gamr,exact,external_database,https://rest.uniprot.org/uniprotkb/O98272;https://rest.uniprot.org/uniprotkb/O98274;https://rest.uniprot.org/uniprotkb/O98203,attested in the retained source label for O98272;O98274;O98203
+Gallus gallus,Gaga,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Gallus; taxon=9031; designation=Gaga
+Gallus gallus,B,exact,literature_historical,https://pubmed.ncbi.nlm.nih.gov/6763913/,
+Gallus gallus,GSP,exact,external_database,https://rest.uniprot.org/uniprotkb/Q6I6J9;https://rest.uniprot.org/uniprotkb/Q6I6K0,attested in the retained source label for Q6I6J9;Q6I6K0
+Gasterosteus aculeatus,Gaac,exact,external_database,https://rest.uniprot.org/uniprotkb/A3FFX9;https://rest.uniprot.org/uniprotkb/A3FFY0;https://rest.uniprot.org/uniprotkb/Q27IB5,attested in the retained source label for A3FFX9;A3FFY0;Q27IB5
+Geothlypis trichas,Getr,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0D3RXH1;https://rest.uniprot.org/uniprotkb/A0A0D3RXH8;https://rest.uniprot.org/uniprotkb/A0A0D3RXI3,attested in the retained source label for A0A0D3RXH1;A0A0D3RXH8;A0A0D3RXI3
+Ginglymostoma cirratum,Gici,exact,external_database,https://rest.uniprot.org/uniprotkb/Q9MX69;https://rest.uniprot.org/uniprotkb/A0ABF7PPZ1;https://rest.uniprot.org/uniprotkb/Q9MX55,attested in the retained source label for Q9MX69;A0ABF7PPZ1;Q9MX55
+Glaucidium passerinum,Glpa,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8U4;https://rest.uniprot.org/uniprotkb/B3F8U5,attested in the retained source label for B3F8U4;B3F8U5
+Globicephala melas,Glme,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9731; designation=Glme(Glme)
+Gobio gobio,Gogo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0U3QRX5;https://rest.uniprot.org/uniprotkb/A0A0U3QRZ4;https://rest.uniprot.org/uniprotkb/A0A0U3YCM8,attested in the retained source label for A0A0U3QRX5;A0A0U3QRZ4;A0A0U3YCM8
+Gopherus polyphemus,Gopo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1W5T2J0;https://rest.uniprot.org/uniprotkb/A0A1W5T2K1,attested in the retained source label for A0A1W5T2J0;A0A1W5T2K1
+Gorilla beringei,Gobe,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=499232; designation=Gobe
+Gorilla gorilla,Gogo,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9593; designation=Gogo
+Gorilla gorilla,GoLA,exact,literature_historical,https://www.eva.mpg.de/documents/Springer/Groot_Nomenclature_Immunogenetics_2020_3174021.pdf,
+Gorsachius magnificus,Goma,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J698;https://rest.uniprot.org/uniprotkb/E2J699;https://rest.uniprot.org/uniprotkb/E2J6C2,attested in the retained source label for E2J698;E2J699;E2J6C2
+Grampus griseus,Grgr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=83653; designation=Grgr(Grgr)
+Grus grus,Grgr,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0N7KC08;https://rest.uniprot.org/uniprotkb/A0A0P0UVZ6;https://rest.uniprot.org/uniprotkb/A0A0P0UW00,attested in the retained source label for A0A0N7KC08;A0A0P0UVZ6;A0A0P0UW00
+Grus japonensis,Grja,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0P0UW77;https://rest.uniprot.org/uniprotkb/A0A0P0UW80;https://rest.uniprot.org/uniprotkb/A0A0P0UW96,attested in the retained source label for A0A0P0UW77;A0A0P0UW80;A0A0P0UW96
+Grus monacha,Grmo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0P0UVS1;https://rest.uniprot.org/uniprotkb/A0A0P0UVX3;https://rest.uniprot.org/uniprotkb/A0A0P0UWK5,attested in the retained source label for A0A0P0UVS1;A0A0P0UVX3;A0A0P0UWK5
+Grus nigricollis,Grni,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0P0UVP3;https://rest.uniprot.org/uniprotkb/A0A0P0UWI5,attested in the retained source label for A0A0P0UVP3;A0A0P0UWI5
+Gypaetus barbatus,Gypa,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN3,attested in the retained source label for A9LDN3
+Gyps africanus,Gyaf,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN9;https://rest.uniprot.org/uniprotkb/A9LDP0;https://rest.uniprot.org/uniprotkb/A9LDP1,attested in the retained source label for A9LDN9;A9LDP0;A9LDP1
+Gyps coprotheres,Gyco,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDP8;https://rest.uniprot.org/uniprotkb/A9LDP9;https://rest.uniprot.org/uniprotkb/A9LDQ0,attested in the retained source label for A9LDP8;A9LDP9;A9LDQ0
+Haliaeetus albicilla,Haal,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A3Q8TLJ6;https://rest.uniprot.org/uniprotkb/A0A3Q8TLJ9;https://rest.uniprot.org/uniprotkb/A0A3Q8TLK0,attested in the retained source label for A0A3Q8TLJ6;A0A3Q8TLJ9;A0A3Q8TLK0
+Halobaena caerulea,Haca,exact,external_database,https://rest.uniprot.org/uniprotkb/F6LIC3;https://rest.uniprot.org/uniprotkb/F6LIC4;https://rest.uniprot.org/uniprotkb/F6LIC5,attested in the retained source label for F6LIC3;F6LIC4;F6LIC5
+Harpyhaliaetus coronatus,Haco,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN4,attested in the retained source label for A9LDN4
+Hieraaetus pennatus,Hipe,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN5,attested in the retained source label for A9LDN5
+Hippocampus abdominalis,Hiab,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0A7TWB0;https://rest.uniprot.org/uniprotkb/A0A0A7TWB4;https://rest.uniprot.org/uniprotkb/A0A0A7TWB9,attested in the retained source label for A0A0A7TWB0;A0A0A7TWB4;A0A0A7TWB9
+Hippocampus erectus,Hier,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1B3IPW4;https://rest.uniprot.org/uniprotkb/A0A1B3IPW5;https://rest.uniprot.org/uniprotkb/A0A1B3IPX9,attested in the retained source label for A0A1B3IPW4;A0A1B3IPW5;A0A1B3IPX9
+Hippolais icterina,Hiic,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MYW4;https://rest.uniprot.org/uniprotkb/A0A0S2MYW9;https://rest.uniprot.org/uniprotkb/A0A0S2MYX0,attested in the retained source label for A0A0S2MYW4;A0A0S2MYW9;A0A0S2MYX0
+Homo sapiens,HLA,exact,formal_system,https://hla.alleles.org/genes/index.html,
+Homo sapiens,HL-A,exact,literature_historical,https://hla.alleles.org/pages/antigens/naming_hla_antigens/,
+Hybognathus amarus,Hyam,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1L2M116;https://rest.uniprot.org/uniprotkb/A0A1L2M126;https://rest.uniprot.org/uniprotkb/A0A1L2M128,attested in the retained source label for A0A1L2M116;A0A1L2M126;A0A1L2M128
+Hylobates lar,Hyla,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9580; designation=Hyla
+Hylobates moloch,Hymo,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=81572; designation=Hymo
+Hyperoodon ampullatus,Hyam,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=48744; designation=Hyam(Hyam)
+Hypophthalmichthys molitrix,Hymo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A193PJZ3;https://rest.uniprot.org/uniprotkb/A0A193PK48;https://rest.uniprot.org/uniprotkb/A0A193PKI0,attested in the retained source label for A0A193PJZ3;A0A193PK48;A0A193PKI0
+Ichthyosaura alpestris,Meal,exact,external_database,https://rest.uniprot.org/uniprotkb/B1PXH2;https://rest.uniprot.org/uniprotkb/B1PXH3;https://rest.uniprot.org/uniprotkb/B1PXH4,attested in the retained source label for B1PXH2;B1PXH3;B1PXH4
+Iconisemion striatum,ORLA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1A7XA08;https://rest.uniprot.org/uniprotkb/A0A1A7Z4E2,attested in the retained source label for A0A1A7XA08;A0A1A7Z4E2
+Ictalurus punctatus,Icpu,exact,external_database,https://rest.uniprot.org/uniprotkb/O62894;https://rest.uniprot.org/uniprotkb/O62895;https://rest.uniprot.org/uniprotkb/O62896,attested in the retained source label for O62894;O62895;O62896
+Iguana iguana,Igig,exact,external_database,https://rest.uniprot.org/uniprotkb/B3UZZ3;https://rest.uniprot.org/uniprotkb/B3UZZ4;https://rest.uniprot.org/uniprotkb/B3UZZ5,attested in the retained source label for B3UZZ3;B3UZZ4;B3UZZ5
+Inia geoffrensis,Inge,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9725; designation=Inge(Inge)
+Ixobrychus cinnamomeus,Ixci,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J649;https://rest.uniprot.org/uniprotkb/E2J650;https://rest.uniprot.org/uniprotkb/E2J651,attested in the retained source label for E2J649;E2J650;E2J651
+Ixobrychus flavicollis,Ixfl,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J6A0;https://rest.uniprot.org/uniprotkb/E2J6A1;https://rest.uniprot.org/uniprotkb/E2J6C4,attested in the retained source label for E2J6A0;E2J6A1;E2J6C4
+Kareius bicoloratus,Kabi,exact,external_database,https://rest.uniprot.org/uniprotkb/F8QMU6;https://rest.uniprot.org/uniprotkb/F8QMU7;https://rest.uniprot.org/uniprotkb/K9URZ0,attested in the retained source label for F8QMU6;F8QMU7;K9URZ0
+Kogia breviceps,Kobr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=27615; designation=Kobr(Kobr)
+Kogia sima,Kosi,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9752; designation=Kosi(Kosi)
+Labeobarbus intermedius,baic,exact,external_database,https://rest.uniprot.org/uniprotkb/Q5K4Z4;https://rest.uniprot.org/uniprotkb/Q70XU4;https://rest.uniprot.org/uniprotkb/Q70XU5,attested in the retained source label for Q5K4Z4;Q70XU4;Q70XU5
+Labeobarbus intermedius,Bain,exact,external_database,https://rest.uniprot.org/uniprotkb/Q9MXA4;https://rest.uniprot.org/uniprotkb/Q9MXA5;https://rest.uniprot.org/uniprotkb/Q9MXA6,attested in the retained source label for Q9MXA4;Q9MXA5;Q9MXA6
+Labeobarbus intermedius,batr,exact,external_database,https://rest.uniprot.org/uniprotkb/Q5K530,attested in the retained source label for Q5K530
+Labeobarbus intermedius,bats,exact,external_database,https://rest.uniprot.org/uniprotkb/Q5K529,attested in the retained source label for Q5K529
+Ladigesocypris ghigii,Lagh,exact,external_database,https://rest.uniprot.org/uniprotkb/E3U3B4;https://rest.uniprot.org/uniprotkb/E3U3B5;https://rest.uniprot.org/uniprotkb/E3U3B6,attested in the retained source label for E3U3B4;E3U3B5;E3U3B6
+Lagenorhynchus albirostris,Laal,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=27610; designation=Laal(Laal)
+Lagenorhynchus obscurus,Laob,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=27611; designation=Laob(Laob)
+Lagopus scotica,Lala,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A159AJS9;https://rest.uniprot.org/uniprotkb/A0A159AJU1;https://rest.uniprot.org/uniprotkb/A0A159AJU4,attested in the retained source label for A0A159AJS9;A0A159AJU1;A0A159AJU4
+Lanius collaris,Laco,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MZT4;https://rest.uniprot.org/uniprotkb/A0A0S2MZT5;https://rest.uniprot.org/uniprotkb/A0A0S2MZU6,attested in the retained source label for A0A0S2MZT4;A0A0S2MZT5;A0A0S2MZU6
+Lanius senator,Lase,exact,external_database,https://rest.uniprot.org/uniprotkb/E2E2T4;https://rest.uniprot.org/uniprotkb/E2E2T6,attested in the retained source label for E2E2T4;E2E2T6
+Larimichthys crocea,Pscr,exact,external_database,https://rest.uniprot.org/uniprotkb/B1NNU4;https://rest.uniprot.org/uniprotkb/B1NNU5;https://rest.uniprot.org/uniprotkb/B1NNU3,attested in the retained source label for B1NNU4;B1NNU5;B1NNU3
+Leiocassis longirostris,Lelo,exact,external_database,https://rest.uniprot.org/uniprotkb/D5FL40;https://rest.uniprot.org/uniprotkb/D5FL41;https://rest.uniprot.org/uniprotkb/D5FL42,attested in the retained source label for D5FL40;D5FL41;D5FL42
+Leontopithecus rosalia,Lero,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=30588; designation=Lero
+Leucogeranus leucogeranus,Grle,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0N7KC04;https://rest.uniprot.org/uniprotkb/A0A0P0UVM7;https://rest.uniprot.org/uniprotkb/A0A0P0UVV6,attested in the retained source label for A0A0N7KC04;A0A0P0UVM7;A0A0P0UVV6
+Limosa limosa,Lili,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1Y0JX04;https://rest.uniprot.org/uniprotkb/A0A1Y0JX07;https://rest.uniprot.org/uniprotkb/A0A1Y0JX16,attested in the retained source label for A0A1Y0JX04;A0A1Y0JX07;A0A1Y0JX16
+Lipotes vexillifer,Live,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=118797; designation=Live(Live)
+Lissotriton vulgaris,Limv,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6M9U035;https://rest.uniprot.org/uniprotkb/A0A6M9U050;https://rest.uniprot.org/uniprotkb/A0A6M9U060,attested in the retained source label for A0A6M9U035;A0A6M9U050;A0A6M9U060
+Lithobates clamitans,Licl,exact,external_database,https://rest.uniprot.org/uniprotkb/I6PNC7;https://rest.uniprot.org/uniprotkb/I6PNC8;https://rest.uniprot.org/uniprotkb/I6PNC9,attested in the retained source label for I6PNC7;I6PNC8;I6PNC9
+Lithobates yavapaiensis,Liya,exact,external_database,https://rest.uniprot.org/uniprotkb/I6PND1;https://rest.uniprot.org/uniprotkb/I6PND2;https://rest.uniprot.org/uniprotkb/I6PRN7,attested in the retained source label for I6PND1;I6PND2;I6PRN7
+Litoria verreauxii,Livea,exact,literature_historical,https://pmc.ncbi.nlm.nih.gov/articles/PMC4389617/,
+Lophocebus aterrimus,Loat,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=75566; designation=Loat
+Luscinia svecica,Lusv,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MZR9,attested in the retained source label for A0A0S2MZR9
+Lycaon pictus,DLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=9622; designation=Lypi(DLA)
+Lycaon pictus,Lypi,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Canids; taxon=9622; designation=Lypi(DLA)
+Lyrurus tetrix,Tete,exact,external_database,https://rest.uniprot.org/uniprotkb/X2JFU1;https://rest.uniprot.org/uniprotkb/X2JFU5;https://rest.uniprot.org/uniprotkb/X2JI41,attested in the retained source label for X2JFU1;X2JFU5;X2JI41
+Macaca arctoides,Maar,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9540; designation=Maar
+Macaca assamensis,Maas,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9551; designation=Maas
+Macaca fascicularis,Mafa,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9541; designation=Mafa
+Macaca fuscata,Mafu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9542; designation=Mafu
+Macaca leonina,Malo,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=90387; designation=Malo
+Macaca mulatta,Mamu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9544; designation=Mamu
+Macaca mulatta,RhLA,exact,literature_historical,https://www.eva.mpg.de/documents/Springer/Groot_Nomenclature_Immunogenetics_2020_3174021.pdf,
+Macaca nemestrina,Mane,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9545; designation=Mane
+Macaca silenus,Masi,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=54601; designation=Masi
+Macaca thibetana,Math,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=54602; designation=Math
+Mandrillus leucophaeus,Male,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9568; designation=Male
+Mandrillus sphinx,Masp,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9561; designation=Masp
+Mecistops cataphractus,Meca,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXX1;https://rest.uniprot.org/uniprotkb/V9HXX2;https://rest.uniprot.org/uniprotkb/V9HY17,attested in the retained source label for V9HXX1;V9HXX2;V9HY17
+Megalobrama amblycephala,Meam,exact,external_database,https://rest.uniprot.org/uniprotkb/F6JYA9;https://rest.uniprot.org/uniprotkb/F6JYB0;https://rest.uniprot.org/uniprotkb/F6JYB1,attested in the retained source label for F6JYA9;F6JYB0;F6JYB1
+Megaptera novaeangliae,Meno,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9773; designation=Meno
+Melospiza melodia,Sosp,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A4P8DLY1;https://rest.uniprot.org/uniprotkb/A0A5J6CAR3;https://rest.uniprot.org/uniprotkb/A0A5J6CBZ5,attested in the retained source label for A0A4P8DLY1;A0A5J6CAR3;A0A5J6CBZ5
+Mesoplodon densirostris,Mede,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=48708; designation=Mede(Mede)
+Mesoplodon europaeus,Meeu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=27616; designation=Meeu(Meeu)
+Mesoplodon grayi,Megr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=74394; designation=Megr(Megr)
+Miichthys miiuy,Mimi,exact,external_database,https://rest.uniprot.org/uniprotkb/D6PAH3;https://rest.uniprot.org/uniprotkb/D6PAH4;https://rest.uniprot.org/uniprotkb/M9UTQ7,attested in the retained source label for D6PAH3;D6PAH4;M9UTQ7
+Milvus milvus,Mimil,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN6,attested in the retained source label for A9LDN6
+Molossus molossus,Momo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1I9VYE6;https://rest.uniprot.org/uniprotkb/A0A1I9VYE7;https://rest.uniprot.org/uniprotkb/A0A1I9VYE8,attested in the retained source label for A0A1I9VYE6;A0A1I9VYE7;A0A1I9VYE8
+Monodelphis domestica,MODO,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A5F8G3S9;https://rest.uniprot.org/uniprotkb/F6YPW4;https://rest.uniprot.org/uniprotkb/A0A5F8G259,attested in the retained source label for A0A5F8G3S9;F6YPW4;A0A5F8G259
+Monodon monoceros,Momo,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=40151; designation=Momo(Momo)
+Monopterus albus,Moal,exact,external_database,https://rest.uniprot.org/uniprotkb/V9PDN1;https://rest.uniprot.org/uniprotkb/V9PDN4;https://rest.uniprot.org/uniprotkb/V9PDN8,attested in the retained source label for V9PDN1;V9PDN4;V9PDN8
+Motacilla alba,Moal,exact,external_database,https://rest.uniprot.org/uniprotkb/E2E2T7;https://rest.uniprot.org/uniprotkb/E2E2T8;https://rest.uniprot.org/uniprotkb/E2E2U0,attested in the retained source label for E2E2T7;E2E2T8;E2E2U0
+Mus musculus,H2,exact,formal_system,https://www.informatics.jax.org/downloads/datasets/misc/H2Haplotypes/H2_haplotypes.html,attested in the retained source label for 
+Mus musculus,H-2,exact,literature_historical,https://pubmed.ncbi.nlm.nih.gov/2329006/,
+Myotis vivesi,Myvi,exact,external_database,https://rest.uniprot.org/uniprotkb/D6QSQ7;https://rest.uniprot.org/uniprotkb/D6QSQ8,attested in the retained source label for D6QSQ7;D6QSQ8
+Nanorana parkeri,Napa,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A172LRJ1;https://rest.uniprot.org/uniprotkb/A0A172LRJ2;https://rest.uniprot.org/uniprotkb/A0A172LRJ3,attested in the retained source label for A0A172LRJ1;A0A172LRJ2;A0A172LRJ3
+Neophocaena asiaeorientalis,Neas,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=189058; designation=Neas(Neas)
+Neophron percnopterus,Nepe,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN7,attested in the retained source label for A9LDN7
+Nipponia nippon,Nini,exact,external_database,https://rest.uniprot.org/uniprotkb/W6JKQ4;https://rest.uniprot.org/uniprotkb/W6JPI6;https://rest.uniprot.org/uniprotkb/W6JIG7,attested in the retained source label for W6JKQ4;W6JPI6;W6JIG7
+Noctilio albiventris,Noal,exact,external_database,https://rest.uniprot.org/uniprotkb/E9KZI7;https://rest.uniprot.org/uniprotkb/E9KZI8;https://rest.uniprot.org/uniprotkb/E9KZI9,attested in the retained source label for E9KZI7;E9KZI8;E9KZI9
+Noctilio leporinus,Nole,exact,external_database,https://rest.uniprot.org/uniprotkb/H9U5P8;https://rest.uniprot.org/uniprotkb/H9U5P9;https://rest.uniprot.org/uniprotkb/H9U5Q0,attested in the retained source label for H9U5P8;H9U5P9;H9U5Q0
+Notamacropus,Maru,exact,external_database,https://rest.uniprot.org/uniprotkb/Q30767;https://rest.uniprot.org/uniprotkb/Q30761;https://rest.uniprot.org/uniprotkb/Q30762,attested in the retained source label for Q30767;Q30761;Q30762
+Notamacropus eugenii,Maeu,exact,external_database,https://rest.uniprot.org/uniprotkb/C7SHL7;https://rest.uniprot.org/uniprotkb/C7SHL8;https://rest.uniprot.org/uniprotkb/C7SHL9,attested in the retained source label for C7SHL7;C7SHL8;C7SHL9
+Nothobranchius furzeri,ORLA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1A8V2B0,attested in the retained source label for A0A1A8V2B0
+Nothobranchius kadleci,ORLA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1A8CNF3;https://rest.uniprot.org/uniprotkb/A0A1A8DWM8,attested in the retained source label for A0A1A8CNF3;A0A1A8DWM8
+Nothobranchius korthausae,ORLA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1A8F4C0,attested in the retained source label for A0A1A8F4C0
+Nothobranchius kuhntae,ORLA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1A8HZD6;https://rest.uniprot.org/uniprotkb/A0A1A8JMV3,attested in the retained source label for A0A1A8HZD6;A0A1A8JMV3
+Nothobranchius pienaari,ORLA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1A8MQH5;https://rest.uniprot.org/uniprotkb/A0A1A8QH40,attested in the retained source label for A0A1A8MQH5;A0A1A8QH40
+Nothobranchius rachovii,ORLA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1A8SDN4,attested in the retained source label for A0A1A8SDN4
+Nycticorax nycticorax,Nyny,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J6B3;https://rest.uniprot.org/uniprotkb/E2J6B4;https://rest.uniprot.org/uniprotkb/E2J6D4,attested in the retained source label for E2J6B3;E2J6B4;E2J6D4
+Oceanodroma leucorhoa,Ocle,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0A7H929;https://rest.uniprot.org/uniprotkb/A0A0A7H932;https://rest.uniprot.org/uniprotkb/A0A0A7H934,attested in the retained source label for A0A0A7H929;A0A0A7H932;A0A0A7H934
+Odorrana margaretae,Odma,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A4D5YGT3;https://rest.uniprot.org/uniprotkb/A0A4D5YGT6;https://rest.uniprot.org/uniprotkb/A0A4D5YGU4,attested in the retained source label for A0A4D5YGT3;A0A4D5YGT6;A0A4D5YGU4
+Oncorhynchus gilae,Ongi,exact,external_database,https://rest.uniprot.org/uniprotkb/A5YVA9;https://rest.uniprot.org/uniprotkb/A5YVB0;https://rest.uniprot.org/uniprotkb/A5YVB1,attested in the retained source label for A5YVA9;A5YVB0;A5YVB1
+Oncorhynchus kisutch,Onki,exact,external_database,https://rest.uniprot.org/uniprotkb/Q9GJB5;https://rest.uniprot.org/uniprotkb/Q9GJB3;https://rest.uniprot.org/uniprotkb/Q9GJB4,attested in the retained source label for Q9GJB5;Q9GJB3;Q9GJB4
+Oncorhynchus mykiss,Onmy,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Salmonids; taxon=8022; designation=Onmy
+Oncorhynchus nerka,Onne,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A089WYW5;https://rest.uniprot.org/uniprotkb/A0A089X4H6;https://rest.uniprot.org/uniprotkb/A0A089WWZ1,attested in the retained source label for A0A089WYW5;A0A089X4H6;A0A089WWZ1
+Oncorhynchus tshawytscha,Onts,exact,external_database,https://rest.uniprot.org/uniprotkb/Q9GJB6,attested in the retained source label for Q9GJB6
+Orcinus orca,Oror,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9733; designation=Oror(Oror)
+Oreochromis niloticus,Orni,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A3S7VHT8;https://rest.uniprot.org/uniprotkb/A0A6M3RT19;https://rest.uniprot.org/uniprotkb/G3FHC8,attested in the retained source label for A0A3S7VHT8;A0A6M3RT19;G3FHC8
+Ornithorhynchus anatinus,Oran,exact,external_database,https://rest.uniprot.org/uniprotkb/A7X5M6;https://rest.uniprot.org/uniprotkb/A7X5M1;https://rest.uniprot.org/uniprotkb/Q6WGJ7,attested in the retained source label for A7X5M6;A7X5M1;Q6WGJ7
+Oryctolagus,RLA,genus,formal_system,https://pubmed.ncbi.nlm.nih.gov/32522857/,
+Oryctolagus,RbH-1,genus,literature_historical,https://openalex.org/W2093336722,
+Oryctolagus,RL-A,genus,literature_historical,https://openalex.org/W2093336722,
+Oryctolagus cuniculus,RLA,exact,formal_system,https://pubmed.ncbi.nlm.nih.gov/32522857/,attested in the retained source label for 
+Oryzias dancena,Orda,exact,external_database,https://rest.uniprot.org/uniprotkb/C0JW30;https://rest.uniprot.org/uniprotkb/C0JW31;https://rest.uniprot.org/uniprotkb/C0JW44,attested in the retained source label for C0JW30;C0JW31;C0JW44
+Oryzias latipes,Orla,exact,external_database,https://rest.uniprot.org/uniprotkb/F5HRI2;https://rest.uniprot.org/uniprotkb/H2LR16;https://rest.uniprot.org/uniprotkb/D5MPV6,attested in the retained source label for F5HRI2;H2LR16;D5MPV6
+Oryzias luzonensis,Orlu,exact,external_database,https://rest.uniprot.org/uniprotkb/C0JW58;https://rest.uniprot.org/uniprotkb/C0JW59;https://rest.uniprot.org/uniprotkb/C0JW60,attested in the retained source label for C0JW58;C0JW59;C0JW60
+Osteolaemus tetraspis,Oste,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXW8;https://rest.uniprot.org/uniprotkb/V9HXW9;https://rest.uniprot.org/uniprotkb/V9HY08,attested in the retained source label for V9HXW8;V9HXW9;V9HY08
+Otis tarda,Otta,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0P0UW16;https://rest.uniprot.org/uniprotkb/A0A0P0UW97;https://rest.uniprot.org/uniprotkb/A0A0P0UW98,attested in the retained source label for A0A0P0UW16;A0A0P0UW97;A0A0P0UW98
+Otus elegans,Otel,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A2Z5WB25;https://rest.uniprot.org/uniprotkb/A0A2Z5WB26;https://rest.uniprot.org/uniprotkb/A0A2Z5WB35,attested in the retained source label for A0A2Z5WB25;A0A2Z5WB26;A0A2Z5WB35
+Otus scops,Otsc,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDQ4;https://rest.uniprot.org/uniprotkb/B3F8W9;https://rest.uniprot.org/uniprotkb/B3F8X0,attested in the retained source label for A9LDQ4;B3F8W9;B3F8X0
+Ovis,OLA,genus,formal_system,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,
+Ovis aries,Ovar,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Ovids; taxon=9940; designation=Ovar
+Ovis canadensis,Ovca,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Ovids; taxon=37174; designation=Ovca
+Pachyptila belcheri,Pabe,exact,external_database,https://rest.uniprot.org/uniprotkb/C1JEH9;https://rest.uniprot.org/uniprotkb/C1JEI0;https://rest.uniprot.org/uniprotkb/C1JEI1,attested in the retained source label for C1JEH9;C1JEI0;C1JEI1
+Pan paniscus,Papa,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9597; designation=Papa
+Pan troglodytes,Patr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9598; designation=Patr
+Pan troglodytes,ChLA,exact,literature_historical,https://www.eva.mpg.de/documents/Springer/Groot_Nomenclature_Immunogenetics_2020_3174021.pdf,
+Pandion haliaetus,Paha,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN8,attested in the retained source label for A9LDN8
+Papio anubis,Paan,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9555; designation=Paan
+Papio cynocephalus,Pacy,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9556; designation=Pacy
+Papio hamadryas,Paha,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9557; designation=Paha
+Papio papio,Papp,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=100937; designation=Papp
+Papio ursinus,Paur,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=36229; designation=Paur
+Parachondrostoma toxostoma,Pato,exact,external_database,https://rest.uniprot.org/uniprotkb/S6DEV2;https://rest.uniprot.org/uniprotkb/S6DEV4;https://rest.uniprot.org/uniprotkb/S6DEW3,attested in the retained source label for S6DEV2;S6DEV4;S6DEW3
+Parachondrostoma toxostoma,Pctn,exact,external_database,https://rest.uniprot.org/uniprotkb/S6DEV6;https://rest.uniprot.org/uniprotkb/S6DEV9;https://rest.uniprot.org/uniprotkb/S6DEX3,attested in the retained source label for S6DEV6;S6DEV9;S6DEX3
+Paralichthys olivaceus,Paol,exact,external_database,https://rest.uniprot.org/uniprotkb/Q52N63;https://rest.uniprot.org/uniprotkb/A0A076E791;https://rest.uniprot.org/uniprotkb/A0A076E8V8,attested in the retained source label for Q52N63;A0A076E791;A0A076E8V8
+Passer domesticus,Pado,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MZZ4;https://rest.uniprot.org/uniprotkb/A0A0S2N016;https://rest.uniprot.org/uniprotkb/A0A1Y0B6I8,attested in the retained source label for A0A0S2MZZ4;A0A0S2N016;A0A1Y0B6I8
+Passer hispaniolensis,Pahi,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MZY6;https://rest.uniprot.org/uniprotkb/A0A0S2MZY9;https://rest.uniprot.org/uniprotkb/A0A0S2MZZ1,attested in the retained source label for A0A0S2MZY6;A0A0S2MZY9;A0A0S2MZZ1
+Passer montanus,Pamo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MZT7;https://rest.uniprot.org/uniprotkb/A0A0S2MZV5;https://rest.uniprot.org/uniprotkb/A0A0S2MZV9,attested in the retained source label for A0A0S2MZT7;A0A0S2MZV5;A0A0S2MZV9
+Pelodiscus sinensis,Trsi,exact,external_database,https://rest.uniprot.org/uniprotkb/Q6BCB6,attested in the retained source label for Q6BCB6
+Pelophylax nigromaculatus,Peni,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A2H4PSK8;https://rest.uniprot.org/uniprotkb/A0A2H4PSK9;https://rest.uniprot.org/uniprotkb/A0A2H4PSL0,attested in the retained source label for A0A2H4PSK8;A0A2H4PSK9;A0A2H4PSL0
+Perdix perdix,Pepe,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1S6Q3S2;https://rest.uniprot.org/uniprotkb/A0A1S6Q3S3;https://rest.uniprot.org/uniprotkb/A0A1S6Q3S4,attested in the retained source label for A0A1S6Q3S2;A0A1S6Q3S3;A0A1S6Q3S4
+Phacochoerus africanus,Phaf,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Suids; taxon=41426; designation=Phaf
+Phascolarctos cinereus,Phci,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0U4G588;https://rest.uniprot.org/uniprotkb/A0A0U3R895;https://rest.uniprot.org/uniprotkb/A0A0U3YU95,attested in the retained source label for A0A0U4G588;A0A0U3R895;A0A0U3YU95
+Phocoena phocoena,Phph,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9742; designation=Phph(Phph)
+Phocoena sinus,Phsi,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=42100; designation=Phsi
+Phylloscopus collybita,Phco,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MZ16;https://rest.uniprot.org/uniprotkb/A0A0S2MZ28;https://rest.uniprot.org/uniprotkb/A0A0S2MZ30,attested in the retained source label for A0A0S2MZ16;A0A0S2MZ28;A0A0S2MZ30
+Phylloscopus trochilus,Phtr,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MZB9;https://rest.uniprot.org/uniprotkb/A0A0S2MZC5;https://rest.uniprot.org/uniprotkb/A0A0S2MZC6,attested in the retained source label for A0A0S2MZB9;A0A0S2MZC5;A0A0S2MZC6
+Pithecia pithecia,Pipi,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=43777; designation=Pipi
+Poecilia reticulata,Pore,exact,external_database,https://rest.uniprot.org/uniprotkb/O77958,attested in the retained source label for O77958
+Polyodon spathula,Posp,exact,external_database,https://rest.uniprot.org/uniprotkb/E0X5L7;https://rest.uniprot.org/uniprotkb/E0X5L8;https://rest.uniprot.org/uniprotkb/E0X5L9,attested in the retained source label for E0X5L7;E0X5L8;E0X5L9
+Polypedates megacephalus,Pome,exact,external_database,https://rest.uniprot.org/uniprotkb/R9UQ24;https://rest.uniprot.org/uniprotkb/R9UQ59;https://rest.uniprot.org/uniprotkb/R9URK4,attested in the retained source label for R9UQ24;R9UQ59;R9URK4
+Pongo abelii,Poab,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9601; designation=Poab
+Pongo pygmaeus,Popy,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9600; designation=Popy
+Pongo pygmaeus,OrLA,exact,literature_historical,https://www.eva.mpg.de/documents/Springer/Groot_Nomenclature_Immunogenetics_2020_3174021.pdf,
+Psophia crepitans,Pscr,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0P0UVS2;https://rest.uniprot.org/uniprotkb/A0A0P0UWD4,attested in the retained source label for A0A0P0UVS2;A0A0P0UWD4
+Pteropus alecto,Ptal,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A125R585,attested in the retained source label for A0A125R585
+Rana japonica,RAJA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1S5RAP3;https://rest.uniprot.org/uniprotkb/A0A1S5RAP4;https://rest.uniprot.org/uniprotkb/A0A1S5RAP6,attested in the retained source label for A0A1S5RAP3;A0A1S5RAP4;A0A1S5RAP6
+Rana ornativentris,RAJA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1S5RAU7;https://rest.uniprot.org/uniprotkb/A0A1S5RAU8;https://rest.uniprot.org/uniprotkb/A0A1S5RAU9,attested in the retained source label for A0A1S5RAU7;A0A1S5RAU8;A0A1S5RAU9
+Rana tagoi,RAJA,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1S5RAW9;https://rest.uniprot.org/uniprotkb/A0A1S5RAX4;https://rest.uniprot.org/uniprotkb/A0A1S5RAX5,attested in the retained source label for A0A1S5RAW9;A0A1S5RAX4;A0A1S5RAX5
+Rattus,RT1,genus,formal_system,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,
+Rattus norvegicus,Rano,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Murids; taxon=10116; designation=Rano
+Rattus norvegicus,RT1,exact,formal_system,https://www.ebi.ac.uk/ipd/mhc/,attested in the retained source label for 
+Rattus norvegicus,Ag-B,exact,literature_historical,https://doi.org/10.1016/S0026-0495(83)80010-9,
+Rattus norvegicus,AgB,exact,literature_historical,https://doi.org/10.1016/S0026-0495(83)80010-9,
+Rattus norvegicus,H-1,exact,literature_historical,https://doi.org/10.1016/S0026-0495(83)80010-9,
+Rattus norvegicus,R-1,exact,literature_historical,https://doi.org/10.1016/S0026-0495(83)80010-9,
+Rattus norvegicus,RtH-1,exact,literature_historical,https://doi.org/10.1016/S0026-0495(83)80010-9,
+Rattus rattus,Rara,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Murids; taxon=10117; designation=Rara
+Rhinella marina,Rhma,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A141QRY0;https://rest.uniprot.org/uniprotkb/A0A141QRY1;https://rest.uniprot.org/uniprotkb/A0A141QRY2,attested in the retained source label for A0A141QRY0;A0A141QRY1;A0A141QRY2
+Rhinopithecus roxellana,Rhro,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=61622; designation=Rhro
+Rhodeus ocellatus,Rhoc,exact,external_database,https://rest.uniprot.org/uniprotkb/D2XBF1;https://rest.uniprot.org/uniprotkb/D2XBF2;https://rest.uniprot.org/uniprotkb/D2XBF3,attested in the retained source label for D2XBF1;D2XBF2;D2XBF3
+Rutilus rutilus,Arbr,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A8E5GK27;https://rest.uniprot.org/uniprotkb/A0A8E5GK42;https://rest.uniprot.org/uniprotkb/A0A8E5GK55,attested in the retained source label for A0A8E5GK27;A0A8E5GK42;A0A8E5GK55
+Rutilus rutilus,Ruru,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A8E5GK19;https://rest.uniprot.org/uniprotkb/A0A8E5GK36;https://rest.uniprot.org/uniprotkb/A0A8E5GK37,attested in the retained source label for A0A8E5GK19;A0A8E5GK36;A0A8E5GK37
+Saccopteryx bilineata,Sabi,exact,external_database,https://rest.uniprot.org/uniprotkb/H9U5R0;https://rest.uniprot.org/uniprotkb/H9U5R1;https://rest.uniprot.org/uniprotkb/H9U5R2,attested in the retained source label for H9U5R0;H9U5R1;H9U5R2
+Saguinus fuscicollis,Safu,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9487; designation=Safu
+Saguinus geoffroyi,Sage,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=43778; designation=Sage
+Saguinus labiatus,Sala,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=78454; designation=Sala
+Saguinus mystax,Samy,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9488; designation=Samy
+Saguinus oedipus,Saoe,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9490; designation=Saoe
+Saimiri sciureus,Sasc,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9521; designation=Sasc
+Salmo salar,Sasa,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Salmonids; taxon=8030; designation=Sasa
+Salmo trutta,Satr,exact,external_database,https://rest.uniprot.org/uniprotkb/Q9GJJ3;https://rest.uniprot.org/uniprotkb/Q9GJJ4;https://rest.uniprot.org/uniprotkb/Q9GJJ5,attested in the retained source label for Q9GJJ3;Q9GJJ4;Q9GJJ5
+Salvelinus alpinus,SAAL,exact,external_database,https://rest.uniprot.org/uniprotkb/D3U6E9;https://rest.uniprot.org/uniprotkb/D3U6F0;https://rest.uniprot.org/uniprotkb/D3U6F1,attested in the retained source label for D3U6E9;D3U6F0;D3U6F1
+Salvelinus fontinalis,Safo,exact,external_database,https://rest.uniprot.org/uniprotkb/B3FW09;https://rest.uniprot.org/uniprotkb/B3FW10;https://rest.uniprot.org/uniprotkb/B3FW11,attested in the retained source label for B3FW09;B3FW10;B3FW11
+Salvelinus malma,Sama,exact,external_database,https://rest.uniprot.org/uniprotkb/E1U2E0;https://rest.uniprot.org/uniprotkb/E1U2E1;https://rest.uniprot.org/uniprotkb/E1U2E2,attested in the retained source label for E1U2E0;E1U2E1;E1U2E2
+Sapajus apella macrocephalus,Sama,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=1547595; designation=Sama
+Sapajus cay,Saca,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=649471; designation=Saca
+Sapajus libidinosus,Sali,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=1126382; designation=Sali
+Sapajus nigritus,Sani,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=867366; designation=Sani
+Sapajus xanthosternos,Saxa,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=174599; designation=Saxa
+Sarcophilus harrisii,Saha,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A097C0W3;https://rest.uniprot.org/uniprotkb/A0A1U9XQB6;https://rest.uniprot.org/uniprotkb/A0A1U9XQC2,attested in the retained source label for A0A097C0W3;A0A1U9XQB6;A0A1U9XQC2
+Scatophagus argus,Scar,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A077CZ89;https://rest.uniprot.org/uniprotkb/A0A077CZ93;https://rest.uniprot.org/uniprotkb/A0A077CZ96,attested in the retained source label for A0A077CZ89;A0A077CZ93;A0A077CZ96
+Scophthalmus maximus,Scma,exact,external_database,https://rest.uniprot.org/uniprotkb/A5JPX4;https://rest.uniprot.org/uniprotkb/A5JPX5;https://rest.uniprot.org/uniprotkb/A5JPX6,attested in the retained source label for A5JPX4;A5JPX5;A5JPX6
+Semnopithecus entellus,Seen,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=88029; designation=Seen
+Semnopithecus entellus,Pren,exact,literature_historical,https://www.eva.mpg.de/documents/Springer/Groot_Nomenclature_Immunogenetics_2020_3174021.pdf,
+Smilisca phaeota,Smph,exact,external_database,https://rest.uniprot.org/uniprotkb/I6PND3;https://rest.uniprot.org/uniprotkb/I6PND4;https://rest.uniprot.org/uniprotkb/I6PRN8,attested in the retained source label for I6PND3;I6PND4;I6PRN8
+Spalax ehrenbergi,Smh,exact,literature_historical,https://pubmed.ncbi.nlm.nih.gov/2329006/,
+Sparus aurata,Spau,exact,external_database,https://rest.uniprot.org/uniprotkb/Q38LF7;https://rest.uniprot.org/uniprotkb/Q38LF8;https://rest.uniprot.org/uniprotkb/Q4U1B7,attested in the retained source label for Q38LF7;Q38LF8;Q4U1B7
+Spheniscus humboldti,Sphu,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A7M1DN15;https://rest.uniprot.org/uniprotkb/A0A7M1DN19;https://rest.uniprot.org/uniprotkb/A0A7M1DN84,attested in the retained source label for A0A7M1DN15;A0A7M1DN19;A0A7M1DN84
+Spheniscus magellanicus,Spma,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6B7NCI0;https://rest.uniprot.org/uniprotkb/A0A6B7ND07;https://rest.uniprot.org/uniprotkb/A0A6B7ND10,attested in the retained source label for A0A6B7NCI0;A0A6B7ND07;A0A6B7ND10
+Spheniscus mendiculus,Spme,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6B7NDY8;https://rest.uniprot.org/uniprotkb/A0A6B7NHF8,attested in the retained source label for A0A6B7NDY8;A0A6B7NHF8
+Sphenodon punctatus,Sppu,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0F7CYH7;https://rest.uniprot.org/uniprotkb/A0A0F7CYI0;https://rest.uniprot.org/uniprotkb/A0A0F7GXU0,attested in the retained source label for A0A0F7CYH7;A0A0F7CYI0;A0A0F7GXU0
+Spinus atratus,Caat,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A384M0D1;https://rest.uniprot.org/uniprotkb/A0A384M0D3;https://rest.uniprot.org/uniprotkb/A0A384M0I2,attested in the retained source label for A0A384M0D1;A0A384M0D3;A0A384M0I2
+Spinus pinus,Capi,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A139YCS1;https://rest.uniprot.org/uniprotkb/A0A384M0D5;https://rest.uniprot.org/uniprotkb/A0A384M0D6,attested in the retained source label for A0A139YCS1;A0A384M0D5;A0A384M0D6
+Spinus spinus,Casp,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A139YCS2;https://rest.uniprot.org/uniprotkb/A0A384M0D9;https://rest.uniprot.org/uniprotkb/A0A384M0E0,attested in the retained source label for A0A139YCS2;A0A384M0D9;A0A384M0E0
+Spinus spinus,Spsp,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6B9MC93;https://rest.uniprot.org/uniprotkb/A0A6B9MCA2;https://rest.uniprot.org/uniprotkb/A0A6B9MEU9,attested in the retained source label for A0A6B9MC93;A0A6B9MCA2;A0A6B9MEU9
+Stenella coeruleoalba,Stco,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9737; designation=Stco(Stco)
+Steno bredanensis,Stbr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=46167; designation=Stbr(Stbr)
+Sterna hirundo,Sthi,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A8F1NLD6;https://rest.uniprot.org/uniprotkb/A0A8F1NLD7;https://rest.uniprot.org/uniprotkb/A0A8F1NLD8,attested in the retained source label for A0A8F1NLD6;A0A8F1NLD7;A0A8F1NLD8
+Strix aluco,Stal,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDQ5;https://rest.uniprot.org/uniprotkb/B3F8W6;https://rest.uniprot.org/uniprotkb/B3F8W7,attested in the retained source label for A9LDQ5;B3F8W6;B3F8W7
+Strix nebulosa,Stne,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8V2;https://rest.uniprot.org/uniprotkb/B3F8V3,attested in the retained source label for B3F8V2;B3F8V3
+Strix uralensis,Stur,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8V4;https://rest.uniprot.org/uniprotkb/B3F8V5,attested in the retained source label for B3F8V4;B3F8V5
+Surnia ulula,Suul,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8T9;https://rest.uniprot.org/uniprotkb/B3F8U0;https://rest.uniprot.org/uniprotkb/B3F8U1,attested in the retained source label for B3F8T9;B3F8U0;B3F8U1
+Sus,SLA,genus,formal_system,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,
+Sus,SL-A,genus,literature_historical,https://pubmed.ncbi.nlm.nih.gov/125631/,
+Sus domesticus,Sudo,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Suids; taxon=9825; designation=Sudo
+Sus scrofa,SLA,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Suids; taxon=9823; designation=Susc(SLA)
+Sus scrofa,Susc,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Suids; taxon=9823; designation=Susc(SLA)
+Sylvia borin,Sybo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0S2MYY4;https://rest.uniprot.org/uniprotkb/A0A0S2MZ00;https://rest.uniprot.org/uniprotkb/A0A0S2MZ03,attested in the retained source label for A0A0S2MYY4;A0A0S2MZ00;A0A0S2MZ03
+Tachyglossus aculeatus,Taac,exact,external_database,https://rest.uniprot.org/uniprotkb/Q6WGJ3;https://rest.uniprot.org/uniprotkb/Q6WGJ4;https://rest.uniprot.org/uniprotkb/Q6WGJ5,attested in the retained source label for Q6WGJ3;Q6WGJ4;Q6WGJ5
+Theropithecus gelada,Thge,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Non-Human Primates; taxon=9565; designation=Thge
+Tiliqua adelaidensis,Tiad,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0K0N2V0;https://rest.uniprot.org/uniprotkb/A0A0K0N386;https://rest.uniprot.org/uniprotkb/A0A0K0N3E6,attested in the retained source label for A0A0K0N2V0;A0A0K0N386;A0A0K0N3E6
+Tiliqua rugosa,Tiru,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0K0N390;https://rest.uniprot.org/uniprotkb/A0A0K0N3F1;https://rest.uniprot.org/uniprotkb/A0A0K0N3F3,attested in the retained source label for A0A0K0N390;A0A0K0N3F1;A0A0K0N3F3
+Trachinotus ovatus,TO,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A3G1LCB1;https://rest.uniprot.org/uniprotkb/A0A3G1LCB2;https://rest.uniprot.org/uniprotkb/A0A3G1LCB4,attested in the retained source label for A0A3G1LCB1;A0A3G1LCB2;A0A3G1LCB4
+Trachinotus ovatus,Trov,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A167QN57;https://rest.uniprot.org/uniprotkb/A0A1J0QXE6;https://rest.uniprot.org/uniprotkb/A0A1J0QXE8,attested in the retained source label for A0A167QN57;A0A1J0QXE6;A0A1J0QXE8
+Trichosurus vulpecula,Truv,exact,external_database,https://rest.uniprot.org/uniprotkb/Q95IT0,attested in the retained source label for Q95IT0
+Trichosurus vulpecula,Trvu,exact,external_database,https://rest.uniprot.org/uniprotkb/B3U2C3;https://rest.uniprot.org/uniprotkb/B3U2C4;https://rest.uniprot.org/uniprotkb/B3U2C5,attested in the retained source label for B3U2C3;B3U2C4;B3U2C5
+Triturus cristatus,Trcr,exact,external_database,https://rest.uniprot.org/uniprotkb/B8XWH4;https://rest.uniprot.org/uniprotkb/B8XWJ8,attested in the retained source label for B8XWH4;B8XWJ8
+Turdus atrogularis,Tuat,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6B9MDW2;https://rest.uniprot.org/uniprotkb/A0A6B9MDW3;https://rest.uniprot.org/uniprotkb/A0A6B9MDW5,attested in the retained source label for A0A6B9MDW2;A0A6B9MDW3;A0A6B9MDW5
+Turdus naumanni,Tuna,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6B9MIG4;https://rest.uniprot.org/uniprotkb/A0A6B9MDT2;https://rest.uniprot.org/uniprotkb/A0A6B9MDT4,attested in the retained source label for A0A6B9MIG4;A0A6B9MDT2;A0A6B9MDT4
+Turdus ruficollis,Turu,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6B9MDV5;https://rest.uniprot.org/uniprotkb/A0A6B9MDV7;https://rest.uniprot.org/uniprotkb/A0A6B9MDV8,attested in the retained source label for A0A6B9MDV5;A0A6B9MDV7;A0A6B9MDV8
+Tursiops truncatus,Tutr,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9739; designation=Tutr
+Tyto alba,Tyal,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A172WY83;https://rest.uniprot.org/uniprotkb/A0A172WY84;https://rest.uniprot.org/uniprotkb/A0A172WY85,attested in the retained source label for A0A172WY83;A0A172WY84;A0A172WY85
+Xenopus laevis,XL-A,exact,literature_historical,https://pubmed.ncbi.nlm.nih.gov/2653371/,
+Xenopus laevis,XLA,exact,literature_historical,https://pubmed.ncbi.nlm.nih.gov/2653371/,
+Xenopus laevis,Xela,exact,external_database,https://rest.uniprot.org/uniprotkb/P79597;https://rest.uniprot.org/uniprotkb/Q2QB90;https://rest.uniprot.org/uniprotkb/Q2QB91,attested in the retained source label for P79597;Q2QB90;Q2QB91
+Xiphophorus hellerii,Xihe,exact,external_database,https://rest.uniprot.org/uniprotkb/O62885,attested in the retained source label for O62885
+Xiphophorus maculatus,Xima,exact,external_database,https://rest.uniprot.org/uniprotkb/O62884;https://rest.uniprot.org/uniprotkb/O62938,attested in the retained source label for O62884;O62938
+Xiphophorus multilineatus,Ximu,exact,external_database,https://rest.uniprot.org/uniprotkb/B5AIX3;https://rest.uniprot.org/uniprotkb/B5AIX4;https://rest.uniprot.org/uniprotkb/B5AIX5,attested in the retained source label for B5AIX3;B5AIX4;B5AIX5
+Xiphophorus pygmaeus,Xipy,exact,external_database,https://rest.uniprot.org/uniprotkb/B5AIY7;https://rest.uniprot.org/uniprotkb/B5AIY8;https://rest.uniprot.org/uniprotkb/B5AIY9,attested in the retained source label for B5AIY7;B5AIY8;B5AIY9
+Zhangixalus omeimontis,Rhom,exact,external_database,https://rest.uniprot.org/uniprotkb/R9UQ42;https://rest.uniprot.org/uniprotkb/R9UQ50;https://rest.uniprot.org/uniprotkb/R9UQ57,attested in the retained source label for R9UQ42;R9UQ50;R9UQ57
+Ziphius cavirostris,Zica,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=9760; designation=Zica(Zica)

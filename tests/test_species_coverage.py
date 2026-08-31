@@ -174,7 +174,7 @@ class TestFishCoverage:
 
 class TestRabbitGenes:
     def test_rabbit_class_i(self, species_genes):
-        assert any(g.startswith("RLA-A") for o, g in species_genes if o == "Oryctolagus cuniculus")
+        assert any(g.startswith("OryctolagusCuniculus-A") for o, g in species_genes if o == "Oryctolagus cuniculus")
 
     def test_rabbit_class_ii(self, species_genes):
         rabbit_genes = {g for o, g in species_genes if o == "Oryctolagus cuniculus"}
@@ -189,7 +189,7 @@ class TestMouseGenes:
 
 class TestCrocGenes:
     def test_croc_ua(self, species_genes):
-        assert ("Crocodylus porosus", "Crpo-UA") in species_genes
+        assert ("Crocodylus porosus", "CrocodylusPorosus-UA") in species_genes
 
     def test_croc_class_ii(self, species_genes):
         croc_genes = {g for o, g in species_genes if o == "Crocodylus porosus"}

@@ -90,7 +90,9 @@ Current problem: 4-letter prefixes collide (Gaga = chicken AND gharial, Caca = 5
 **Proposed policy:**
 - For species with an **established prefix in the literature** (IPD-MHC, published papers): use that prefix
 - For species with **no established prefix**: use the full latin binomial as the primary key; do NOT generate a 4-letter prefix
-- For species with **colliding prefixes**: use longer prefixes (e.g., 5+5: `ChrysPickt` for *Chrysemys picta* vs `ChrysPicku` for *Chrysolophus pictus*)
+- For species with **colliding prefixes**: use full-binomial canonical aliases
+  (`ChrysemysPicta`, `ChrysolophusPictus`) and accept a short code only with
+  species context and external evidence
 
 ### 3.2 mhcgnomes species additions needed
 

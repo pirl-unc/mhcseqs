@@ -1,5 +1,10 @@
 # mhcgnomes Improvement Requests from mhcseqs v0.9.0
 
+> Historical request against mhcgnomes 3.8.0. Generated 4+4/5+5 aliases are no
+> longer recommended; canonical output now uses the full binomial and accepts
+> short aliases only with external evidence. See
+> `species_prefix_audit_20260831.md`.
+
 Generated: 2026-03-17
 Tested against: mhcgnomes 3.8.0
 Dataset: 15,861 diverse MHC entries (1,610 unique gene+organism pairs)

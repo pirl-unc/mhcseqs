@@ -6,7 +6,7 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = [
-    "mhcgnomes>=3.30.0",
+    "mhcgnomes>=3.41.0",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -38,7 +38,12 @@ version = {attr = "mhcseqs.version.__version__"}
 include = ["mhcseqs*"]
 
 [tool.setuptools.package-data]
-mhcseqs = ["b2m_sequences.csv", "mouse_h2_sequences.csv", "diverse_mhc_sequences.csv"]
+mhcseqs = [
+    "b2m_sequences.csv",
+    "mouse_h2_sequences.csv",
+    "diverse_mhc_sequences.csv",
+    "mhc_prefix_aliases.csv",
+]
 
 [tool.ruff]
 line-length = 150

@@ -9,7 +9,11 @@ Ported from presto/data/vocab.py.
 
 from __future__ import annotations
 
+import csv
 import re
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 # MHC species categories
@@ -565,27 +569,186 @@ LATIN_NAMES: Dict[str, str] = {
     "zebrafish": "Danio rerio",
 }
 
-# Canonical MHC naming prefixes per fine-grained species
+# Externally established MHC naming prefixes for explicit species or genus
+# scopes. Exact species entries take precedence over genus-wide systems.
+#
+# These are input/source aliases, not mhcseqs-generated species identities.
+# HLA is maintained by IPD-IMGT/HLA; the non-human systems are represented by
+# IPD-MHC or established model-organism nomenclature.  Do not add a mechanical
+# 2+2/4+4 abbreviation here: new canonical output uses the self-describing
+# scientific-name alias returned by ``get_canonical_prefix``.
+#
+ESTABLISHED_MHC_PREFIXES: Dict[str, str] = {
+    "Homo sapiens": "HLA",
+    "Macaca mulatta": "Mamu",
+    "Macaca fascicularis": "Mafa",
+    "Pan troglodytes": "Patr",
+    "Gorilla gorilla": "Gogo",
+    "Pongo pygmaeus": "Popy",
+    "Papio anubis": "Paan",
+    "Mus musculus": "H2",
+    "Rattus": "RT1",
+    "Bos": "BoLA",
+    "Sus": "SLA",
+    "Equus": "ELA",
+    "Ovis": "OLA",
+    "Capra": "CLA",
+    "Canis": "DLA",
+    "Felis": "FLA",
+    "Oryctolagus": "RLA",
+    "Gallus gallus": "Gaga",
+    "Salmo salar": "Sasa",
+    "Danio rerio": "Dare",
+}
+
+# Every short code in this compatibility table has an external database or
+# literature citation. The complete source-alias registry is loaded below;
+# additions to either require evidence, since mechanical 2+2/4+4/5+5
+# abbreviations are not evidence. Several prefixes share a source registry URL.
+ESTABLISHED_MHC_PREFIX_SOURCES: Dict[str, str] = {
+    "HLA": "https://hla.alleles.org/genes/index.html",
+    "Mamu": "https://www.ebi.ac.uk/ipd/mhc/taxonomy/",
+    "Mafa": "https://www.ebi.ac.uk/ipd/mhc/taxonomy/",
+    "Patr": "https://www.ebi.ac.uk/ipd/mhc/group/NHP/species/",
+    "Gogo": "https://www.ebi.ac.uk/ipd/mhc/taxonomy/",
+    "Popy": "https://www.ebi.ac.uk/ipd/mhc/taxonomy/",
+    "Paan": "https://www.ebi.ac.uk/ipd/mhc/taxonomy/",
+    "H2": "https://www.informatics.jax.org/downloads/datasets/misc/H2Haplotypes/H2_haplotypes.html",
+    "RT1": "https://www.ebi.ac.uk/ipd/mhc/",
+    "BoLA": "https://www.ebi.ac.uk/ipd/mhc/group/BoLA/nomenclature/",
+    "SLA": "https://www.ebi.ac.uk/ipd/mhc/",
+    "ELA": "https://www.ebi.ac.uk/ipd/mhc/",
+    "OLA": "https://www.ebi.ac.uk/ipd/mhc/",
+    "CLA": "https://pubmed.ncbi.nlm.nih.gov/8134633/",
+    "DLA": "https://www.ebi.ac.uk/ipd/mhc/",
+    "FLA": "https://pubmed.ncbi.nlm.nih.gov/2492667/",
+    "RLA": "https://pubmed.ncbi.nlm.nih.gov/32522857/",
+    "Gaga": "https://www.ebi.ac.uk/ipd/mhc/group/CHICKEN/species/",
+    "Sasa": "https://www.ebi.ac.uk/ipd/mhc/group/FISH/",
+    "Dare": "https://pubmed.ncbi.nlm.nih.gov/18439319/",
+}
+
+
+@dataclass(frozen=True)
+class MhcPrefixAlias:
+    """One externally attested MHC prefix and its taxonomic scope."""
+
+    species: str
+    prefix: str
+    scope: str
+    status: str
+    evidence: str
+    notes: str = ""
+
+
+_MHC_PREFIX_REGISTRY_PATH = Path(__file__).resolve().parent / "mhc_prefix_aliases.csv"
+_PREFIX_STATUS_PRIORITY = {
+    "ipd_current": 0,
+    "formal_system": 1,
+    "literature_historical": 2,
+    "external_database": 3,
+}
+
+
+@lru_cache(maxsize=1)
+def get_mhc_prefix_registry() -> Tuple[MhcPrefixAlias, ...]:
+    """Return every source-attested short prefix shipped by mhcseqs.
+
+    The registry contains current IPD-MHC designations, historical systems
+    from nomenclature papers, and spellings present in external source
+    databases. It intentionally excludes mechanically generated aliases.
+    """
+    with _MHC_PREFIX_REGISTRY_PATH.open(encoding="utf-8") as handle:
+        return tuple(MhcPrefixAlias(**row) for row in csv.DictReader(handle))
+
+
+@lru_cache(maxsize=1)
+def _mhc_prefixes_by_spelling() -> Dict[str, Tuple[MhcPrefixAlias, ...]]:
+    """Index the source registry once for case-insensitive prefix matching."""
+    grouped: Dict[str, list[MhcPrefixAlias]] = {}
+    for entry in get_mhc_prefix_registry():
+        grouped.setdefault(entry.prefix.casefold(), []).append(entry)
+    return {prefix: tuple(entries) for prefix, entries in grouped.items()}
+
+
+def _normalized_taxon_name(raw: Optional[str]) -> str:
+    """Normalize whitespace/case while retaining an explicit subspecies."""
+    latin = get_latin_name(raw).split("(", 1)[0].strip()
+    return re.sub(r"\s+", " ", latin).casefold()
+
+
+def _prefix_alias_applies(entry: MhcPrefixAlias, raw_species: Optional[str]) -> bool:
+    taxon = _normalized_taxon_name(raw_species)
+    if not taxon:
+        return False
+    if entry.scope == "genus":
+        registered_genus = entry.species.strip().casefold()
+        return taxon.split(" ", 1)[0] == registered_genus
+    registered = _normalized_taxon_name(entry.species)
+    return taxon == registered
+
+
+def get_established_mhc_prefixes(raw: Optional[str]) -> Tuple[str, ...]:
+    """Return all current and historical source aliases for a species.
+
+    Current IPD designations and formal system names sort before historical
+    and raw-database spellings. Prefixes are compared case-insensitively, but
+    the evidence-backed spelling is retained.
+    """
+    matches = [entry for entry in get_mhc_prefix_registry() if _prefix_alias_applies(entry, raw)]
+    matches.sort(key=lambda entry: (_PREFIX_STATUS_PRIORITY[entry.status], entry.prefix.casefold()))
+    result = []
+    seen = set()
+    for entry in matches:
+        normalized = entry.prefix.casefold()
+        if normalized not in seen:
+            result.append(entry.prefix)
+            seen.add(normalized)
+    return tuple(result)
+
+
+def find_mhc_prefix_aliases(
+    value: Optional[str],
+    *,
+    species: Optional[str] = None,
+) -> Tuple[str, str, Tuple[MhcPrefixAlias, ...]]:
+    """Split an attested prefix from a molecule name.
+
+    Returns ``(prefix, body, registry_entries)``. With species context, only
+    aliases explicitly attested for that taxon are returned. Prefixes may be
+    followed by ``-``/``_`` or directly by an uppercase gene token, matching
+    conventions present in UniProt and older papers.
+    """
+    token = str(value or "").strip()
+    if not token:
+        return "", "", ()
+
+    by_spelling = _mhc_prefixes_by_spelling()
+
+    for normalized_prefix in sorted(by_spelling, key=len, reverse=True):
+        prefix = by_spelling[normalized_prefix][0].prefix
+        if token[: len(prefix)].casefold() != normalized_prefix:
+            continue
+        remainder = token[len(prefix) :]
+        if remainder.startswith(("-", "_")):
+            body = remainder[1:]
+        elif len(prefix) >= 2 and remainder and remainder[0].isupper():
+            body = remainder
+        else:
+            continue
+        if not body:
+            continue
+        entries = by_spelling[normalized_prefix]
+        if species:
+            entries = tuple(entry for entry in entries if _prefix_alias_applies(entry, species))
+        return prefix, body, entries
+    return "", "", ()
+
+
+# Backward-compatible category mapping. Despite its historical name, this is
+# an input-alias table; canonical output comes from ``get_canonical_prefix``.
 CANONICAL_MHC_PREFIXES: Dict[str, str] = {
-    "human": "HLA",
-    "macaque": "Mamu",
-    "chimpanzee": "Patr",
-    "gorilla": "Gogo",
-    "orangutan": "Popy",
-    "baboon": "Paan",
-    "mouse": "H2",
-    "rat": "RT1",
-    "cattle": "BoLA",
-    "pig": "SLA",
-    "horse": "ELA",
-    "sheep": "OLA",
-    "goat": "CLA",
-    "dog": "DLA",
-    "cat": "FLA",
-    "rabbit": "RLA",
-    "chicken": "Gaga",
-    "salmon": "Sasa",
-    "zebrafish": "Dare",
+    fine: ESTABLISHED_MHC_PREFIXES[latin] for fine, latin in LATIN_NAMES.items() if latin in ESTABLISHED_MHC_PREFIXES
 }
 
 
@@ -644,6 +807,13 @@ def normalize_mhc_species(raw: Optional[str]) -> Optional[str]:
 
 def get_latin_name(raw: Optional[str]) -> str:
     """Return the canonical Latin name for a species, or the raw string if unknown."""
+    # Preserve an explicit scientific name before applying broad category
+    # matching. Otherwise, for example, Macaca fascicularis would collapse to
+    # the category default Macaca mulatta.
+    if raw:
+        explicit = str(raw).split("(", 1)[0].strip()
+        if re.match(r"^[A-Z][A-Za-z-]+\s+[a-z][A-Za-z.-]+(?:\s|$)", explicit):
+            return explicit
     fine = normalize_species(raw)
     if fine and fine in LATIN_NAMES:
         return LATIN_NAMES[fine]
@@ -675,9 +845,34 @@ def extract_latin_binomial(organism: Optional[str]) -> str:
     return binomial
 
 
+def full_species_name_alias(raw: Optional[str]) -> str:
+    """Return a self-describing concatenated scientific-name alias.
+
+    Binomials use both words (``Homo sapiens`` -> ``HomoSapiens``). Generic
+    taxon labels retain ``Sp`` (``Coregonus sp.`` -> ``CoregonusSp``), and a
+    genus-only label is preserved rather than shortened. This function never
+    invents a 2+2, 4+4, or 5+5 code.
+    """
+    latin = extract_latin_binomial(get_latin_name(raw))
+    if not latin:
+        return ""
+    words = re.findall(r"[A-Za-z]+", latin)
+    if not words:
+        return ""
+    return "".join(word[:1].upper() + word[1:] for word in words[:2])
+
+
+def get_established_mhc_prefix(raw: Optional[str]) -> str:
+    """Return the preferred source-attested short prefix, or an empty string."""
+    prefixes = get_established_mhc_prefixes(raw)
+    return prefixes[0] if prefixes else ""
+
+
 def get_canonical_prefix(raw: Optional[str]) -> str:
-    """Return the canonical MHC naming prefix for a species, or empty string."""
-    fine = normalize_species(raw)
-    if fine and fine in CANONICAL_MHC_PREFIXES:
-        return CANONICAL_MHC_PREFIXES[fine]
-    return ""
+    """Return the canonical self-describing species alias.
+
+    Short MHC codes are accepted as external/source aliases, but canonical
+    mhcseqs output uses the full scientific name so generated abbreviations do
+    not become new species identifiers.
+    """
+    return full_species_name_alias(raw)

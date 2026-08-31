@@ -1,7 +1,14 @@
 import csv
 from pathlib import Path
 
-from scripts.curate_diverse_mhc import classify_mhc, curate_row, normalize_gene, resolve_gene_annotation
+from scripts.curate_diverse_mhc import (
+    canonicalize_gene_species_alias,
+    classify_mhc,
+    curate_row,
+    normalize_gene,
+    resolve_gene_annotation,
+)
+from scripts.migrate_full_binomial_aliases import migrate_rows
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -77,8 +84,8 @@ def test_ortholog_transferred_detection():
     assert _detect_ortholog_transfer("Mepo-H2-K1_0", "Mepo") == "H2"
     assert _detect_ortholog_transfer("Lost-H2-EB1", "Lost") == "H2"
     # RT1 names on non-rat species
-    assert _detect_ortholog_transfer("Opha-RT1-B", "Opha") == "Rano"
-    assert _detect_ortholog_transfer("RT1-HA", "Caca") == "Rano"
+    assert _detect_ortholog_transfer("Opha-RT1-B", "Opha") == "RT1"
+    assert _detect_ortholog_transfer("RT1-HA", "Caca") == "RT1"
     # Legitimate on actual mouse/rat (any species in genus) → None
     assert _detect_ortholog_transfer("H2-K1", "Mumu") is None
     assert _detect_ortholog_transfer("RT1-Ba", "Rano") is None
@@ -86,6 +93,88 @@ def test_ortholog_transferred_detection():
     assert _detect_ortholog_transfer("H2-Eb", "Muco") is None  # Mus cookii
     assert _detect_ortholog_transfer("RT1.Ba", "Rafu") is None  # Rattus fuscipes
     assert _detect_ortholog_transfer("RT1.Ba", "Rale") is None  # Rattus leucopus
+
+
+def test_canonicalize_gene_uses_full_binomial_but_preserves_gene_body():
+    assert canonicalize_gene_species_alias("HLA-A*02:01", "Homo sapiens") == "HomoSapiens-A*02:01"
+    assert canonicalize_gene_species_alias("Pste-DRA", "Pseudonaja textilis") == "PseudonajaTextilis-DRA"
+    assert canonicalize_gene_species_alias("RT1.Ba", "Rattus norvegicus") == "RattusNorvegicus-Ba"
+    assert canonicalize_gene_species_alias("H60a", "Mus musculus") == "MusMusculus-H60a"
+
+
+def test_migration_encodes_source_identifier_that_is_not_a_gene():
+    rows = [
+        {
+            "uniprot_accession": "A0A126A5M5",
+            "gene": "Frco-Frcoe",
+            "gene_status": "ok",
+            "organism": "Fringilla coelebs (chaffinch)",
+        }
+    ]
+    migrated, stats = migrate_rows(rows)
+    assert migrated[0]["gene"] == "~ref:FringillaCoelebs|A0A126A5M5:Frcoe"
+    assert migrated[0]["gene_status"] == "paper_specific"
+    assert migrated[0]["raw_gene_label"] == "Frcoe"
+    assert stats["encoded_paper_specific"] == 1
+
+
+def test_curate_row_rejects_non_mhc_region_gene():
+    row = {
+        "uniprot_accession": "TEST006",
+        "gene_names": "Kdm5d",
+        "protein_name": "MHC class I antigen-like protein",
+        "organism": "Mus musculus",
+        "organism_id": "10090",
+        "is_fragment": "False",
+        "source_group": "murine",
+        "sequence": "A" * 120,
+    }
+    curated, stats = curate_row(row)
+    assert curated is None
+    assert stats["non_mhc_gene"] == 1
+
+
+def test_migrate_rows_canonicalizes_and_removes_non_mhc_genes():
+    rows = [
+        {
+            "uniprot_accession": "MHC1",
+            "gene": "Pste-DRA",
+            "gene_status": "ok",
+            "organism": "Pseudonaja textilis",
+        },
+        {
+            "uniprot_accession": "NON1",
+            "gene": "Kdm5d",
+            "gene_status": "ok",
+            "organism": "Mus musculus",
+        },
+        {
+            "uniprot_accession": "LOC1",
+            "gene": "ENSRNOG00000069209",
+            "gene_status": "ok",
+            "organism": "Rattus norvegicus",
+        },
+    ]
+    migrated, stats = migrate_rows(rows)
+    assert migrated == [
+        {
+            "uniprot_accession": "MHC1",
+            "gene": "PseudonajaTextilis-DRA",
+            "gene_status": "ok",
+            "raw_gene_label": "",
+            "organism": "Pseudonaja textilis",
+        },
+        {
+            "uniprot_accession": "LOC1",
+            "gene": "~loc:RattusNorvegicus|ENSRNOG00000069209",
+            "gene_status": "loc",
+            "raw_gene_label": "ENSRNOG00000069209",
+            "organism": "Rattus norvegicus",
+        },
+    ]
+    assert stats["canonicalized_gene"] == 1
+    assert stats["removed_non_mhc_gene"] == 1
+    assert stats["encoded_genomic_locus"] == 1
 
 
 def test_curate_row_marks_ortholog_transferred():

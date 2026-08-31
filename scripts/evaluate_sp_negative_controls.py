@@ -43,6 +43,7 @@ def main(*, use_early_shortcuts: bool = True) -> None:
                 mhc_class=mhc_class,
                 chain=chain or None,
                 gene=gene,
+                species=row.get("organism", ""),
                 features=features,
                 use_early_shortcuts=use_early_shortcuts,
             )

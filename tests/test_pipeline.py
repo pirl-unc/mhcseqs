@@ -256,7 +256,7 @@ def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, 
     monkeypatch.setattr("mhcseqs.pipeline._extract_source_id", lambda header, source_label: "SYN001")
     monkeypatch.setattr(
         "mhcseqs.pipeline._try_domain_parse",
-        lambda seq, *, mhc_class, gene, allele, chain="", features=None: AlleleRecord(status="ok", mature_start=27),
+        lambda seq, *, mhc_class, gene, allele, chain="", species="", features=None: AlleleRecord(status="ok", mature_start=27),
     )
     monkeypatch.setattr(
         "mhcseqs.pipeline.refine_signal_peptide",

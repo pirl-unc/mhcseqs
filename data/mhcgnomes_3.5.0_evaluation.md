@@ -1,5 +1,9 @@
 # mhcgnomes 3.5.0 Evaluation Against mhcseqs Diverse MHC Dataset
 
+> Historical benchmark only. Its generated 5+5 recommendation is superseded:
+> canonical output now uses the full binomial, and short aliases require an
+> external citation. See `species_prefix_audit_20260831.md`.
+
 Generated: 2026-03-16
 
 ## Test methodology
