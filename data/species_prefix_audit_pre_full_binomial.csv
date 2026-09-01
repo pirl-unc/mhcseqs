@@ -403,24 +403,24 @@ Urocitellus parryii,Urpa,generated_by_mhcseqs_2plus2,17,0,retired 2+2 rule; abse
 Vombatus ursinus,Vour,generated_by_mhcseqs_2plus2,5,0,retired 2+2 rule; absent from available raw UniProt labels,,
 Xenopus tropicalis,Xetr,generated_by_mhcseqs_2plus2,14,0,retired 2+2 rule; absent from available raw UniProt labels,,
 Zhangixalus omeimontis,Zhom,generated_by_mhcseqs_2plus2,162,0,retired 2+2 rule; absent from available raw UniProt labels,,
-Arvicola amphibius,Arte,unverified_historical,23,0,not in the sourced allowlist or available raw UniProt labels,,
-Cryptomys hottentotus,BLA,unverified_historical,5,0,not in the sourced allowlist or available raw UniProt labels,,
-Ctenomys boliviensis,Ctbol,unverified_historical,3,0,not in the sourced allowlist or available raw UniProt labels,,
-Ctenomys bonettoi,Ctbon,unverified_historical,2,0,not in the sourced allowlist or available raw UniProt labels,,
-Ctenomys talarum,Cta,unverified_historical,19,0,not in the sourced allowlist or available raw UniProt labels,,
-Fukomys damarensis,BLA,unverified_historical,5,0,not in the sourced allowlist or available raw UniProt labels,,
-Heliophobius argenteocinereus,BLA,unverified_historical,6,0,not in the sourced allowlist or available raw UniProt labels,,
-Heterocephalus glaber,BLA,unverified_historical,4,0,not in the sourced allowlist or available raw UniProt labels,,
-Mus caroli,H2,unverified_historical,1,0,not in the sourced allowlist or available raw UniProt labels,,
-Mus cervicolor,H2,unverified_historical,1,0,not in the sourced allowlist or available raw UniProt labels,,
-Mus cookii,H2,unverified_historical,1,0,not in the sourced allowlist or available raw UniProt labels,,
-Mus macedonicus,H2,unverified_historical,1,0,not in the sourced allowlist or available raw UniProt labels,,
-Mus musculus,I,unverified_historical,4,0,not in the sourced allowlist or available raw UniProt labels,,
-Mus musculus,MHC II H2,unverified_historical,2,0,not in the sourced allowlist or available raw UniProt labels,,
-Mus platythrix,H2,unverified_historical,1,0,not in the sourced allowlist or available raw UniProt labels,,
-Mus spicilegus,H2,unverified_historical,3,0,not in the sourced allowlist or available raw UniProt labels,,
-Mus spretus,H2,unverified_historical,3,0,not in the sourced allowlist or available raw UniProt labels,,
-Myodes glareolus,Clgl,unverified_historical,92,0,not in the sourced allowlist or available raw UniProt labels,,
-Peromyscus californicus,MHC,unverified_historical,32,0,not in the sourced allowlist or available raw UniProt labels,,
-Peromyscus maniculatus,MHC,unverified_historical,30,0,not in the sourced allowlist or available raw UniProt labels,,
-Rattus norvegicus,H2,unverified_historical,1,0,not in the sourced allowlist or available raw UniProt labels,,
+Arvicola amphibius,Arte,external_uniprot_label,23,23,https://pubmed.ncbi.nlm.nih.gov/17956550/,A7YEL3;A7YEL5;A7YEL7,Arte-DRB MHC class II antigen;Arte-DQA MHC class II antigen
+Cryptomys hottentotus,BLA,external_uniprot_label,5,5,https://pubmed.ncbi.nlm.nih.gov/15058438/,Q6TKI4;Q6TKI5;Q6TKI6,BLA-DQA1 MHC class II antigen
+Ctenomys boliviensis,Ctbol,external_uniprot_label,3,3,https://pubmed.ncbi.nlm.nih.gov/18049818/,A9UCA8;Q95HU0;Q95HU1,Ctbol-DRB01 MHC class II antigen;Ctbol-DQB MHC class II antigen
+Ctenomys bonettoi,Ctbon,external_uniprot_label,2,2,https://rest.uniprot.org/unisave/Q95HT8?format=txt&versions=61,Q95HT8;Q95HT9,Ctbon-DQB MHC class II antigen
+Ctenomys talarum,Cta,external_uniprot_label,19,19,https://rest.uniprot.org/unisave/Q0H0P1?format=txt&versions=46,Q0H0P1;Q0H0P2;Q0H0P3,Cta-DRB MHC class II antigen
+Fukomys damarensis,BLA,external_uniprot_label,5,5,https://pubmed.ncbi.nlm.nih.gov/15058438/,Q6TKH9;Q6TKI0;Q6TKI1,BLA-DQA1 MHC class II antigen
+Heliophobius argenteocinereus,BLA,external_uniprot_label,6,6,https://pubmed.ncbi.nlm.nih.gov/15058438/,Q6TKG9;Q6TKH0;Q6TKH1,BLA-DQA1 MHC class II antigen
+Heterocephalus glaber,BLA,external_uniprot_label,4,4,https://pubmed.ncbi.nlm.nih.gov/15058438/,Q6TKH5;Q6TKH6;Q6TKH7,BLA-DQA1 MHC class II antigen
+Mus caroli,H2,external_uniprot_label,1,1,https://pubmed.ncbi.nlm.nih.gov/9178014/,O02879,H2-Eb MHC class II
+Mus cervicolor,H2,external_uniprot_label,1,1,https://pubmed.ncbi.nlm.nih.gov/9178014/,O02878,H2-Eb MHC class II
+Mus cookii,H2,external_uniprot_label,1,1,https://pubmed.ncbi.nlm.nih.gov/9178014/,O02877,H2-Eb MHC class II
+Mus macedonicus,H2,external_uniprot_label,1,1,https://pubmed.ncbi.nlm.nih.gov/9178014/,O02908,H2-Eb MHC class II
+Mus musculus,I,source_label_artifact,4,0,"https://rest.uniprot.org/unisave/O19460?format=txt&versions=66; generic gene/product token, not a species prefix",O19460;O19461;O19462,I-A alpha MHC class II I-A alpha MHC class II protein;I-A beta MHC class II I-A beta MHC class II protein;I-E alpha MHC class II I-E alpha MHC class II protein
+Mus musculus,MHC II H2,source_label_artifact,2,0,"https://rest.uniprot.org/uniprotkb/O19472; generic gene/product token, not a species prefix",O19472;Q9QUH8,MHC II H2-IE-beta MHC II H2-IE-beta protein;MHC II H2-IE-beta Cell surface glycoprotein
+Mus platythrix,H2,external_uniprot_label,1,1,https://pubmed.ncbi.nlm.nih.gov/9178014/,O02909,H2-Eb MHC class II
+Mus spicilegus,H2,external_uniprot_label,3,3,https://pubmed.ncbi.nlm.nih.gov/9178014/,O02913;O02914;O02915,H2-Eb MHC class II
+Mus spretus,H2,external_uniprot_label,3,3,https://pubmed.ncbi.nlm.nih.gov/9178014/,O02910;O02911;O02912,H2-Eb MHC class II
+Myodes glareolus,Clgl,external_uniprot_label,92,92,https://rest.uniprot.org/uniprotkb/A0A3G6IHA5,A0A3G6IHA5;A0A3G6IHB0;A0A3G6IHB8,Clgl-DQA MHC class II antigen
+Peromyscus californicus,MHC,source_label_artifact,32,0,"https://rest.uniprot.org/uniprotkb/I3V6P3; generic gene/product token, not a species prefix",I3V6P3;I3V6P4;I3V6P5,MHC-DQA MHC class II antigen
+Peromyscus maniculatus,MHC,source_label_artifact,30,0,"https://rest.uniprot.org/uniprotkb/I3V6S5; generic gene/product token, not a species prefix",I3V6S5;I3V6S6;I3V6S7,MHC-DQA MHC class II antigen
+Rattus norvegicus,H2,source_foreign_nomenclature_alias,1,0,https://rest.uniprot.org/uniprotkb/A0ABK0L3Q2; H2 is a mouse-system synonym of the primary rat RT1 gene,A0ABK0L3Q2,RT1-M10-ps4 H2-M10.3 Ig-like domain-containing protein

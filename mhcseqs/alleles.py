@@ -218,6 +218,7 @@ def parse_allele_name(
         initial_candidates.append(raw)
 
     candidates = []
+    saw_ambiguous_alias = False
     for initial in initial_candidates:
         source_candidates, ambiguous = _source_alias_candidates(
             initial,
@@ -225,10 +226,18 @@ def parse_allele_name(
             mhcgnomes=mhcgnomes,
         )
         if ambiguous:
-            return None
+            # Coercion can turn an unambiguous historical spelling into a
+            # colliding modern one (H-2 -> H2). Keep trying the original
+            # source spelling; reject only when no unambiguous candidate is
+            # available.
+            saw_ambiguous_alias = True
+            continue
         for candidate in source_candidates:
             if candidate not in candidates:
                 candidates.append(candidate)
+
+    if not candidates and saw_ambiguous_alias:
+        return None
 
     for candidate in candidates:
         try:
