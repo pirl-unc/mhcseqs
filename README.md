@@ -246,13 +246,15 @@ Signal-peptide logic follows the standard SPase grammar:
 - **[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.41.0** — allele parsing, species provenance, NHP taxonomy, and species-directed gene classification
 
 mhcseqs emits full-binomial species aliases such as `HomoSapiens-A*02:01`
-and `MusMusculus-K*b`. Its input registry accepts 460 current, historical, and
+and `MusMusculus-K*b`. Its input registry accepts 476 current, historical, and
 external-database prefix assignments—including all 137 designation tokens in
 the current 125-organism IPD-MHC taxonomy register—and records an evidence URL
 for every one. Colliding short codes require explicit species context. mhcseqs
 does not invent abbreviated species prefixes, and mechanically generated
 2+2/4+4/5+5 aliases are rejected unless that exact spelling has external
 evidence. See the [prefix audit](data/species_prefix_audit_20260831.md).
+The audit includes a versioned UniProtKB/UniSave provenance snapshot for all
+239 records behind the 21 historical pairs that previously lacked raw inputs.
 
 No alignment tools, BLAST, or structure databases are required.
 

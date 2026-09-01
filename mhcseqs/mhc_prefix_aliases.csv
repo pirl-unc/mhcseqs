@@ -41,6 +41,7 @@ Archoplites interruptus,Arin,exact,external_database,https://rest.uniprot.org/un
 Ardea alba,Aral,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J696;https://rest.uniprot.org/uniprotkb/E2J697;https://rest.uniprot.org/uniprotkb/E2J6C0,attested in the retained source label for E2J696;E2J697;E2J6C0
 Ardea cinerea,Arci,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J690;https://rest.uniprot.org/uniprotkb/E2J691;https://rest.uniprot.org/uniprotkb/E2J692,attested in the retained source label for E2J690;E2J691;E2J692
 Ardeola bacchus,Arba,exact,external_database,https://rest.uniprot.org/uniprotkb/E2J694;https://rest.uniprot.org/uniprotkb/E2J695;https://rest.uniprot.org/uniprotkb/E2J6B8,attested in the retained source label for E2J694;E2J695;E2J6B8
+Arvicola amphibius,Arte,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/17956550/,attested in the retained source label for A7YEL3;A7YEL5;A7YEL7
 Asio flammeus,Asfl,exact,external_database,https://rest.uniprot.org/uniprotkb/B3F8W2;https://rest.uniprot.org/uniprotkb/B3F8W3,attested in the retained source label for B3F8W2;B3F8W3
 Asio otus,Asot,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDQ6;https://rest.uniprot.org/uniprotkb/B3F8T6;https://rest.uniprot.org/uniprotkb/B3F8T7,attested in the retained source label for A9LDQ6;B3F8T6;B3F8T7
 Astur gentilis,Acge,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDM6,attested in the retained source label for A9LDM6
@@ -146,6 +147,10 @@ Crocodylus palustris,Crpa,exact,external_database,https://rest.uniprot.org/unipr
 Crocodylus porosus,Crpo,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0A7TX23;https://rest.uniprot.org/uniprotkb/A0A0B4UEY0;https://rest.uniprot.org/uniprotkb/A0A0B4UFU8,attested in the retained source label for A0A0A7TX23;A0A0B4UEY0;A0A0B4UFU8
 Crocodylus rhombifer,Crrh,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXY0;https://rest.uniprot.org/uniprotkb/V9HY43;https://rest.uniprot.org/uniprotkb/V9HY47,attested in the retained source label for V9HXY0;V9HY43;V9HY47
 Crocodylus siamensis,Crsi,exact,external_database,https://rest.uniprot.org/uniprotkb/V9HXX0;https://rest.uniprot.org/uniprotkb/V9HY14;https://rest.uniprot.org/uniprotkb/V9HY22,attested in the retained source label for V9HXX0;V9HY14;V9HY22
+Cryptomys hottentotus,BLA,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/15058438/,attested in the retained source label for Q6TKI4;Q6TKI5;Q6TKI6
+Ctenomys boliviensis,Ctbol,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/18049818/,attested in the retained source label for A9UCA8;Q95HU0;Q95HU1
+Ctenomys bonettoi,Ctbon,exact,external_database,https://rest.uniprot.org/unisave/Q95HT8?format=txt&versions=61,attested in the retained source label for Q95HT8;Q95HT9
+Ctenomys talarum,Cta,exact,external_database,https://rest.uniprot.org/unisave/Q0H0P1?format=txt&versions=46,attested in the retained source label for Q0H0P1;Q0H0P2;Q0H0P3
 Ctenopharyngodon idella,Citd,exact,external_database,https://rest.uniprot.org/uniprotkb/B2X123;https://rest.uniprot.org/uniprotkb/B2X125,attested in the retained source label for B2X123;B2X125
 Ctenopharyngodon idella,Ctid,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A6B9LQW5;https://rest.uniprot.org/uniprotkb/A0A6B9LQX2;https://rest.uniprot.org/uniprotkb/A0A6B9LR26,attested in the retained source label for A0A6B9LQW5;A0A6B9LQX2;A0A6B9LR26
 Ctenophorus decresii,Ctde,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A2P1A4H2;https://rest.uniprot.org/uniprotkb/A0A2P9JZP2;https://rest.uniprot.org/uniprotkb/A0A2P9JZP3,attested in the retained source label for A0A2P1A4H2;A0A2P9JZP2;A0A2P9JZP3
@@ -198,6 +203,7 @@ Falco subbuteo,Fasu,exact,external_database,https://rest.uniprot.org/uniprotkb/I
 Falco tinnunculus,Fati,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDR0,attested in the retained source label for A9LDR0
 Felis,FLA,genus,formal_system,https://pubmed.ncbi.nlm.nih.gov/2492667/,
 Fringilla coelebs,Frcoe,exact,external_database,https://www.ncbi.nlm.nih.gov/nuccore/DQ257477,GenBank/retired UniProt gene label for the published chaffinch MHC-I fragment
+Fukomys damarensis,BLA,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/15058438/,attested in the retained source label for Q6TKH9;Q6TKI0;Q6TKI1
 Fulica atra,Fuat,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0N7KC10;https://rest.uniprot.org/uniprotkb/A0A0P0UWC6;https://rest.uniprot.org/uniprotkb/W8E2U4,attested in the retained source label for A0A0N7KC10;A0A0P0UWC6;W8E2U4
 Gadus morhua,gamr,exact,external_database,https://rest.uniprot.org/uniprotkb/O98272;https://rest.uniprot.org/uniprotkb/O98274;https://rest.uniprot.org/uniprotkb/O98203,attested in the retained source label for O98272;O98274;O98203
 Gallus gallus,Gaga,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Gallus; taxon=9031; designation=Gaga
@@ -225,6 +231,8 @@ Gyps coprotheres,Gyco,exact,external_database,https://rest.uniprot.org/uniprotkb
 Haliaeetus albicilla,Haal,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A3Q8TLJ6;https://rest.uniprot.org/uniprotkb/A0A3Q8TLJ9;https://rest.uniprot.org/uniprotkb/A0A3Q8TLK0,attested in the retained source label for A0A3Q8TLJ6;A0A3Q8TLJ9;A0A3Q8TLK0
 Halobaena caerulea,Haca,exact,external_database,https://rest.uniprot.org/uniprotkb/F6LIC3;https://rest.uniprot.org/uniprotkb/F6LIC4;https://rest.uniprot.org/uniprotkb/F6LIC5,attested in the retained source label for F6LIC3;F6LIC4;F6LIC5
 Harpyhaliaetus coronatus,Haco,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN4,attested in the retained source label for A9LDN4
+Heliophobius argenteocinereus,BLA,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/15058438/,attested in the retained source label for Q6TKG9;Q6TKH0;Q6TKH1
+Heterocephalus glaber,BLA,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/15058438/,attested in the retained source label for Q6TKH5;Q6TKH6;Q6TKH7
 Hieraaetus pennatus,Hipe,exact,external_database,https://rest.uniprot.org/uniprotkb/A9LDN5,attested in the retained source label for A9LDN5
 Hippocampus abdominalis,Hiab,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A0A7TWB0;https://rest.uniprot.org/uniprotkb/A0A0A7TWB4;https://rest.uniprot.org/uniprotkb/A0A0A7TWB9,attested in the retained source label for A0A0A7TWB0;A0A0A7TWB4;A0A0A7TWB9
 Hippocampus erectus,Hier,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A1B3IPW4;https://rest.uniprot.org/uniprotkb/A0A1B3IPW5;https://rest.uniprot.org/uniprotkb/A0A1B3IPX9,attested in the retained source label for A0A1B3IPW4;A0A1B3IPW5;A0A1B3IPX9
@@ -297,8 +305,16 @@ Monodelphis domestica,MODO,exact,external_database,https://rest.uniprot.org/unip
 Monodon monoceros,Momo,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=40151; designation=Momo(Momo)
 Monopterus albus,Moal,exact,external_database,https://rest.uniprot.org/uniprotkb/V9PDN1;https://rest.uniprot.org/uniprotkb/V9PDN4;https://rest.uniprot.org/uniprotkb/V9PDN8,attested in the retained source label for V9PDN1;V9PDN4;V9PDN8
 Motacilla alba,Moal,exact,external_database,https://rest.uniprot.org/uniprotkb/E2E2T7;https://rest.uniprot.org/uniprotkb/E2E2T8;https://rest.uniprot.org/uniprotkb/E2E2U0,attested in the retained source label for E2E2T7;E2E2T8;E2E2U0
+Mus caroli,H2,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/9178014/,attested in the retained source label for O02879
+Mus cervicolor,H2,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/9178014/,attested in the retained source label for O02878
+Mus cookii,H2,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/9178014/,attested in the retained source label for O02877
+Mus macedonicus,H2,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/9178014/,attested in the retained source label for O02908
 Mus musculus,H2,exact,formal_system,https://www.informatics.jax.org/downloads/datasets/misc/H2Haplotypes/H2_haplotypes.html,source established by the cited registry or literature
 Mus musculus,H-2,exact,literature_historical,https://pubmed.ncbi.nlm.nih.gov/2329006/,
+Mus platythrix,H2,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/9178014/,attested in the retained source label for O02909
+Mus spicilegus,H2,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/9178014/,attested in the retained source label for O02913;O02914;O02915
+Mus spretus,H2,exact,external_database,https://pubmed.ncbi.nlm.nih.gov/9178014/,attested in the retained source label for O02910;O02911;O02912
+Myodes glareolus,Clgl,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A3G6IHA5,attested in the retained source label for A0A3G6IHA5;A0A3G6IHB0;A0A3G6IHB8
 Myotis vivesi,Myvi,exact,external_database,https://rest.uniprot.org/uniprotkb/D6QSQ7;https://rest.uniprot.org/uniprotkb/D6QSQ8,attested in the retained source label for D6QSQ7;D6QSQ8
 Nanorana parkeri,Napa,exact,external_database,https://rest.uniprot.org/uniprotkb/A0A172LRJ1;https://rest.uniprot.org/uniprotkb/A0A172LRJ2;https://rest.uniprot.org/uniprotkb/A0A172LRJ3,attested in the retained source label for A0A172LRJ1;A0A172LRJ2;A0A172LRJ3
 Neophocaena asiaeorientalis,Neas,exact,ipd_current,https://www.ebi.ac.uk/ipd/mhc/taxonomy/,IPD group=Cetacea; taxon=189058; designation=Neas(Neas)

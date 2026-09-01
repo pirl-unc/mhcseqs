@@ -105,6 +105,11 @@ def test_historical_nomenclature_prefixes_are_supported():
     assert parse_allele_name("B-BF2", species="Gallus gallus").species.name == "Gallus gallus"
 
 
+def test_historical_hyphenated_h2_survives_ambiguous_modern_coercion():
+    assert parse_allele_name("H2-Kb") is None
+    assert parse_allele_name("H-2-Kb").species.name == "Mus musculus"
+
+
 def test_colliding_attested_prefix_requires_species_context():
     assert parse_allele_name("Gogo-DAB") is None
     parsed = parse_allele_name("Gogo-DAB", species="Gobio gobio")

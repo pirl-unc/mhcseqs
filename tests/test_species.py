@@ -143,7 +143,7 @@ def test_current_and_historical_prefixes_have_explicit_provenance():
 def test_registry_covers_ipd_and_external_database_prefixes():
     registry = get_mhc_prefix_registry()
     assert sum(entry.status == "ipd_current" for entry in registry) == 137
-    assert sum(entry.status == "external_database" for entry in registry) == 282
+    assert sum(entry.status == "external_database" for entry in registry) == 298
     assert all(entry.evidence.startswith(("https://", "http://")) for entry in registry)
 
     for entry in registry:
