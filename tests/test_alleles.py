@@ -74,8 +74,19 @@ def test_normalize_allele_name_compact():
     assert result == "HomoSapiens-A*02:01"
 
 
-def test_bare_allele_does_not_silently_default_to_human():
-    assert parse_allele_name("A*02:01") is None
+def test_bare_hla_allele_uses_mhcgnomes_default_species():
+    parsed = parse_allele_name("A*02:01")
+    assert parsed.to_string() == "HLA-A*02:01"
+    assert parsed.species.name == "Homo sapiens"
+    assert parsed.species_source == "default"
+
+
+def test_bare_hla_allele_can_require_explicit_species():
+    assert parse_allele_name("A*02:01", require_explicit_species=True) is None
+
+
+def test_normalize_bare_hla_allele():
+    assert normalize_allele_name("A*02:01") == "HomoSapiens-A*02:01"
 
 
 def test_generated_short_alias_is_not_accepted_without_external_evidence():

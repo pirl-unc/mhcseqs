@@ -206,8 +206,9 @@ def parse_allele_name(
     }
     if species:
         kwargs["species"] = species
-    else:
-        # Do not let a generic or malformed token silently become human.
+    elif require_explicit_species:
+        # Keep strict provenance available without changing the ordinary
+        # mhcgnomes behavior where a bare allele such as A*02:01 means HLA.
         kwargs["default_species"] = None
 
     coerced = _coerce_allele_name(raw)
@@ -277,11 +278,9 @@ def normalize_allele_name(name: str) -> str:
 
     Examples:
         "HLA-A*02:01" -> "HomoSapiens-A*02:01"
+        "A*02:01" -> "HomoSapiens-A*02:01"
         "A0201" -> "HomoSapiens-A*02:01"
         "HLA-A*02:01:01:02L" -> "HomoSapiens-A*02:01L"
-
-    Bare gene/allele forms such as ``A*02:01`` require species context and are
-    rejected here rather than silently defaulting to human.
     """
     parsed = parse_allele_name(name)
     if parsed is None:

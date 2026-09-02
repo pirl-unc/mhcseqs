@@ -18,6 +18,22 @@ from typing import Dict, List, Tuple
 
 VALID_AA = set("ACDEFGHIKLMNPQRSTVWYX")
 
+# Conservative floors derived from the last healthy pre-regression release.
+# v2.5.12 had 56,276 full rows and 54,639 functional grooves, including
+# 25,824 functional human grooves (33,874 class I and 20,765 class II). These
+# leave room for ordinary upstream curation while catching catastrophic source
+# loss or groove-extraction failure before release artifacts are made.
+MIN_RELEASE_ARTIFACT_COUNTS = {
+    "raw_total": 50_000,
+    "full_total": 50_000,
+    "raw_imgt": 20_000,
+    "raw_human": 20_000,
+    "functional_total": 50_000,
+    "functional_human": 20_000,
+    "functional_class_i": 30_000,
+    "functional_class_ii": 18_000,
+}
+
 # Expected signal peptide lengths by MHC class (wide ranges to cover species variation)
 SP_RANGE_CLASS_I = (15, 35)  # typical 20-24, some species 15-17
 SP_RANGE_CLASS_II_ALPHA = (15, 42)  # typical 24-30, DMA sometimes 39
@@ -247,6 +263,55 @@ def _aa_composition_check(sequences: List[str], label: str) -> List[str]:
             warnings.append(f"AA({label}): {aa} depleted {ratio:.1f}x ({observed:.1%} vs expected {expected:.1%})")
 
     return warnings
+
+
+def validate_release_artifact_counts(
+    raw_csv: Path,
+    full_csv: Path,
+    *,
+    minimums: Dict[str, int] | None = None,
+) -> Tuple[List[str], Dict[str, int]]:
+    """Check release artifacts against conservative source-count floors.
+
+    The floors are intentionally lower than the last healthy release. They
+    detect a missing source or parser-wide species regression without making
+    routine upstream additions or removals a release blocker.
+    """
+    counts = Counter(
+        raw_total=0,
+        full_total=0,
+        raw_imgt=0,
+        raw_human=0,
+        functional_total=0,
+        functional_human=0,
+        functional_class_i=0,
+        functional_class_ii=0,
+    )
+
+    with open(raw_csv, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            counts["raw_total"] += 1
+            if row.get("source") == "imgt":
+                counts["raw_imgt"] += 1
+            if row.get("species") == "Homo sapiens":
+                counts["raw_human"] += 1
+
+    with open(full_csv, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            counts["full_total"] += 1
+            if row.get("is_functional") != "True":
+                continue
+            counts["functional_total"] += 1
+            if row.get("species") == "Homo sapiens":
+                counts["functional_human"] += 1
+            if row.get("mhc_class") == "I":
+                counts["functional_class_i"] += 1
+            elif row.get("mhc_class") == "II":
+                counts["functional_class_ii"] += 1
+
+    required = minimums or MIN_RELEASE_ARTIFACT_COUNTS
+    errors = [f"{name}={counts[name]:,} is below the release minimum of {minimum:,}" for name, minimum in required.items() if counts[name] < minimum]
+    return errors, dict(counts)
 
 
 # ---------------------------------------------------------------------------

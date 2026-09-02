@@ -64,6 +64,17 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Build CSVs
+      if: steps.check.outputs.exists == 'false'
+      run: mhcseqs build --output-dir dist-csv/
+
+    - name: Enforce release artifact count gates
+      if: steps.check.outputs.exists == 'false'
+      run: |
+        python scripts/check_release_artifacts.py \
+          dist-csv/mhc-seqs-raw.csv \
+          dist-csv/mhc-full-seqs.csv
+
     - name: Create release
       if: steps.check.outputs.exists == 'false'
       run: |
@@ -72,10 +83,6 @@ jobs:
           --generate-notes
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Build CSVs
-      if: steps.check.outputs.exists == 'false'
-      run: mhcseqs build --output-dir dist-csv/
 
     - name: Attach artifacts
       if: steps.check.outputs.exists == 'false'

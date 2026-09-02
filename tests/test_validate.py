@@ -1,4 +1,7 @@
+import csv
+
 from mhcseqs.validate import (
+    MIN_RELEASE_ARTIFACT_COUNTS,
     VALID_AA,
     _check_b2m,
     _check_groove_row,
@@ -6,6 +9,7 @@ from mhcseqs.validate import (
     _check_signal_peptide,
     _check_valid_aa,
     format_validation_report,
+    validate_release_artifact_counts,
 )
 
 
@@ -178,3 +182,85 @@ def test_format_validation_report_truncates_when_requested():
     assert "allele_2" in report
     assert "allele_3" not in report
     assert "... and 7 more" in report
+
+
+def _write_count_fixture(path, fieldnames, rows):
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def test_validate_release_artifact_counts_accepts_healthy_counts(tmp_path):
+    raw_csv = tmp_path / "raw.csv"
+    full_csv = tmp_path / "full.csv"
+    _write_count_fixture(
+        raw_csv,
+        ["source", "species"],
+        [
+            {"source": "imgt", "species": "Homo sapiens"},
+            {"source": "imgt", "species": "Homo sapiens"},
+            {"source": "ipd_mhc", "species": "Macaca mulatta"},
+        ],
+    )
+    _write_count_fixture(
+        full_csv,
+        ["allele", "species", "mhc_class", "is_functional"],
+        [
+            {
+                "allele": "a",
+                "species": "Homo sapiens",
+                "mhc_class": "I",
+                "is_functional": "True",
+            },
+            {
+                "allele": "b",
+                "species": "Macaca mulatta",
+                "mhc_class": "II",
+                "is_functional": "True",
+            },
+        ],
+    )
+
+    errors, counts = validate_release_artifact_counts(
+        raw_csv,
+        full_csv,
+        minimums={"raw_total": 3, "full_total": 2, "raw_imgt": 2, "raw_human": 2},
+    )
+
+    assert errors == []
+    assert counts == {
+        "raw_total": 3,
+        "full_total": 2,
+        "raw_imgt": 2,
+        "raw_human": 2,
+        "functional_total": 2,
+        "functional_human": 1,
+        "functional_class_i": 1,
+        "functional_class_ii": 1,
+    }
+
+
+def test_validate_release_artifact_counts_reports_each_regression(tmp_path):
+    raw_csv = tmp_path / "raw.csv"
+    full_csv = tmp_path / "full.csv"
+    _write_count_fixture(raw_csv, ["source", "species"], [{"source": "ipd_mhc", "species": "Macaca mulatta"}])
+    _write_count_fixture(full_csv, ["allele"], [])
+
+    errors, _ = validate_release_artifact_counts(
+        raw_csv,
+        full_csv,
+        minimums={"raw_total": 2, "full_total": 1, "raw_imgt": 1, "raw_human": 1},
+    )
+
+    assert len(errors) == 4
+    assert any("raw_imgt=0" in error for error in errors)
+    assert any("raw_human=0" in error for error in errors)
+
+
+def test_release_artifact_minimums_cover_hla_source_loss():
+    assert MIN_RELEASE_ARTIFACT_COUNTS["raw_imgt"] >= 20_000
+    assert MIN_RELEASE_ARTIFACT_COUNTS["raw_human"] >= 20_000
+    assert MIN_RELEASE_ARTIFACT_COUNTS["functional_human"] >= 20_000
+    assert MIN_RELEASE_ARTIFACT_COUNTS["functional_class_i"] >= 30_000
+    assert MIN_RELEASE_ARTIFACT_COUNTS["functional_class_ii"] >= 18_000
