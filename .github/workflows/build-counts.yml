@@ -3,6 +3,8 @@ name: Build & Report Counts
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -27,3 +29,9 @@ jobs:
 
     - name: Report counts
       run: python scripts/report_counts.py
+
+    - name: Enforce release artifact count gates
+      run: |
+        python scripts/check_release_artifacts.py \
+          ~/.cache/mhcseqs/mhc-seqs-raw.csv \
+          ~/.cache/mhcseqs/mhc-full-seqs.csv

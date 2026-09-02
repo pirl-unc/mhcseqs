@@ -13,6 +13,7 @@ from mhcseqs.pipeline import (
     _load_diverse_mhc_references,
     _load_mouse_h2_references,
     _looks_like_nucleotide,
+    _resolve_header_allele,
     build_raw_index,
 )
 
@@ -166,6 +167,17 @@ def test_extract_source_id_ipd():
 def test_extract_source_id_unknown():
     assert _extract_source_id("some random header", "imgt") == ""
     assert _extract_source_id("some random header", "other") == ""
+
+
+def test_resolve_official_imgt_header_with_bare_hla_allele():
+    result = _resolve_header_allele("HLA:HLA00001 A*01:01:01:01 365 bp")
+    assert result == (
+        "HomoSapiens-A*01:01:01:01",
+        "A",
+        "I",
+        "Homo sapiens",
+        "A*01:01:01:01",
+    )
 
 
 def test_load_mouse_h2_references():
