@@ -48,6 +48,23 @@ _DIVERSE_MHC_CSV = Path(__file__).resolve().parent / "diverse_mhc_sequences.csv"
 # including the DFT2-relevant alleles from Caldwell et al. 2018.
 _GENBANK_SAHA_CSV = Path(__file__).resolve().parent / "genbank_saha_sequences.csv"
 
+# Curated source groups that provide a reliable broad taxonomy when the
+# species-name normalizer has no entry for the organism's genus.
+_DIVERSE_GROUP_TO_CATEGORY = {
+    "reptile_lepidosauria": "other_vertebrate",
+    "reptile_crocodylia": "other_vertebrate",
+    "reptile_testudines": "other_vertebrate",
+    "amphibian": "other_vertebrate",
+    "bird_non_chicken": "bird",
+    "chicken": "bird",
+    "shark_ray": "fish",
+    "bony_fish": "fish",
+    "marsupial": "other_mammal",
+    "monotreme": "other_mammal",
+    "bat": "other_mammal",
+    "other_mammal": "other_mammal",
+}
+
 _NUCLEOTIDE_LIKE_CHARS = set("ACGTUNWSMKRYBDHV")
 
 # Statuses considered functional for groove extraction
@@ -251,9 +268,10 @@ def _load_b2m_references() -> List[dict]:
             seq = row["sequence"]
             accession = row.get("uniprot_accession", "")
             allele_name = f"B2M_{species_key}"
-            latin = get_latin_name(species_key)
-            category = normalize_mhc_species(species_key) or ""
-            prefix = get_canonical_prefix(species_key)
+            organism = row.get("organism", "") or species_key
+            latin = get_latin_name(organism)
+            category = row.get("species_category", "") or normalize_mhc_species(organism) or ""
+            prefix = get_canonical_prefix(latin)
             rows.append(
                 {
                     "allele_raw": accession or allele_name,
@@ -504,22 +522,6 @@ def _signal_peptide_fields(
     return refined_start, has_sp, sp_seq
 
 
-# Source group → species_category mapping (for diverse_mhc_sequences.csv)
-_DIVERSE_GROUP_TO_CATEGORY = {
-    "reptile_lepidosauria": "other_vertebrate",
-    "reptile_crocodylia": "other_vertebrate",
-    "reptile_testudines": "other_vertebrate",
-    "amphibian": "other_vertebrate",
-    "bird_non_chicken": "bird",
-    "chicken": "bird",
-    "shark_ray": "fish",
-    "bony_fish": "fish",
-    "marsupial": "other_mammal",
-    "monotreme": "other_mammal",
-    "bat": "other_mammal",
-}
-
-
 def _load_genbank_saha_references() -> List[dict]:
     """Load Tasmanian devil SahaI alleles from NCBI GenBank.
 
@@ -613,10 +615,12 @@ def _load_diverse_mhc_references() -> List[dict]:
             # Use accession as the allele name (no standard nomenclature)
             allele_name = accession
 
-            # Determine species_category from source_group (reliable)
+            # Source groups are authoritative for broad vertebrate taxonomy.
+            # Within the catch-all mammal group, retain finer categories when
+            # the organism itself is recognized (for example, ungulates).
             species_category = _DIVERSE_GROUP_TO_CATEGORY.get(source_group, "")
-            if not species_category:
-                species_category = normalize_mhc_species(organism) or ""
+            if source_group == "other_mammal" or not species_category:
+                species_category = normalize_mhc_species(organism) or species_category
 
             # Override mhc_class from mhcgnomes when the CSV value is
             # wrong or unknown — UniProt annotations frequently misclassify
