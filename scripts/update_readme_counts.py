@@ -44,8 +44,11 @@ def load_built_counts() -> Counter:
         for row in csv.DictReader(f):
             cat = row.get("species_category", "")
             mc = row.get("mhc_class", "")
-            if cat and mc in ("I", "II"):
-                counts[(cat, mc)] += 1
+            chain = row.get("chain", "")
+            if not cat:
+                continue
+            bucket = mc if mc in ("I", "II") and chain != "B2M" else "other"
+            counts[(cat, bucket)] += 1
     if not counts:
         raise ValueError(f"Built CSV at {BUILT_CSV} has no valid entries.")
     return counts
@@ -90,17 +93,20 @@ def load_diverse_species_count() -> int:
 def build_table(counts: Counter) -> str:
     """Build the markdown table string."""
     lines = []
-    lines.append("| Category | Class I | Class II | Total |")
-    lines.append("|---|---:|---:|---:|")
-    total_i = total_ii = 0
+    lines.append("| Category | Class I | Class II | Other | Total |")
+    lines.append("|---|---:|---:|---:|---:|")
+    total_i = total_ii = total_other = 0
     unexpected = sorted({category for category, _ in counts if category not in CATEGORIES})
     for cat in [*CATEGORIES, *unexpected]:
         ci = counts.get((cat, "I"), 0)
         cii = counts.get((cat, "II"), 0)
+        other = counts.get((cat, "other"), 0)
         total_i += ci
         total_ii += cii
-        lines.append(f"| {cat} | {ci:,} | {cii:,} | {ci + cii:,} |")
-    lines.append(f"| **total** | **{total_i:,}** | **{total_ii:,}** | **{total_i + total_ii:,}** |")
+        total_other += other
+        lines.append(f"| {cat} | {ci:,} | {cii:,} | {other:,} | {ci + cii + other:,} |")
+    total = total_i + total_ii + total_other
+    lines.append(f"| **total** | **{total_i:,}** | **{total_ii:,}** | **{total_other:,}** | **{total:,}** |")
     return "\n".join(lines)
 
 
@@ -117,7 +123,7 @@ def main():
     # Replace the summary section
     header_line = (
         "All sources (IMGT/HLA, IPD-MHC, and curated UniProt/GenBank references)\n"
-        "are merged into a single dataset. Categorized class I/II representatives:"
+        "are merged into a single dataset. Representatives by species category and chain type:"
     )
     groove_pct, _, _ = load_groove_success_rate()
     summary_line = f"Covering {num_species}+ species. Groove parse success rate on IMGT/IPD-MHC\nentries: {groove_pct:.1f}%."

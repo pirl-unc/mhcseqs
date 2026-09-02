@@ -106,6 +106,15 @@ def test_load_b2m_has_species():
     assert "mouse" in species_keys
 
 
+def test_load_b2m_preserves_curated_species_metadata():
+    rows = _load_b2m_references()
+    sturgeon = next(r for r in rows if r["source_id"] == "Q9PRF8")
+    assert sturgeon["species"] == "Acipenser baerii"
+    assert sturgeon["species_category"] == "fish"
+    assert sturgeon["species_prefix"] == "AcipenserBaerii"
+    assert all(r["species_category"] for r in rows)
+
+
 def test_raw_fields():
     assert isinstance(RAW_FIELDS, list)
     assert len(RAW_FIELDS) > 0
@@ -239,6 +248,14 @@ def test_b2m_has_source_id():
         assert r.get("source_id"), f"B2M entry {r['allele_normalized']} missing source_id"
     human = [r for r in rows if "human" in r["allele_normalized"]]
     assert human[0]["source_id"] == "P61769"
+
+
+def test_diverse_references_fall_back_to_curated_source_category():
+    rows = _load_diverse_mhc_references()
+    bank_vole = next(r for r in rows if r["source_id"] == "A0AAW0H2V6")
+    assert bank_vole["species"] == "Myodes glareolus"
+    assert bank_vole["species_category"] == "other_mammal"
+    assert all(r["species_category"] for r in rows)
 
 
 def test_load_diverse_references_signal_peptide_metadata_is_consistent():
