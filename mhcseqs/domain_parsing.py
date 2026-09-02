@@ -5209,6 +5209,7 @@ def _build_primary_result(
             groove_subscore=components.groove,
             ig_subscore=components.ig,
             tail_subscore=components.tail,
+            candidate_score=selection.selection_score,
             status="ok",
             anchor_type=grammar.anchor_type,
             anchor_cys1=anchor_pair[0],

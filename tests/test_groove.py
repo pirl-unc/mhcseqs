@@ -1,5 +1,8 @@
+from types import SimpleNamespace
+
 import pytest
 
+import mhcseqs.domain_parsing as domain_parsing
 from mhcseqs.domain_parsing import (
     MAX_PLAUSIBLE_SP,
     MIN_FUNCTIONAL_GROOVE_HALF_LEN,
@@ -31,6 +34,82 @@ HLA_A0201_MATURE = (
     "YLEGTCVEWLRRYLENGKETLQRTDAPKTHMTHHAVSDHEATLRCWALSFYPAEITLTWQRDGEDQTQDTELVETRPAGD"
     "GTFQKWAAVVVPSGQEQRYTCHVQHEGLPKPLTLRWEPSSQPTIPIVGIIAGLVLFGAVITGAVVAAVMWRRKSSDRKGGSYSQAASSDSAQGSDVSLTACKV"
 )
+
+
+def test_primary_candidate_materializes_whole_parse_score():
+    """The score used to form the beam must survive final record ranking."""
+    features = domain_parsing.analyze_sequence(HLA_A0201_MATURE)
+    grammar = domain_parsing._grammar_spec("I", "alpha")
+    early_result, cleaned, _pairs, annotated, sp_estimate = domain_parsing._prepare_parse_inputs(
+        HLA_A0201_MATURE,
+        grammar=grammar,
+        allele="HLA-A*02:01",
+        gene="A",
+        features=features,
+        use_early_shortcuts=False,
+    )
+    assert early_result is None
+    selections = domain_parsing._collect_primary_parse_candidates(
+        cleaned,
+        grammar=grammar,
+        annotated=annotated,
+        sp_estimate=sp_estimate,
+        features=features,
+        secondary_resolver=domain_parsing._build_class_i_secondary_resolver(cleaned, annotated, features),
+    )
+    assert selections
+
+    record = domain_parsing._build_primary_result(
+        allele="HLA-A*02:01",
+        gene="A",
+        seq=cleaned,
+        grammar=grammar,
+        selection=selections[0],
+        sp_estimate=sp_estimate,
+        features=features,
+    )
+
+    assert record.candidate_score == pytest.approx(selections[0].selection_score)
+    assert record.parse_score == pytest.approx(record.sp_subscore + record.groove_subscore + record.ig_subscore + record.tail_subscore)
+
+
+def test_primary_candidate_beam_keeps_four_distinct_architectures(monkeypatch):
+    """Issue #15 calls for a small 3-5 candidate whole-parse beam."""
+    annotations = tuple(
+        domain_parsing.CysPairAnnotation(
+            c1=c1,
+            c2=c1 + 40,
+            separation=40,
+            groove_score=float(c1),
+            ig_score=0.0,
+            domain_type="groove",
+        )
+        for c1 in (10, 20, 30, 40, 50)
+    )
+    monkeypatch.setattr(
+        domain_parsing,
+        "_build_parse_scaffold",
+        lambda _seq, c1, *_args, **_kwargs: SimpleNamespace(c1=c1),
+    )
+    monkeypatch.setattr(
+        domain_parsing,
+        "_enumerate_mature_starts",
+        lambda scaffold, **_kwargs: scaffold.c1 // 10,
+    )
+    monkeypatch.setattr(
+        domain_parsing,
+        "_score_primary_candidate_selection",
+        lambda _seq, *, scaffold, **_kwargs: float(scaffold.c1),
+    )
+
+    selections = domain_parsing._collect_primary_parse_candidates(
+        "A" * 200,
+        grammar=domain_parsing._grammar_spec("II", "alpha"),
+        annotated=annotations,
+        sp_estimate=0,
+    )
+
+    assert [selection.anchor.c1 for selection in selections] == [50, 40, 30, 20]
 
 
 def test_find_cys_pairs_basic():
