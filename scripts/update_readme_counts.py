@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Update the data summary table in README.md from the actual curated data.
 
-Reads mhcseqs/diverse_mhc_sequences.csv and merges counts with the built
-IMGT/IPD-MHC counts (from a build, or hardcoded baseline if no build exists).
+Reads the completed build, which already contains IMGT/HLA, IPD-MHC and all
+curated supplemental sequences. The supplemental CSV is read only to report
+its species coverage; its rows must not be added to the merged build again.
 
 Usage:
     python scripts/update_readme_counts.py
@@ -18,21 +19,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
 DIVERSE_CSV = ROOT / "mhcseqs" / "diverse_mhc_sequences.csv"
-
-# Source group → species_category mapping (mirrors pipeline.py)
-_GROUP_TO_CATEGORY = {
-    "reptile_lepidosauria": "other_vertebrate",
-    "reptile_crocodylia": "other_vertebrate",
-    "reptile_testudines": "other_vertebrate",
-    "amphibian": "other_vertebrate",
-    "bird_non_chicken": "bird",
-    "chicken": "bird",
-    "shark_ray": "fish",
-    "bony_fish": "fish",
-    "marsupial": "other_mammal",
-    "monotreme": "other_mammal",
-    "bat": "other_mammal",
-}
 
 CATEGORIES = [
     "human",
@@ -58,10 +44,6 @@ def load_built_counts() -> Counter:
         for row in csv.DictReader(f):
             cat = row.get("species_category", "")
             mc = row.get("mhc_class", "")
-            src = row.get("source", "")
-            # Exclude diverse entries (counted separately from the shipped CSV)
-            if src == "uniprot_diverse":
-                continue
             if cat and mc in ("I", "II"):
                 counts[(cat, mc)] += 1
     if not counts:
@@ -94,20 +76,15 @@ def load_groove_success_rate() -> tuple[float, int, int]:
     return pct, success, total
 
 
-def load_diverse_counts() -> tuple[Counter, int]:
-    """Load counts from diverse MHC CSV. Returns (counts, num_species)."""
-    counts: Counter = Counter()
+def load_diverse_species_count() -> int:
+    """Return the number of species represented by the supplemental CSV."""
     species = set()
     with open(DIVERSE_CSV, "r", encoding="utf-8") as f:
         for row in csv.DictReader(f):
-            cat = _GROUP_TO_CATEGORY.get(row.get("source_group", ""), "")
-            mc = row.get("mhc_class", "")
             organism = row.get("organism", "")
-            if cat and mc in ("I", "II"):
-                counts[(cat, mc)] += 1
             if organism:
                 species.add(organism)
-    return counts, len(species)
+    return len(species)
 
 
 def build_table(merged: Counter) -> str:
@@ -128,20 +105,18 @@ def build_table(merged: Counter) -> str:
 
 def main():
     built = load_built_counts()
-    diverse, num_species = load_diverse_counts()
-    merged = built + diverse
-    total = sum(merged.values())
-    diverse_total = sum(diverse.values())
+    num_species = load_diverse_species_count()
+    total = sum(built.values())
 
-    table = build_table(merged)
+    table = build_table(built)
 
     # Read README
     text = README.read_text(encoding="utf-8")
 
     # Replace the summary section
     header_line = (
-        f"All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and {diverse_total:,}\n"
-        f"diverse MHC sequences from UniProt) are merged into a single dataset:"
+        "All sources (IMGT/HLA, IPD-MHC, and curated UniProt/GenBank references)\n"
+        "are merged into a single dataset. Categorized class I/II representatives:"
     )
     groove_pct, _, _ = load_groove_success_rate()
     summary_line = (
@@ -164,7 +139,7 @@ def main():
         return
 
     README.write_text(new_text, encoding="utf-8")
-    print(f"Updated README.md with {total:,} total entries ({diverse_total:,} diverse, {num_species} species)")
+    print(f"Updated README.md with {total:,} categorized entries across {num_species}+ species")
 
 
 if __name__ == "__main__":

@@ -89,21 +89,21 @@ rows = mhcseqs.load_sequences_dict()
 
 ## Current data summary
 
-All sources (IMGT/HLA, IPD-MHC, UniProt curated references, and 15,860
-diverse MHC sequences from UniProt) are merged into a single dataset:
+All sources (IMGT/HLA, IPD-MHC, and curated UniProt/GenBank references)
+are merged into a single dataset. Categorized class I/II representatives:
 
 | Category | Class I | Class II | Total |
 |---|---:|---:|---:|
-| human | 17,841 | 8,013 | 25,854 |
-| nhp | 4,639 | 2,486 | 7,125 |
-| murine | 980 | 565 | 1,545 |
-| ungulate | 638 | 1,128 | 1,766 |
-| carnivore | 166 | 318 | 484 |
-| other_mammal | 1,015 | 740 | 1,755 |
-| bird | 11,906 | 6,690 | 18,596 |
-| fish | 2,439 | 7,106 | 9,545 |
-| other_vertebrate | 940 | 1,332 | 2,272 |
-| **total** | **40,564** | **28,378** | **68,942** |
+| human | 18,041 | 8,196 | 26,237 |
+| nhp | 4,475 | 2,414 | 6,889 |
+| murine | 967 | 566 | 1,533 |
+| ungulate | 654 | 1,132 | 1,786 |
+| carnivore | 176 | 330 | 506 |
+| other_mammal | 549 | 449 | 998 |
+| bird | 5,975 | 3,337 | 9,312 |
+| fish | 1,265 | 3,594 | 4,859 |
+| other_vertebrate | 471 | 665 | 1,136 |
+| **total** | **32,573** | **20,683** | **53,256** |
 
 Covering 558+ species. Groove parse success rate on IMGT/IPD-MHC
 entries: 99.3%.
