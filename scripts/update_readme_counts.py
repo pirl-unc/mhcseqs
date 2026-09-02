@@ -87,15 +87,16 @@ def load_diverse_species_count() -> int:
     return len(species)
 
 
-def build_table(merged: Counter) -> str:
+def build_table(counts: Counter) -> str:
     """Build the markdown table string."""
     lines = []
     lines.append("| Category | Class I | Class II | Total |")
     lines.append("|---|---:|---:|---:|")
     total_i = total_ii = 0
-    for cat in CATEGORIES:
-        ci = merged.get((cat, "I"), 0)
-        cii = merged.get((cat, "II"), 0)
+    unexpected = sorted({category for category, _ in counts if category not in CATEGORIES})
+    for cat in [*CATEGORIES, *unexpected]:
+        ci = counts.get((cat, "I"), 0)
+        cii = counts.get((cat, "II"), 0)
         total_i += ci
         total_ii += cii
         lines.append(f"| {cat} | {ci:,} | {cii:,} | {ci + cii:,} |")
@@ -119,10 +120,7 @@ def main():
         "are merged into a single dataset. Categorized class I/II representatives:"
     )
     groove_pct, _, _ = load_groove_success_rate()
-    summary_line = (
-        f"Covering {num_species}+ species. Groove parse success rate on IMGT/IPD-MHC\n"
-        f"entries: {groove_pct:.1f}%."
-    )
+    summary_line = f"Covering {num_species}+ species. Groove parse success rate on IMGT/IPD-MHC\nentries: {groove_pct:.1f}%."
 
     # Replace between "## Current data summary" and "## Structural decomposition"
     pattern = re.compile(

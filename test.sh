@@ -9,12 +9,14 @@
 #   PER_WORKER_GB    per-worker memory budget in GB (default: 1.5)
 #   TEST_SH_MIN      floor on workers (default: 1)
 #   TEST_SH_MAX      hard ceiling on workers (default: unset)
+#   MHCSEQS_PYTHON   Python executable used for detection and pytest (default: python)
 
 set -eo pipefail
 
 PER_WORKER_GB="${PER_WORKER_GB:-1.5}"
 TEST_SH_MIN="${TEST_SH_MIN:-1}"
 TEST_SH_MAX="${TEST_SH_MAX:-0}"
+MHCSEQS_PYTHON="${MHCSEQS_PYTHON:-python}"
 
 log() { printf '[test.sh] %s\n' "$*" >&2; }
 
@@ -96,13 +98,13 @@ if (( TEST_SH_MAX > 0 && WORKERS > TEST_SH_MAX )); then WORKERS=$TEST_SH_MAX; fi
 if (( WORKERS < TEST_SH_MIN )); then WORKERS=$TEST_SH_MIN; fi
 
 XDIST_FLAGS=()
-if python -c "import xdist" 2>/dev/null; then
+if "$MHCSEQS_PYTHON" -c "import xdist" 2>/dev/null; then
     XDIST_FLAGS=(-n "$WORKERS")
     log "platform=${OS} cpus=${CPUS} cpu_cap=${CPU_CAP} ${mem_note} per_worker=${PER_WORKER_GB}GB"
-    log "workers=${WORKERS} → exec pytest -n ${WORKERS} tests/ -v $*"
+    log "workers=${WORKERS} → exec python -m pytest -n ${WORKERS} tests/ -v $*"
 else
     log "platform=${OS} cpus=${CPUS} (pytest-xdist not installed; running serial)"
-    log "→ exec pytest tests/ -v $*"
+    log "→ exec python -m pytest tests/ -v $*"
 fi
 
-exec pytest "${XDIST_FLAGS[@]}" tests/ -v "$@"
+exec "$MHCSEQS_PYTHON" -m pytest "${XDIST_FLAGS[@]}" tests/ -v "$@"
