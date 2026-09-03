@@ -18,17 +18,26 @@ taxonomy-only change does not alter its inclusion status.
 
 ## Source-clade coverage
 
-The raw fetcher queries six vertebrate lineage roots. All stored taxa resolve
-to exactly one of them:
+The raw fetcher queries six vertebrate lineage roots. Each clade name is the
+UniProt scientific name of its root taxon, checked by the audit script on every
+run, and the roots are mutually exclusive, so all stored taxa resolve to exactly
+one of them:
 
 | Source clade | Root taxon ID | Raw rows | Enriched rows |
 | --- | ---: | ---: | ---: |
 | Mammalia | 40674 | 497 | 496 |
 | Aves | 8782 | 500 | 500 |
 | Actinopterygii | 7898 | 500 | 500 |
-| Reptilia | 8504 | 470 | 470 |
+| Lepidosauria | 8504 | 470 | 470 |
 | Amphibia | 8292 | 359 | 359 |
 | Chondrichthyes | 7777 | 77 | 77 |
+
+Taxon 8504 is `Lepidosauria`, not `Reptilia`; `Reptilia` is only a UniProt alias
+for it. The clade was previously carried under the alias, which overstated its
+scope: it holds squamates and one tuatara, and the corpus therefore contains no
+Testudines and no Crocodylia. True Reptilia (`Sauropsida`, 8457) is unusable as
+a root here because it contains Aves. Extending coverage with `Testudines`
+(8459) and `Crocodylia` (1294634) is tracked in issue #71.
 
 The exact 500-row Aves and Actinopterygii totals expose an independent missing
 pagination problem, tracked in issue #67.
@@ -42,10 +51,11 @@ Amphibia are `other_vertebrate`.
 Mammalian subcategories use explicit lineage roots while preserving the
 package's established category semantics:
 
-- `human`: Homo sapiens (9606)
-- `nhp`: Primates (9443), after the human special case
+- `human`: Homo sapiens (9606) anywhere in the lineage, so subspecies resolve
+  as human rather than falling through to `nhp`
+- `nhp`: Primates (9443), after the human case
 - `murine`: Murinae (39107)
-- `ungulate`: Bovidae (9895), Suidae (9821), or Equidae (9789)
+- `ungulate`: Bovidae (9895), Suidae (9821), or Equidae (9788)
 - `carnivore`: Canidae (9608) or Felidae (9681)
 - `other_mammal`: all remaining Mammalia (40674)
 
@@ -74,6 +84,20 @@ Regenerating all accession metadata also exposed loss of archived class/chain
 labels for inactive UniProt entries. That separate provenance problem is
 tracked in issue #68; the taxonomy migration deliberately preserves the
 existing scientific labels.
+
+## Packaging
+
+The audit also exposed that the learned SP models were never shipped. Both
+`sp_boundary_model.json` and `sp_sequence_cue_model.json` were loaded from a
+sibling `data/` directory outside the `mhcseqs` package, so editable installs
+and repo checkouts found them but wheels did not; `_load_sp_boundary_model`
+fails soft to `{}`, so installed users silently scored every cleavage site at
+0.0. On this corpus that is the difference between 83.5% and 76.3% exact
+boundaries. Both models now live inside `mhcseqs/` and are declared as
+package-data, and `tests/test_package_data.py` fails if either falls back out
+of the wheel.
+
+## Migration result (model)
 
 The checked-in SP boundary model was regenerated from the corrected groups
 without changing its 2,402-row training population. Issue #69 tracks aligning

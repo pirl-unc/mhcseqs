@@ -46,6 +46,7 @@ def test_species_category_uses_source_clade_without_genus_hints():
     assert _species_category("Salvator merianae", "96440") == "other_vertebrate"
     assert _species_category("Tor putitora", "", "Actinopterygii", audit={}) == "fish"
     assert _species_category("Unknown bird", "", "Aves", audit={}) == "bird"
+    assert _species_category("Unknown squamate", "", "Lepidosauria", audit={}) == "other_vertebrate"
     with pytest.raises(ValueError, match="Unknown SP source clade"):
         _species_category("Unknown vertebrate", "", "made-up", audit={})
 
@@ -56,7 +57,22 @@ def test_lineage_rules_preserve_established_mammal_categories():
     assert category_from_lineage(9913, {9895, 40674}) == ("ungulate", 9895)
     assert category_from_lineage(9615, {9608, 40674}) == ("carnivore", 9608)
     assert category_from_lineage(9739, {40674}) == ("other_mammal", 40674)
+    assert category_from_lineage(9796, {9788, 40674}) == ("ungulate", 9788)
     assert source_clade_from_lineage(7994, {7898}) == ("Actinopterygii", 7898)
+    assert source_clade_from_lineage(8508, {8504}) == ("Lepidosauria", 8504)
+
+
+def test_human_subspecies_resolve_through_the_lineage_not_an_exact_id():
+    """Homo sapiens subspecies must stay human rather than falling back to nhp."""
+    assert category_from_lineage(63221, {9606, 9443, 40674}) == ("human", 9606)
+
+
+def test_source_clade_roots_are_mutually_exclusive():
+    """A taxon may only ever resolve to one benchmark fetch clade."""
+    roots = [taxon_id for _name, taxon_id in SOURCE_CLADES]
+    assert len(set(roots)) == len(roots)
+    for name, taxon_id in SOURCE_CLADES:
+        assert source_clade_from_lineage(taxon_id, set()) == (name, taxon_id)
 
 
 def test_taxonomy_audit_covers_every_raw_and_enriched_row():
@@ -77,7 +93,7 @@ def test_taxonomy_audit_covers_every_raw_and_enriched_row():
         "Mammalia": 497,
         "Aves": 500,
         "Actinopterygii": 500,
-        "Reptilia": 470,
+        "Lepidosauria": 470,
         "Amphibia": 359,
         "Chondrichthyes": 77,
     }
@@ -170,7 +186,10 @@ def test_controls_only_use_complete_curated_or_gold_labels():
         stored_controls = list(csv.DictReader(handle))
     assert [row["control_id"] for row in stored_controls] == [row["control_id"] for row in controls]
     taxonomy = load_taxonomy_audit()
-    assert all(row["source_clade"] == taxonomy[row["taxon_id"]]["source_clade"] for row in stored_controls)
+    for row in stored_controls:
+        decision = taxonomy[row["taxon_id"]]
+        assert row["source_clade"] == decision["source_clade"]
+        assert row["species_category"] == decision["species_category"]
 
 
 def test_apply_label_curation_uses_source_backed_decision():

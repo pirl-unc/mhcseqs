@@ -234,11 +234,7 @@ def predict_sp_for_row(
     inferred_class = str(result.mhc_class or inferred_class_hint or "")
     inferred_chain = str(result.chain or "")
     parser_name = _parser_name_for_dispatch(inferred_class, inferred_chain)
-    groove_anchor = (
-        (int(result.anchor_cys1), int(result.anchor_cys2))
-        if result.anchor_cys1 is not None and result.anchor_cys2 is not None
-        else None
-    )
+    groove_anchor = (int(result.anchor_cys1), int(result.anchor_cys2)) if result.anchor_cys1 is not None and result.anchor_cys2 is not None else None
     refined = refine_signal_peptide(
         seq,
         result.mature_start,

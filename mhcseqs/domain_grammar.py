@@ -635,8 +635,11 @@ REFINEMENT_DISTANCE_PENALTY: dict[str, float] = {
     "fish": 0.4,
     "other_vertebrate": 0.4,
 }
-SP_BOUNDARY_MODEL_PATH = Path(__file__).resolve().parent.parent / "data" / "sp_boundary_model.json"
-SP_SEQUENCE_CUE_MODEL_PATH = Path(__file__).resolve().parent.parent / "data" / "sp_sequence_cue_model.json"
+# The learned SP models are package data: they must live inside mhcseqs/ so
+# that installed wheels carry them. Loading them from a sibling data/
+# directory silently degraded every non-editable install to no model at all.
+SP_BOUNDARY_MODEL_PATH = Path(__file__).resolve().parent / "sp_boundary_model.json"
+SP_SEQUENCE_CUE_MODEL_PATH = Path(__file__).resolve().parent / "sp_sequence_cue_model.json"
 SP_BOUNDARY_MODEL_WEIGHT_BY_GROUP: dict[str, float] = {
     "mammal": 0.10,
     "bird": 0.45,

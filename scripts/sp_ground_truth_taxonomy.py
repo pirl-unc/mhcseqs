@@ -9,12 +9,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TAXONOMY_AUDIT_CSV = ROOT / "data" / "sp_ground_truth_taxonomy.csv"
 
-# These are the six lineage-root queries used to build the benchmark.
+# These are the six lineage-root queries used to build the benchmark. Each name
+# is the UniProt scientific name of its root taxon, verified by
+# scripts/audit_sp_ground_truth_taxonomy.py, and the roots are mutually
+# exclusive so every taxon resolves to exactly one of them.
+#
+# Note that 8504 is Lepidosauria (squamates and the tuatara), not Reptilia.
+# Reptilia is only a UniProt alias for it, and true Reptilia (Sauropsida,
+# 8457) would overlap Aves. Testudines and Crocodylia are therefore absent
+# from the corpus; extending coverage to them is tracked in issue #71.
 SOURCE_CLADES = (
     ("Mammalia", 40674),
     ("Aves", 8782),
     ("Actinopterygii", 7898),
-    ("Reptilia", 8504),
+    ("Lepidosauria", 8504),
     ("Amphibia", 8292),
     ("Chondrichthyes", 7777),
 )
@@ -22,7 +30,7 @@ SOURCE_CLADE_TO_CATEGORY = {
     "Aves": "bird",
     "Actinopterygii": "fish",
     "Chondrichthyes": "fish",
-    "Reptilia": "other_vertebrate",
+    "Lepidosauria": "other_vertebrate",
     "Amphibia": "other_vertebrate",
 }
 
@@ -34,12 +42,12 @@ HUMAN_TAXON_ID = 9606
 CATEGORY_LINEAGE_RULES = (
     ("nhp", (9443,)),  # Primates (human is handled first)
     ("murine", (39107,)),  # Murinae
-    ("ungulate", (9895, 9821, 9789)),  # Bovidae, Suidae, Equidae
+    ("ungulate", (9895, 9821, 9788)),  # Bovidae, Suidae, Equidae
     ("carnivore", (9608, 9681)),  # Canidae, Felidae
     ("other_mammal", (40674,)),  # Mammalia
     ("bird", (8782,)),  # Aves
     ("fish", (7898, 7777)),  # Actinopterygii, Chondrichthyes
-    ("other_vertebrate", (8504, 8292)),  # Reptilia, Amphibia
+    ("other_vertebrate", (8504, 8292)),  # Lepidosauria, Amphibia
 )
 
 
@@ -60,7 +68,7 @@ def category_from_lineage(taxon_id: int, lineage_taxon_ids: set[int]) -> tuple[s
     """Return reporting category and supporting lineage root for one taxon."""
     lineage = set(lineage_taxon_ids)
     lineage.add(taxon_id)
-    if taxon_id == HUMAN_TAXON_ID:
+    if HUMAN_TAXON_ID in lineage:
         return "human", HUMAN_TAXON_ID
     for category, roots in CATEGORY_LINEAGE_RULES:
         for root in roots:

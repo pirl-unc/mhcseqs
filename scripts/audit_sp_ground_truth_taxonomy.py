@@ -45,21 +45,45 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def _fetch_taxon(item: tuple[str, str]) -> dict[str, str]:
-    taxon_id_text, organism = item
-    taxon_id = int(taxon_id_text)
+def _fetch_taxonomy(taxon_id: int) -> tuple[str, dict, str]:
+    """Return the request URL, decoded payload, and UniProt release for a taxon."""
     url = f"https://rest.uniprot.org/taxonomy/{taxon_id}"
     request = urllib.request.Request(url, headers={"User-Agent": "mhcseqs-sp-taxonomy-audit/1.0"})
     with urllib.request.urlopen(request, timeout=60) as response:
         payload = json.loads(response.read())
         release = response.headers.get("X-UniProt-Release", "")
+    return url, payload, release
+
+
+def _verify_source_clade_roots() -> None:
+    """Check every hardcoded clade name against the UniProt scientific name.
+
+    The leaf taxa are resolved from UniProt, so the six lineage roots that
+    define the benchmark must be held to the same standard instead of being
+    trusted as handwritten labels.
+    """
+    for name, taxon_id in SOURCE_CLADES:
+        _url, payload, _release = _fetch_taxonomy(taxon_id)
+        scientific_name = str(payload.get("scientificName", ""))
+        if scientific_name != name:
+            raise ValueError(f"Source clade {name!r} does not match UniProt name {scientific_name!r} for taxon {taxon_id}")
+    print(f"Verified {len(SOURCE_CLADES)} source-clade root names against UniProt")
+
+
+def _fetch_taxon(item: tuple[str, str]) -> dict[str, str]:
+    taxon_id_text, organism = item
+    taxon_id = int(taxon_id_text)
+    url, payload, release = _fetch_taxonomy(taxon_id)
+    scientific_name = str(payload.get("scientificName", ""))
+    if scientific_name != organism:
+        raise ValueError(f"Taxon {taxon_id} is stored as {organism!r} but UniProt now reports {scientific_name!r}")
     lineage_ids = {int(node["taxonId"]) for node in payload.get("lineage", [])}
     source_clade, source_root = source_clade_from_lineage(taxon_id, lineage_ids)
     category, category_root = category_from_lineage(taxon_id, lineage_ids)
     return {
         "taxon_id": taxon_id_text,
         "organism": organism,
-        "taxonomy_name": str(payload.get("scientificName", "")),
+        "taxonomy_name": scientific_name,
         "source_clade": source_clade,
         "source_clade_taxon_id": str(source_root),
         "species_category": category,
@@ -115,6 +139,7 @@ def main() -> None:
     if args.reuse_audit:
         audit_rows = _read_csv(args.output)
     else:
+        _verify_source_clade_roots()
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
             audit_rows = list(pool.map(_fetch_taxon, items))
     releases = {row["taxonomy_release"] for row in audit_rows}
@@ -124,6 +149,10 @@ def main() -> None:
     audit_by_taxon = {row["taxon_id"]: row for row in audit_rows}
     if set(audit_by_taxon) != set(organisms_by_taxon):
         raise ValueError("Taxonomy audit and raw corpus contain different taxon IDs")
+    audited_clades = {row["source_clade"] for row in audit_rows}
+    known_clades = {name for name, _taxon_id in SOURCE_CLADES}
+    if not audited_clades <= known_clades:
+        raise ValueError(f"Taxonomy audit uses unknown source clades: {sorted(audited_clades - known_clades)!r}")
 
     enriched_rows = _read_csv(args.enriched)
     control_rows = _read_csv(args.controls)

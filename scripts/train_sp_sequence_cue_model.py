@@ -12,7 +12,7 @@ The model captures two kinds of MHC-specific lexical evidence:
    - exact 6aa boundary words (last 3 aa of SP + first 3 aa of mature)
    - backed off 3aa words on each side of the boundary
 
-The output is written to ``data/sp_sequence_cue_model.json`` and consumed by
+The output is written to ``mhcseqs/sp_sequence_cue_model.json`` and consumed by
 ``mhcseqs.domain_parsing``.  The parser uses these scores in two layers:
 
 - general parsing: modest lexical evidence inside the holistic scorer
@@ -36,7 +36,7 @@ if str(ROOT) not in sys.path:
 
 from scripts.evaluate_sp_ground_truth import GT_CSV, NEGATIVE_CONTROL_CSV
 
-OUT_JSON = ROOT / "data" / "sp_sequence_cue_model.json"
+OUT_JSON = ROOT / "mhcseqs" / "sp_sequence_cue_model.json"
 ALPHA = 1.0
 CLIP = 5.0
 SEARCH_MIN = 8
