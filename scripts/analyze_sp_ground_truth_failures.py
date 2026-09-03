@@ -4,9 +4,8 @@
 This complements ``scripts/evaluate_sp_ground_truth.py``.
 
 When ``data/sp_ground_truth_enriched.csv`` is present, rows are dispatched by
-their gold MHC class / chain labels.  Any remaining unlabeled rows fall back to
-the older classless parser-selection heuristic, but the analysis reports which
-mode was used.
+their curated/gold MHC class / chain labels. Any remaining unlabeled rows use
+the production classless whole-parse competition, reported as inferred.
 """
 
 from __future__ import annotations
@@ -22,6 +21,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from evaluate_sp_ground_truth import (
     GT_CSV,
+    _row_benchmark_stratum,
     _row_dispatch_metadata,
     _row_species_category,
     load_ground_truth_rows,
@@ -74,19 +74,6 @@ def _run_all_parsers(seq: str, species_category: str) -> dict[str, dict]:
 
 def _chosen_class(parser_name: str) -> str:
     return "I" if parser_name == "class_I" else "II"
-
-
-def _select_parser_from_runs(runs: dict[str, dict]) -> tuple[int, str]:
-    """Replicate the evaluator's parser selection without reparsing."""
-    typical_sp = 23
-    candidates = [(int(info["mature_start"]), name) for name, info in runs.items() if info["ok"] and int(info["mature_start"] or 0) > 0]
-    if not candidates:
-        return 0, ""
-
-    in_range = [(ms, name) for ms, name in candidates if 10 <= ms <= 50]
-    if in_range:
-        return min(in_range, key=lambda item: abs(item[0] - typical_sp))
-    return min(candidates, key=lambda item: item[0])
 
 
 def _failure_mode(
@@ -145,12 +132,17 @@ def main() -> None:
 
     parsed = 0
     exact = 0
+    excluded = 0
 
     for row in rows:
+        if _row_benchmark_stratum(row) == "excluded":
+            excluded += 1
+            continue
         seq = row["sequence"]
         gt_sp = int(row["sp_length"])
         cat = _row_species_category(row)
         prediction = predict_sp_for_row(row)
+        by_dispatch[str(prediction["dispatch_mode"])] += 1
         runs: dict[str, dict] = {}
 
         if not prediction["ok"]:
@@ -177,7 +169,6 @@ def main() -> None:
         pred = int(prediction["predicted_sp"])
         delta = pred - gt_sp
         parsed += 1
-        by_dispatch[str(prediction["dispatch_mode"])] += 1
         if delta == 0:
             exact += 1
 
@@ -229,7 +220,9 @@ def main() -> None:
                 )
 
     print(f"Loaded {len(rows)} rows from {gt_path.name}")
-    print(f"Parsed: {parsed}/{len(rows)} ({100 * parsed / len(rows):.1f}%)")
+    eligible = len(rows) - excluded
+    print(f"Excluded non-MHC: {excluded}")
+    print(f"Parsed: {parsed}/{eligible} ({100 * parsed / eligible:.1f}%)")
     print(f"Exact:  {exact}/{parsed} ({100 * exact / parsed:.1f}%)" if parsed else "Exact: n/a")
     if by_dispatch:
         print("Dispatch mode: " + ", ".join(f"{k}={v}" for k, v in sorted(by_dispatch.items())))
