@@ -34,7 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.evaluate_sp_ground_truth import GT_CSV, NEGATIVE_CONTROL_CSV
+from scripts.evaluate_sp_ground_truth import GT_CSV, NEGATIVE_CONTROL_CSV, _row_benchmark_stratum
 
 OUT_JSON = ROOT / "mhcseqs" / "sp_sequence_cue_model.json"
 ALPHA = 1.0
@@ -152,7 +152,9 @@ def _best_window_scores(
 
 
 def train() -> dict[str, object]:
-    pos_rows = _read_csv(GT_CSV)
+    source_rows = _read_csv(GT_CSV)
+    strata = Counter(_row_benchmark_stratum(row) for row in source_rows)
+    pos_rows = [row for row in source_rows if _row_benchmark_stratum(row) == "curated/gold"]
     neg_rows = _read_csv(NEGATIVE_CONTROL_CSV)
 
     pos_nterm_prefix3: Counter[str] = Counter()
@@ -227,9 +229,16 @@ def train() -> dict[str, object]:
         exact_mature10[prefix10] = int(count)
 
     model: dict[str, object] = {
-        "version": 1,
+        "version": 2,
         "source_gt": GT_CSV.name,
         "source_controls": NEGATIVE_CONTROL_CSV.name,
+        "training": {
+            "policy": "label_status in {gold,curated} and MHC class/chain in {I alpha,II alpha,II beta}",
+            "source_rows": len(source_rows),
+            "eligible_rows": len(pos_rows),
+            "excluded_rows": strata["excluded"],
+            "unresolved_rows": strata["unresolved/inferred"],
+        },
         "config": {
             "shortcut_search_min": SEARCH_MIN,
             "shortcut_search_max": SEARCH_MAX,
@@ -298,6 +307,12 @@ def main() -> None:
         json.dump(model, handle, indent=2, sort_keys=True)
         handle.write("\n")
     print(f"Wrote {OUT_JSON.relative_to(ROOT)}")
+    training = model["training"]
+    print(
+        "  training rows:"
+        f" source={training['source_rows']} eligible={training['eligible_rows']}"
+        f" excluded={training['excluded_rows']} unresolved={training['unresolved_rows']}"
+    )
     print(f"  prefix3 terms:   {len(model['nterm']['prefix3_log_odds'])}")
     print(f"  sp_end3 terms:   {len(model['boundary']['sp_end3_log_odds'])}")
     print(f"  mature3 terms:   {len(model['boundary']['mature3_log_odds'])}")

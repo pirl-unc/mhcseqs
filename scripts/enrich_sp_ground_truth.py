@@ -2,9 +2,9 @@
 """Enrich the SP ground-truth corpus with MHC metadata and control sequences.
 
 The raw SP corpus only carries UniProt accessions, organisms, sequences, and
-annotated signal-peptide lengths.  This script upgrades it into a benchmark
-that can be dispatched by gold MHC class / chain whenever UniProt provides
-enough metadata, while still preserving provenance for ambiguous rows.
+annotated signal-peptide lengths. This script upgrades it into a benchmark
+that can be dispatched by source-backed MHC class and chain while preserving
+the release-pinned metadata provenance.
 
 Outputs:
   - data/sp_ground_truth_enriched.csv
@@ -27,14 +27,10 @@ from __future__ import annotations
 
 import argparse
 import csv
-import io
 import re
 import sys
-import urllib.parse
-import urllib.request
 from collections import Counter
 from pathlib import Path
-from urllib.error import HTTPError
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
@@ -49,16 +45,22 @@ from curate_diverse_mhc import (
 )
 from evaluate_sp_ground_truth import GT_RAW_CSV
 
-from scripts.sp_ground_truth_taxonomy import species_category as _species_category
+from scripts.sp_corpus_artifacts import (
+    load_corpus_artifact,
+    load_deleted_artifact,
+    taxonomy_by_id,
+    validate_artifact_bundle,
+)
+from scripts.sp_ground_truth_eligibility import (
+    GT_LABEL_CURATION_CSV,
+    load_label_curation,
+    resolve_mhc_label,
+)
+from scripts.sp_ground_truth_taxonomy import classification_from_taxonomy_row
 
 ROOT = Path(__file__).resolve().parent.parent
 GT_ENRICHED_CSV = ROOT / "data" / "sp_ground_truth_enriched.csv"
-GT_LABEL_CURATION_CSV = ROOT / "data" / "sp_ground_truth_label_curation.csv"
 NEGATIVE_CONTROL_CSV = ROOT / "data" / "sp_negative_controls.csv"
-DIVERSE_CURATED_CSV = ROOT / "mhcseqs" / "diverse_mhc_sequences.csv"
-MOUSE_H2_CSV = ROOT / "mhcseqs" / "mouse_h2_sequences.csv"
-DIVERSE_RAW_CSV = ROOT / "data" / "diverse_mhc_raw.csv"
-
 ENRICHED_FIELDS = [
     "accession",
     "organism",
@@ -105,26 +107,9 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def _load_local_metadata() -> tuple[dict[str, dict], dict[str, dict], dict[str, dict]]:
-    diverse_rows = _read_csv(DIVERSE_CURATED_CSV)
-    mouse_rows = _read_csv(MOUSE_H2_CSV)
-    raw_rows = _read_csv(DIVERSE_RAW_CSV)
-
-    curated = {row["uniprot_accession"]: row for row in diverse_rows}
-    mouse = {row["uniprot_accession"]: row for row in mouse_rows}
-    raw = {row["uniprot_accession"]: row for row in raw_rows}
-    return curated, mouse, raw
-
-
 def _load_label_curation(path: Path = GT_LABEL_CURATION_CSV) -> dict[str, dict[str, str]]:
     """Load accession-level benchmark label decisions and provenance."""
-    if not path.exists():
-        return {}
-    rows = _read_csv(path)
-    curation = {row["accession"]: row for row in rows}
-    if len(curation) != len(rows):
-        raise ValueError(f"Duplicate accessions in {path}")
-    return curation
+    return load_label_curation(path)
 
 
 def _apply_label_curation(
@@ -157,55 +142,20 @@ def _apply_label_curation(
     return row
 
 
-def _chunked(values: list[str], size: int) -> list[list[str]]:
-    return [values[i : i + size] for i in range(0, len(values), size)]
-
-
-def _fetch_uniprot_chunk(chunk: list[str]) -> dict[str, dict[str, str]]:
-    query = "(" + " OR ".join(f"accession:{acc}" for acc in chunk) + ")"
-    params = urllib.parse.urlencode(
-        {
-            "query": query,
-            "format": "tsv",
-            "fields": "accession,protein_name,gene_names,organism_name,organism_id,reviewed,fragment",
-            "size": str(len(chunk)),
-        }
-    )
-    url = f"https://rest.uniprot.org/uniprotkb/search?{params}"
-    req = urllib.request.Request(url, headers={"User-Agent": "mhcseqs-sp-gt/1.0"})
-    with urllib.request.urlopen(req, timeout=60) as response:
-        payload = response.read().decode("utf-8")
-    reader = csv.DictReader(io.StringIO(payload), delimiter="\t")
-    rows: dict[str, dict[str, str]] = {}
-    for row in reader:
-        accession = row.get("Entry", "").strip()
-        if accession:
-            rows[accession] = {
-                "protein_name": row.get("Protein names", "").strip(),
-                "gene_names": row.get("Gene Names", "").strip(),
-                "organism": row.get("Organism", "").strip(),
-                "organism_id": row.get("Organism (ID)", "").strip(),
-                "fragment": row.get("Fragment", "").strip(),
-                "reviewed": row.get("Reviewed", "").strip(),
-            }
-    return rows
-
-
-def _fetch_uniprot_metadata(accessions: list[str], chunk_size: int = 64) -> dict[str, dict[str, str]]:
-    """Fetch protein/gene metadata for accessions via UniProt search."""
-    results: dict[str, dict[str, str]] = {}
-    for chunk in _chunked(accessions, chunk_size):
-        try:
-            results.update(_fetch_uniprot_chunk(chunk))
-            continue
-        except HTTPError as exc:
-            if exc.code != 400 or len(chunk) <= 8:
-                raise
-
-        midpoint = len(chunk) // 2
-        results.update(_fetch_uniprot_metadata(chunk[:midpoint], chunk_size=max(midpoint, 8)))
-        results.update(_fetch_uniprot_metadata(chunk[midpoint:], chunk_size=max(len(chunk) - midpoint, 8)))
-    return results
+def _load_artifact_metadata(data_dir: Path | None = None) -> dict[str, dict[str, str]]:
+    """Load current and archived UniProt metadata from one validated bundle."""
+    validate_artifact_bundle(data_dir)
+    result: dict[str, dict[str, str]] = {}
+    for rows, source in (
+        (load_corpus_artifact(data_dir), "uniprot_corpus_artifact"),
+        (load_deleted_artifact(data_dir), "unisave_artifact"),
+    ):
+        for row in rows:
+            accession = row["Entry"]
+            if accession in result:
+                raise ValueError(f"Duplicate artifact metadata for {accession}")
+            result[accession] = {**row, "_metadata_source": source}
+    return result
 
 
 def _gene_from_protein_name(protein_name: str, organism: str, mhc_class: str, chain: str) -> tuple[str, str]:
@@ -288,31 +238,34 @@ def _classify_from_names(
 def _merge_row(
     row: dict[str, str],
     *,
-    curated: dict[str, dict],
-    mouse: dict[str, dict],
-    raw: dict[str, dict],
-    fetched: dict[str, dict[str, str]],
+    artifacts: dict[str, dict[str, str]],
+    taxonomy: dict[str, dict[str, str]],
     label_curation: dict[str, dict[str, str]],
 ) -> dict[str, str]:
     accession = row["accession"]
     organism = row["organism"]
     taxon_id = row.get("taxon_id", "")
     source_clade = row.get("source_clade", "")
-    species_category = _species_category(organism, taxon_id, source_clade)
+    taxonomy_row = taxonomy.get(taxon_id)
+    if taxonomy_row is None:
+        raise ValueError(f"Missing artifact taxonomy for {accession} taxon {taxon_id}")
+    artifact_clade, _source_root, species_category, _category_root = classification_from_taxonomy_row(taxonomy_row)
+    if source_clade != artifact_clade:
+        raise ValueError(f"Source clade mismatch for {accession}: raw={source_clade!r}, artifact={artifact_clade!r}")
 
-    local_curated = curated.get(accession)
-    local_mouse = mouse.get(accession)
-    local_raw = raw.get(accession)
-    remote = fetched.get(accession, {})
-
-    protein_name = ""
-    gene_names = ""
-    if local_raw:
-        protein_name = local_raw.get("protein_name", "")
-        gene_names = local_raw.get("gene_names", "")
-    if remote:
-        protein_name = remote.get("protein_name", "") or protein_name
-        gene_names = remote.get("gene_names", "") or gene_names
+    artifact = artifacts.get(accession)
+    if artifact is None:
+        raise ValueError(f"Missing artifact metadata for ground-truth accession {accession}")
+    protein_name = artifact.get("Protein names", "").strip()
+    gene_names = artifact.get("Gene Names", "").strip()
+    label = resolve_mhc_label(artifact, label_curation)
+    if not label.eligible:
+        raise ValueError(f"Ineligible accession {accession} reached enriched ground truth")
+    classified = _classify_from_names(
+        organism=organism,
+        protein_name=protein_name,
+        gene_names=gene_names,
+    )
 
     merged = {
         "accession": accession,
@@ -323,67 +276,18 @@ def _merge_row(
         "sp_length": row["sp_length"],
         "reviewed": row["reviewed"],
         "sequence": row["sequence"],
-        "mhc_class": "",
-        "chain": "",
-        "gene": "",
+        "mhc_class": label.mhc_class,
+        "chain": label.chain,
+        "gene": classified["gene"],
         "protein_name": protein_name,
         "gene_names": gene_names,
-        "is_fragment": remote.get("fragment", ""),
+        "is_fragment": artifact.get("Fragment", "").strip(),
         "source_group": "",
-        "metadata_source": "",
-        "label_status": "unresolved",
-        "gene_status": "missing",
-        "raw_gene_label": "",
+        "metadata_source": artifact["_metadata_source"],
+        "label_status": label.label_status,
+        "gene_status": classified["gene_status"],
+        "raw_gene_label": classified["raw_gene_label"],
     }
-
-    if local_curated:
-        merged.update(
-            {
-                "mhc_class": local_curated.get("mhc_class", ""),
-                "chain": local_curated.get("chain", ""),
-                "gene": local_curated.get("gene", ""),
-                "is_fragment": local_curated.get("is_fragment", ""),
-                "source_group": local_curated.get("source_group", ""),
-                "metadata_source": "local_curated_accession",
-                "label_status": "gold",
-                "gene_status": "ok" if local_curated.get("gene") else "missing",
-                "raw_gene_label": local_curated.get("gene", ""),
-            }
-        )
-        return _apply_label_curation(merged, label_curation)
-
-    if local_mouse:
-        merged.update(
-            {
-                "mhc_class": local_mouse.get("mhc_class", ""),
-                "chain": local_mouse.get("chain", ""),
-                "gene": local_mouse.get("gene", ""),
-                "is_fragment": local_mouse.get("is_fragment", ""),
-                "source_group": "murine_curated",
-                "metadata_source": "local_mouse_accession",
-                "label_status": "gold",
-                "gene_status": "ok" if local_mouse.get("gene") else "missing",
-                "raw_gene_label": local_mouse.get("gene", ""),
-            }
-        )
-        return _apply_label_curation(merged, label_curation)
-
-    if local_raw:
-        merged["is_fragment"] = local_raw.get("is_fragment", "")
-        merged["source_group"] = local_raw.get("source_group", "")
-
-    classified = _classify_from_names(
-        organism=organism,
-        protein_name=protein_name,
-        gene_names=gene_names,
-    )
-    merged.update(classified)
-    if remote:
-        merged["metadata_source"] = "uniprot_accession_tsv"
-    elif local_raw:
-        merged["metadata_source"] = "local_raw_accession"
-    else:
-        merged["metadata_source"] = "none"
 
     return _apply_label_curation(merged, label_curation)
 
@@ -391,7 +295,7 @@ def _merge_row(
 def _write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -483,46 +387,52 @@ def _build_controls(rows: list[dict[str, str]], *, include_fragment_controls: bo
     return controls
 
 
-def main() -> None:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--include-fragment-controls",
         action="store_true",
         help="Also generate synthetic exon-like groove fragments (slower).",
     )
-    args = parser.parse_args()
+    parser.add_argument("--data-dir", type=Path, help="Artifact cache root.")
+    parser.add_argument("--raw", type=Path, default=GT_RAW_CSV)
+    parser.add_argument("--output", type=Path, default=GT_ENRICHED_CSV)
+    parser.add_argument("--controls", type=Path, default=NEGATIVE_CONTROL_CSV)
+    parser.add_argument("--label-curation", type=Path, default=GT_LABEL_CURATION_CSV)
+    return parser.parse_args(argv)
 
-    gt_rows = _read_csv(GT_RAW_CSV)
-    accessions = [row["accession"] for row in gt_rows]
-    curated, mouse, raw = _load_local_metadata()
-    label_curation = _load_label_curation()
-    fetched = _fetch_uniprot_metadata(accessions)
+
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
+
+    gt_rows = _read_csv(args.raw)
+    label_curation = _load_label_curation(args.label_curation)
+    artifacts = _load_artifact_metadata(args.data_dir)
+    taxonomy = taxonomy_by_id(args.data_dir)
 
     enriched = [
         _merge_row(
             row,
-            curated=curated,
-            mouse=mouse,
-            raw=raw,
-            fetched=fetched,
+            artifacts=artifacts,
+            taxonomy=taxonomy,
             label_curation=label_curation,
         )
         for row in gt_rows
     ]
     controls = _build_controls(enriched, include_fragment_controls=args.include_fragment_controls)
 
-    _write_csv(GT_ENRICHED_CSV, enriched, ENRICHED_FIELDS)
-    _write_csv(NEGATIVE_CONTROL_CSV, controls, CONTROL_FIELDS)
+    _write_csv(args.output, enriched, ENRICHED_FIELDS)
+    _write_csv(args.controls, controls, CONTROL_FIELDS)
 
     by_source = Counter(row["metadata_source"] for row in enriched)
     by_label = Counter((row["mhc_class"], row["chain"]) for row in enriched if row["mhc_class"])
     by_gene_status = Counter(row["gene_status"] for row in enriched)
     by_control = Counter(row["control_type"] for row in controls)
 
-    print(f"Loaded {len(gt_rows)} raw GT rows from {GT_RAW_CSV.name}")
-    print(f"Fetched UniProt metadata for {len(fetched)} accessions")
-    print(f"Wrote enriched GT to {GT_ENRICHED_CSV}")
-    print(f"Wrote negative controls to {NEGATIVE_CONTROL_CSV}")
+    print(f"Loaded {len(gt_rows)} raw GT rows from {args.raw.name}")
+    print(f"Loaded release-pinned artifact metadata for {len(artifacts)} accessions")
+    print(f"Wrote enriched GT to {args.output}")
+    print(f"Wrote negative controls to {args.controls}")
     print("\nMetadata sources:")
     for source, count in sorted(by_source.items()):
         print(f"  {source}: {count}")

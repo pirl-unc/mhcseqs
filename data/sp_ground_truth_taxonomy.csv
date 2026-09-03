@@ -3,30 +3,54 @@ taxon_id,organism,taxonomy_name,source_clade,source_clade_taxon_id,species_categ
 7797,Squalus acanthias,Squalus acanthias,Chondrichthyes,7777,fish,7777,2026_03,https://rest.uniprot.org/taxonomy/7797,2026-09-03
 7801,Ginglymostoma cirratum,Ginglymostoma cirratum,Chondrichthyes,7777,fish,7777,2026_03,https://rest.uniprot.org/taxonomy/7801,2026-09-03
 7868,Callorhinchus milii,Callorhinchus milii,Chondrichthyes,7777,fish,7777,2026_03,https://rest.uniprot.org/taxonomy/7868,2026-09-03
+7886,Protopterus aethiopicus,Protopterus aethiopicus,Dipnomorpha,7878,fish,7878,2026_03,https://rest.uniprot.org/taxonomy/7886,2026-09-03
+7897,Latimeria chalumnae,Latimeria chalumnae,Coelacanthimorpha,118072,fish,118072,2026_03,https://rest.uniprot.org/taxonomy/7897,2026-09-03
+7906,Acipenser ruthenus,Acipenser ruthenus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7906,2026-09-03
 7918,Lepisosteus oculatus,Lepisosteus oculatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7918,2026-09-03
+7932,Megalops atlanticus,Megalops atlanticus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7932,2026-09-03
+7936,Anguilla anguilla,Anguilla anguilla,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7936,2026-09-03
 7937,Anguilla japonica,Anguilla japonica,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7937,2026-09-03
 7950,Clupea harengus,Clupea harengus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7950,2026-09-03
 7955,Danio rerio,Danio rerio,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7955,2026-09-03
 7957,Carassius auratus,Carassius auratus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7957,2026-09-03
+7959,Ctenopharyngodon idella,Ctenopharyngodon idella,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7959,2026-09-03
 7962,Cyprinus carpio,Cyprinus carpio,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7962,2026-09-03
 7994,Astyanax mexicanus,Astyanax mexicanus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7994,2026-09-03
 7998,Ictalurus punctatus,Ictalurus punctatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/7998,2026-09-03
+8005,Electrophorus electricus,Electrophorus electricus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8005,2026-09-03
 8010,Esox lucius,Esox lucius,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8010,2026-09-03
+8014,Osmerus mordax,Osmerus mordax,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8014,2026-09-03
+8017,Oncorhynchus gorbuscha,Oncorhynchus gorbuscha,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8017,2026-09-03
 8019,Oncorhynchus kisutch,Oncorhynchus kisutch,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8019,2026-09-03
 8022,Oncorhynchus mykiss,Oncorhynchus mykiss,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8022,2026-09-03
 8030,Salmo salar,Salmo salar,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8030,2026-09-03
 8032,Salmo trutta,Salmo trutta,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8032,2026-09-03
+8036,Salvelinus alpinus,Salvelinus alpinus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8036,2026-09-03
+8038,Salvelinus fontinalis,Salvelinus fontinalis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8038,2026-09-03
+8039,Salvelinus malma,Salvelinus malma,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8039,2026-09-03
 8040,Salvelinus namaycush,Salvelinus namaycush,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8040,2026-09-03
 8049,Gadus morhua,Gadus morhua,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8049,2026-09-03
+8056,Melanogrammus aeglefinus,Melanogrammus aeglefinus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8056,2026-09-03
 8078,Fundulus heteroclitus,Fundulus heteroclitus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8078,2026-09-03
+8081,Poecilia reticulata,Poecilia reticulata,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8081,2026-09-03
 8083,Xiphophorus maculatus,Xiphophorus maculatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8083,2026-09-03
+8084,Xiphophorus hellerii,Xiphophorus hellerii,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8084,2026-09-03
 8090,Oryzias latipes,Oryzias latipes,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8090,2026-09-03
 8103,Cyclopterus lumpus,Cyclopterus lumpus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8103,2026-09-03
+8127,Oreochromis mossambicus,Oreochromis mossambicus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8127,2026-09-03
 8128,Oreochromis niloticus,Oreochromis niloticus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8128,2026-09-03
+8144,Sarotherodon galilaeus,Sarotherodon galilaeus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8144,2026-09-03
 8153,Haplochromis burtoni,Haplochromis burtoni,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8153,2026-09-03
+8154,Astatotilapia calliptera,Astatotilapia calliptera,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8154,2026-09-03
+8167,Perca flavescens,Perca flavescens,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8167,2026-09-03
+8168,Perca fluviatilis,Perca fluviatilis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8168,2026-09-03
 8175,Sparus aurata,Sparus aurata,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8175,2026-09-03
 8187,Lates calcarifer,Lates calcarifer,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8187,2026-09-03
+8208,Notothenia coriiceps,Notothenia coriiceps,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8208,2026-09-03
+8213,Pagothenia borchgrevinki,Pagothenia borchgrevinki,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8213,2026-09-03
+8218,Gymnodraco acuticeps,Gymnodraco acuticeps,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8218,2026-09-03
 8255,Paralichthys olivaceus,Paralichthys olivaceus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8255,2026-09-03
+8262,Pleuronectes platessa,Pleuronectes platessa,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/8262,2026-09-03
 8296,Ambystoma mexicanum,Ambystoma mexicanum,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/8296,2026-09-03
 8305,Ambystoma tigrinum,Ambystoma tigrinum,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/8305,2026-09-03
 8319,Pleurodeles waltl,Pleurodeles waltl,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/8319,2026-09-03
@@ -36,41 +60,62 @@ taxon_id,organism,taxonomy_name,source_clade,source_clade_taxon_id,species_categ
 8364,Xenopus tropicalis,Xenopus tropicalis,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/8364,2026-09-03
 8386,Rhinella marina,Rhinella marina,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/8386,2026-09-03
 8400,Aquarana catesbeiana,Aquarana catesbeiana,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/8400,2026-09-03
-8402,Rana japonica,Rana japonica,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/8402,2026-09-03
 8404,Lithobates pipiens,Lithobates pipiens,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/8404,2026-09-03
+8467,Caretta caretta,Caretta caretta,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/8467,2026-09-03
+8469,Chelonia mydas,Chelonia mydas,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/8469,2026-09-03
+8472,Lepidochelys kempii,Lepidochelys kempii,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/8472,2026-09-03
+8475,Chelydra serpentina,Chelydra serpentina,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/8475,2026-09-03
+8478,Chrysemys picta bellii,Chrysemys picta bellii,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/8478,2026-09-03
+8496,Alligator mississippiensis,Alligator mississippiensis,Crocodylia,1294634,other_vertebrate,1294634,2026_03,https://rest.uniprot.org/taxonomy/8496,2026-09-03
+8499,Caiman crocodilus,Caiman crocodilus,Crocodylia,1294634,other_vertebrate,1294634,2026_03,https://rest.uniprot.org/taxonomy/8499,2026-09-03
+8502,Crocodylus porosus,Crocodylus porosus,Crocodylia,1294634,other_vertebrate,1294634,2026_03,https://rest.uniprot.org/taxonomy/8502,2026-09-03
 8508,Sphenodon punctatus,Sphenodon punctatus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/8508,2026-09-03
 8517,Iguana iguana,Iguana iguana,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/8517,2026-09-03
-8527,Tiliqua rugosa,Tiliqua rugosa,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/8527,2026-09-03
 8630,Laticauda laticaudata,Laticauda laticaudata,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/8630,2026-09-03
 8663,Notechis scutatus,Notechis scutatus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/8663,2026-09-03
-8665,Ophiophagus hannah,Ophiophagus hannah,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/8665,2026-09-03
 8673,Pseudonaja textilis,Pseudonaja textilis,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/8673,2026-09-03
 8729,Crotalus adamanteus,Crotalus adamanteus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/8729,2026-09-03
 8790,Dromaius novaehollandiae,Dromaius novaehollandiae,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/8790,2026-09-03
 8824,Apteryx owenii,Apteryx owenii,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/8824,2026-09-03
 8839,Anas platyrhynchos,Anas platyrhynchos,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/8839,2026-09-03
 8840,Anas platyrhynchos platyrhynchos,Anas platyrhynchos platyrhynchos,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/8840,2026-09-03
-8843,Anser anser,Anser anser,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/8843,2026-09-03
+8845,Anser cygnoides,Anser cygnoides,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/8845,2026-09-03
 8855,Cairina moschata,Cairina moschata,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/8855,2026-09-03
-8932,Columba livia,Columba livia,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/8932,2026-09-03
 9004,Tympanuchus cupido,Tympanuchus cupido,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9004,2026-09-03
+9009,Callipepla squamata,Callipepla squamata,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9009,2026-09-03
 9031,Gallus gallus,Gallus gallus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9031,2026-09-03
 9054,Phasianus colchicus,Phasianus colchicus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9054,2026-09-03
 9083,Bambusicola thoracicus,Bambusicola thoracicus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9083,2026-09-03
 9089,Chrysolophus pictus,Chrysolophus pictus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9089,2026-09-03
+9103,Meleagris gallopavo,Meleagris gallopavo,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9103,2026-09-03
 9135,Serinus canaria,Serinus canaria,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9135,2026-09-03
-9218,Phoenicopterus ruber ruber,Phoenicopterus ruber ruber,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9218,2026-09-03
-9240,Spheniscus humboldti,Spheniscus humboldti,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/9240,2026-09-03
+9258,Ornithorhynchus anatinus,Ornithorhynchus anatinus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9258,2026-09-03
+9261,Tachyglossus aculeatus,Tachyglossus aculeatus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9261,2026-09-03
 9305,Sarcophilus harrisii,Sarcophilus harrisii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9305,2026-09-03
+9315,Notamacropus eugenii,Notamacropus eugenii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9315,2026-09-03
+9337,Trichosurus vulpecula,Trichosurus vulpecula,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9337,2026-09-03
 9365,Erinaceus europaeus,Erinaceus europaeus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9365,2026-09-03
+9371,Echinops telfairi,Echinops telfairi,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9371,2026-09-03
+9402,Pteropus alecto,Pteropus alecto,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9402,2026-09-03
+9407,Rousettus aegyptiacus,Rousettus aegyptiacus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9407,2026-09-03
+9430,Desmodus rotundus,Desmodus rotundus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9430,2026-09-03
+9447,Lemur catta,Lemur catta,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9447,2026-09-03
 9483,Callithrix jacchus,Callithrix jacchus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9483,2026-09-03
 9490,Saguinus oedipus,Saguinus oedipus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9490,2026-09-03
+9508,Ateles fusciceps,Ateles fusciceps,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9508,2026-09-03
+9515,Sapajus apella,Sapajus apella,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9515,2026-09-03
 9531,Cercocebus atys,Cercocebus atys,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9531,2026-09-03
+9540,Macaca arctoides,Macaca arctoides,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9540,2026-09-03
 9541,Macaca fascicularis,Macaca fascicularis,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9541,2026-09-03
 9544,Macaca mulatta,Macaca mulatta,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9544,2026-09-03
 9545,Macaca nemestrina,Macaca nemestrina,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9545,2026-09-03
+9551,Macaca assamensis,Macaca assamensis,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9551,2026-09-03
 9555,Papio anubis,Papio anubis,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9555,2026-09-03
+9556,Papio cynocephalus,Papio cynocephalus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9556,2026-09-03
+9557,Papio hamadryas,Papio hamadryas,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9557,2026-09-03
+9565,Theropithecus gelada,Theropithecus gelada,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9565,2026-09-03
 9568,Mandrillus leucophaeus,Mandrillus leucophaeus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9568,2026-09-03
+9593,Gorilla gorilla,Gorilla gorilla,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9593,2026-09-03
 9595,Gorilla gorilla gorilla,Gorilla gorilla gorilla,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9595,2026-09-03
 9597,Pan paniscus,Pan paniscus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9597,2026-09-03
 9598,Pan troglodytes,Pan troglodytes,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9598,2026-09-03
@@ -78,177 +123,412 @@ taxon_id,organism,taxonomy_name,source_clade,source_clade_taxon_id,species_categ
 9601,Pongo abelii,Pongo abelii,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/9601,2026-09-03
 9606,Homo sapiens,Homo sapiens,Mammalia,40674,human,9606,2026_03,https://rest.uniprot.org/taxonomy/9606,2026-09-03
 9615,Canis lupus familiaris,Canis lupus familiaris,Mammalia,40674,carnivore,9608,2026_03,https://rest.uniprot.org/taxonomy/9615,2026-09-03
+9627,Vulpes vulpes,Vulpes vulpes,Mammalia,40674,carnivore,9608,2026_03,https://rest.uniprot.org/taxonomy/9627,2026-09-03
 9643,Ursus americanus,Ursus americanus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9643,2026-09-03
 9646,Ailuropoda melanoleuca,Ailuropoda melanoleuca,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9646,2026-09-03
+9669,Mustela putorius furo,Mustela putorius furo,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9669,2026-09-03
+9685,Felis catus,Felis catus,Mammalia,40674,carnivore,9681,2026_03,https://rest.uniprot.org/taxonomy/9685,2026-09-03
+9689,Panthera leo,Panthera leo,Mammalia,40674,carnivore,9681,2026_03,https://rest.uniprot.org/taxonomy/9689,2026-09-03
+9691,Panthera pardus,Panthera pardus,Mammalia,40674,carnivore,9681,2026_03,https://rest.uniprot.org/taxonomy/9691,2026-09-03
+9696,Puma concolor,Puma concolor,Mammalia,40674,carnivore,9681,2026_03,https://rest.uniprot.org/taxonomy/9696,2026-09-03
+9704,Zalophus californianus,Zalophus californianus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9704,2026-09-03
+9708,Odobenus rosmarus divergens,Odobenus rosmarus divergens,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9708,2026-09-03
+9713,Leptonychotes weddellii,Leptonychotes weddellii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9713,2026-09-03
+9739,Tursiops truncatus,Tursiops truncatus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9739,2026-09-03
+9749,Delphinapterus leucas,Delphinapterus leucas,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9749,2026-09-03
 9755,Physeter macrocephalus,Physeter macrocephalus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9755,2026-09-03
+9767,Balaenoptera acutorostrata,Balaenoptera acutorostrata,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9767,2026-09-03
 9771,Balaenoptera musculus,Balaenoptera musculus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9771,2026-09-03
+9783,Elephas maximus,Elephas maximus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9783,2026-09-03
+9785,Loxodonta africana,Loxodonta africana,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9785,2026-09-03
+9793,Equus asinus,Equus asinus,Mammalia,40674,ungulate,9788,2026_03,https://rest.uniprot.org/taxonomy/9793,2026-09-03
+9796,Equus caballus,Equus caballus,Mammalia,40674,ungulate,9788,2026_03,https://rest.uniprot.org/taxonomy/9796,2026-09-03
+9798,Equus przewalskii,Equus przewalskii,Mammalia,40674,ungulate,9788,2026_03,https://rest.uniprot.org/taxonomy/9798,2026-09-03
 9823,Sus scrofa,Sus scrofa,Mammalia,40674,ungulate,9821,2026_03,https://rest.uniprot.org/taxonomy/9823,2026-09-03
+9825,Sus scrofa domesticus,Sus scrofa domesticus,Mammalia,40674,ungulate,9821,2026_03,https://rest.uniprot.org/taxonomy/9825,2026-09-03
+9837,Camelus bactrianus,Camelus bactrianus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9837,2026-09-03
+9838,Camelus dromedarius,Camelus dromedarius,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9838,2026-09-03
+9874,Odocoileus virginianus,Odocoileus virginianus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9874,2026-09-03
+9886,Muntiacus reevesi,Muntiacus reevesi,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9886,2026-09-03
+9888,Muntiacus muntjak,Muntiacus muntjak,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9888,2026-09-03
 9913,Bos taurus,Bos taurus,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/9913,2026-09-03
+9915,Bos indicus,Bos indicus,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/9915,2026-09-03
 9925,Capra hircus,Capra hircus,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/9925,2026-09-03
 9940,Ovis aries,Ovis aries,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/9940,2026-09-03
 9986,Oryctolagus cuniculus,Oryctolagus cuniculus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9986,2026-09-03
 9994,Marmota marmota marmota,Marmota marmota marmota,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9994,2026-09-03
+9995,Marmota monax,Marmota monax,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9995,2026-09-03
 9999,Urocitellus parryii,Urocitellus parryii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/9999,2026-09-03
+10007,Sciurus aberti,Sciurus aberti,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/10007,2026-09-03
 10020,Dipodomys ordii,Dipodomys ordii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/10020,2026-09-03
 10029,Cricetulus griseus,Cricetulus griseus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/10029,2026-09-03
 10036,Mesocricetus auratus,Mesocricetus auratus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/10036,2026-09-03
+10042,Peromyscus maniculatus,Peromyscus maniculatus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/10042,2026-09-03
 10089,Mus caroli,Mus caroli,Mammalia,40674,murine,39107,2026_03,https://rest.uniprot.org/taxonomy/10089,2026-09-03
 10090,Mus musculus,Mus musculus,Mammalia,40674,murine,39107,2026_03,https://rest.uniprot.org/taxonomy/10090,2026-09-03
 10103,Mus spicilegus,Mus spicilegus,Mammalia,40674,murine,39107,2026_03,https://rest.uniprot.org/taxonomy/10103,2026-09-03
+10112,Mastomys natalensis,Mastomys natalensis,Mammalia,40674,murine,39107,2026_03,https://rest.uniprot.org/taxonomy/10112,2026-09-03
 10116,Rattus norvegicus,Rattus norvegicus,Mammalia,40674,murine,39107,2026_03,https://rest.uniprot.org/taxonomy/10116,2026-09-03
+10118,Rattus sp.,Rattus sp.,Mammalia,40674,murine,39107,2026_03,https://rest.uniprot.org/taxonomy/10118,2026-09-03
 10141,Cavia porcellus,Cavia porcellus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/10141,2026-09-03
+10160,Octodon degus,Octodon degus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/10160,2026-09-03
+10181,Heterocephalus glaber,Heterocephalus glaber,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/10181,2026-09-03
+13489,Dicentrarchus labrax,Dicentrarchus labrax,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/13489,2026-09-03
+13616,Monodelphis domestica,Monodelphis domestica,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/13616,2026-09-03
 13677,Scomber scombrus,Scomber scombrus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/13677,2026-09-03
 13765,Xyrichtys novacula,Xyrichtys novacula,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/13765,2026-09-03
+27622,Molossus molossus,Molossus molossus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/27622,2026-09-03
 27687,Erpetoichthys calabaricus,Erpetoichthys calabaricus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/27687,2026-09-03
+27689,Acipenser baerii,Acipenser baerii,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/27689,2026-09-03
+27781,Aulonocara hansbaenschi,Aulonocara hansbaenschi,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/27781,2026-09-03
+27788,Lepidochelys olivacea,Lepidochelys olivacea,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/27788,2026-09-03
 28377,Anolis carolinensis,Anolis carolinensis,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/28377,2026-09-03
+28743,Cyprinodon variegatus,Cyprinodon variegatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/28743,2026-09-03
+28760,Crenichthys baileyi,Crenichthys baileyi,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/28760,2026-09-03
+28829,Solea senegalensis,Solea senegalensis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/28829,2026-09-03
 29073,Ursus maritimus,Ursus maritimus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/29073,2026-09-03
+29088,Neomonachus schauinslandi,Neomonachus schauinslandi,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/29088,2026-09-03
 29139,Vombatus ursinus,Vombatus ursinus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/29139,2026-09-03
 29144,Chanos chanos,Chanos chanos,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/29144,2026-09-03
+30338,Bufotes viridis,Bufotes viridis,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/30338,2026-09-03
 30357,Pyxicephalus adspersus,Pyxicephalus adspersus,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/30357,2026-09-03
 30415,Grus japonensis,Grus japonensis,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/30415,2026-09-03
-30419,Opisthocomus hoazin,Opisthocomus hoazin,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/30419,2026-09-03
 30464,Nothoprocta perdicaria,Nothoprocta perdicaria,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/30464,2026-09-03
 30494,Triakis scyllium,Triakis scyllium,Chondrichthyes,7777,fish,7777,2026_03,https://rest.uniprot.org/taxonomy/30494,2026-09-03
+30520,Bos gaurus frontalis,Bos gaurus frontalis,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/30520,2026-09-03
+30521,Bos grunniens,Bos grunniens,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/30521,2026-09-03
+30522,Bos indicus x Bos taurus,Bos indicus x Bos taurus,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/30522,2026-09-03
+30538,Vicugna pacos,Vicugna pacos,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/30538,2026-09-03
 30608,Microcebus murinus,Microcebus murinus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/30608,2026-09-03
 30611,Otolemur garnettii,Otolemur garnettii,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/30611,2026-09-03
 30637,Spalax ehrenbergi,Spalax ehrenbergi,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/30637,2026-09-03
+30640,Sciurus carolinensis,Sciurus carolinensis,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/30640,2026-09-03
+30724,Clupea pallasii,Clupea pallasii,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/30724,2026-09-03
 30732,Oryzias melastigma,Oryzias melastigma,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/30732,2026-09-03
+30991,Silurus asotus,Silurus asotus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/30991,2026-09-03
+30993,Pangasianodon gigas,Pangasianodon gigas,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/30993,2026-09-03
 31033,Takifugu rubripes,Takifugu rubripes,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/31033,2026-09-03
 31140,Conolophus subcristatus,Conolophus subcristatus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/31140,2026-09-03
+31869,Daubentonia madagascariensis,Daubentonia madagascariensis,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/31869,2026-09-03
+32473,Xiphophorus couchianus,Xiphophorus couchianus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/32473,2026-09-03
+32480,Xiphophorus multilineatus,Xiphophorus multilineatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/32480,2026-09-03
+32483,Xiphophorus pygmaeus,Xiphophorus pygmaeus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/32483,2026-09-03
 32507,Neolamprologus brichardi,Neolamprologus brichardi,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/32507,2026-09-03
+32536,Acinonyx jubatus,Acinonyx jubatus,Mammalia,40674,carnivore,9681,2026_03,https://rest.uniprot.org/taxonomy/32536,2026-09-03
+33524,Ilyodon furcidens,Ilyodon furcidens,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/33524,2026-09-03
 33587,Mycteria americana,Mycteria americana,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/33587,2026-09-03
+34773,Alosa sapidissima,Alosa sapidissima,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/34773,2026-09-03
+34816,Morone saxatilis,Morone saxatilis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/34816,2026-09-03
 34839,Chinchilla lanigera,Chinchilla lanigera,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/34839,2026-09-03
+34869,Rupicapra rupicapra,Rupicapra rupicapra,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/34869,2026-09-03
+34884,Callorhinus ursinus,Callorhinus ursinus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/34884,2026-09-03
 35019,Thamnophis sirtalis,Thamnophis sirtalis,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/35019,2026-09-03
 35024,Crotalus horridus,Crotalus horridus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/35024,2026-09-03
 35670,Naja naja,Naja naja,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/35670,2026-09-03
+36188,Chionodraco hamatus,Chionodraco hamatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/36188,2026-09-03
+36190,Chaenocephalus aceratus,Chaenocephalus aceratus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/36190,2026-09-03
+36200,Dissostichus mawsoni,Dissostichus mawsoni,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/36200,2026-09-03
 37003,Kryptolebias marmoratus,Kryptolebias marmoratus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/37003,2026-09-03
+37010,Pan troglodytes schweinfurthii,Pan troglodytes schweinfurthii,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/37010,2026-09-03
+37011,Pan troglodytes troglodytes,Pan troglodytes troglodytes,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/37011,2026-09-03
+37012,Pan troglodytes verus,Pan troglodytes verus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/37012,2026-09-03
+37032,Suricata suricatta,Suricata suricatta,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/37032,2026-09-03
+37179,Hemitragus jemlahicus,Hemitragus jemlahicus,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/37179,2026-09-03
 37293,Aotus nancymaae,Aotus nancymaae,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/37293,2026-09-03
+37347,Tupaia belangeri,Tupaia belangeri,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/37347,2026-09-03
 38626,Phascolarctos cinereus,Phascolarctos cinereus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/38626,2026-09-03
+38654,Alligator sinensis,Alligator sinensis,Crocodylia,1294634,other_vertebrate,1294634,2026_03,https://rest.uniprot.org/taxonomy/38654,2026-09-03
+38772,Gopherus agassizii,Gopherus agassizii,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/38772,2026-09-03
 39432,Saimiri boliviensis boliviensis,Saimiri boliviensis boliviensis,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/39432,2026-09-03
 39621,Acrocephalus arundinaceus,Acrocephalus arundinaceus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/39621,2026-09-03
+39638,Agelaius phoeniceus,Agelaius phoeniceus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/39638,2026-09-03
 40147,Acipenser oxyrinchus oxyrinchus,Acipenser oxyrinchus oxyrinchus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/40147,2026-09-03
 40151,Monodon monoceros,Monodon monoceros,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/40151,2026-09-03
 40157,Lonchura striata,Lonchura striata,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/40157,2026-09-03
+40690,Trematomus bernacchii,Trematomus bernacchii,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/40690,2026-09-03
+40831,Labeobarbus intermedius,Labeobarbus intermedius,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/40831,2026-09-03
 41447,Seriola dumerili,Seriola dumerili,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/41447,2026-09-03
 42100,Phocoena sinus,Phocoena sinus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/42100,2026-09-03
+42415,Sigmodon hispidus,Sigmodon hispidus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/42415,2026-09-03
+42514,Pygocentrus nattereri,Pygocentrus nattereri,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/42514,2026-09-03
+43147,Aotus lemurinus,Aotus lemurinus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/43147,2026-09-03
 43179,Ictidomys tridecemlineatus,Ictidomys tridecemlineatus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/43179,2026-09-03
+43332,Elaphurus davidianus,Elaphurus davidianus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/43332,2026-09-03
 43346,Bison bison bison,Bison bison bison,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/43346,2026-09-03
+43700,Monopterus albus,Monopterus albus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/43700,2026-09-03
+43780,Nasalis larvatus,Nasalis larvatus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/43780,2026-09-03
 44394,Zonotrichia albicollis,Zonotrichia albicollis,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/44394,2026-09-03
+44932,Boreogadus saida,Boreogadus saida,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/44932,2026-09-03
+46359,Gorilla beringei graueri,Gorilla beringei graueri,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/46359,2026-09-03
+46360,Cervus elaphus hippelaphus,Cervus elaphus hippelaphus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/46360,2026-09-03
+47308,Neogobius melanostomus,Neogobius melanostomus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/47308,2026-09-03
+47969,Oreochromis aureus,Oreochromis aureus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/47969,2026-09-03
+48416,Zoarces viviparus,Zoarces viviparus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/48416,2026-09-03
+48420,Gulo gulo,Gulo gulo,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/48420,2026-09-03
+48698,Poecilia formosa,Poecilia formosa,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/48698,2026-09-03
+48699,Poecilia latipinna,Poecilia latipinna,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/48699,2026-09-03
+48701,Poecilia mexicana,Poecilia mexicana,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/48701,2026-09-03
+48723,Pontoporia blainvillei,Pontoporia blainvillei,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/48723,2026-09-03
 48883,Geospiza fortis,Geospiza fortis,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/48883,2026-09-03
 51154,Catagonus wagneri,Catagonus wagneri,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/51154,2026-09-03
 51208,Amblyrhynchus cristatus,Amblyrhynchus cristatus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/51208,2026-09-03
+51298,Myotis myotis,Myotis myotis,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/51298,2026-09-03
+51337,Jaculus jaculus,Jaculus jaculus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/51337,2026-09-03
+51338,Castor canadensis,Castor canadensis,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/51338,2026-09-03
+52237,Champsocephalus gunnari,Champsocephalus gunnari,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/52237,2026-09-03
 52577,Phrynosoma platyrhinos,Phrynosoma platyrhinos,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/52577,2026-09-03
 52670,Austrofundulus limnaeus,Austrofundulus limnaeus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/52670,2026-09-03
 52775,Ciconia boyciana,Ciconia boyciana,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/52775,2026-09-03
+52904,Scophthalmus maximus,Scophthalmus maximus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/52904,2026-09-03
+54343,Etheostoma spectabile,Etheostoma spectabile,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/54343,2026-09-03
 54390,Micrurus corallinus,Micrurus corallinus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/54390,2026-09-03
+54602,Macaca thibetana,Macaca thibetana,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/54602,2026-09-03
 55149,Sciurus vulgaris,Sciurus vulgaris,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/55149,2026-09-03
+55544,Platysternon megacephalum,Platysternon megacephalum,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/55544,2026-09-03
+56216,Neotoma lepida,Neotoma lepida,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/56216,2026-09-03
+56313,Tyto alba,Tyto alba,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/56313,2026-09-03
 56716,Cottoperca gobio,Cottoperca gobio,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/56716,2026-09-03
+56723,Labrus bergylta,Labrus bergylta,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/56723,2026-09-03
+56733,Eleginops maclovinus,Eleginops maclovinus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/56733,2026-09-03
 57060,Eleutherodactylus coqui,Eleutherodactylus coqui,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/57060,2026-09-03
+57737,Axis porcinus,Axis porcinus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/57737,2026-09-03
+58324,Phoxinus phoxinus,Phoxinus phoxinus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/58324,2026-09-03
+59463,Myotis lucifugus,Myotis lucifugus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/59463,2026-09-03
+59472,Pipistrellus kuhlii,Pipistrellus kuhlii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/59472,2026-09-03
+59473,Pipistrellus nathusii,Pipistrellus nathusii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/59473,2026-09-03
 59479,Rhinolophus ferrumequinum,Rhinolophus ferrumequinum,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/59479,2026-09-03
 59729,Taeniopygia guttata,Taeniopygia guttata,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/59729,2026-09-03
+60710,Chlorocebus pygerythrus,Chlorocebus pygerythrus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/60710,2026-09-03
 60711,Chlorocebus sabaeus,Chlorocebus sabaeus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/60711,2026-09-03
+61084,Plecoglossus altivelis,Plecoglossus altivelis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/61084,2026-09-03
 61221,Varanus komodoensis,Varanus komodoensis,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/61221,2026-09-03
+61383,Lynx canadensis,Lynx canadensis,Mammalia,40674,carnivore,9681,2026_03,https://rest.uniprot.org/taxonomy/61383,2026-09-03
 61616,Pelobates cultripes,Pelobates cultripes,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/61616,2026-09-03
 61621,Rhinopithecus bieti,Rhinopithecus bieti,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/61621,2026-09-03
 61622,Rhinopithecus roxellana,Rhinopithecus roxellana,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/61622,2026-09-03
+61819,Amphilophus citrinellus,Amphilophus citrinellus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/61819,2026-09-03
 61853,Nomascus leucogenys,Nomascus leucogenys,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/61853,2026-09-03
+61971,Huso huso,Huso huso,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/61971,2026-09-03
 62061,Acipenser dabryanus,Acipenser dabryanus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/62061,2026-09-03
+62062,Hucho hucho,Hucho hucho,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/62062,2026-09-03
+64144,Anabas testudineus,Anabas testudineus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/64144,2026-09-03
+64152,Channa striata,Channa striata,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/64152,2026-09-03
 64176,Podarcis muralis,Podarcis muralis,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/64176,2026-09-03
 68415,Moschus moschiferus,Moschus moschiferus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/68415,2026-09-03
+69293,Gasterosteus aculeatus,Gasterosteus aculeatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/69293,2026-09-03
 71023,Ctenophorus decresii,Ctenophorus decresii,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/71023,2026-09-03
+71854,Muntiacus crinifrons,Muntiacus crinifrons,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/71854,2026-09-03
+72004,Bos mutus,Bos mutus,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/72004,2026-09-03
+73337,Ceratotherium simum simum,Ceratotherium simum simum,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/73337,2026-09-03
 74358,Podarcis lilfordi,Podarcis lilfordi,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/74358,2026-09-03
 74533,Panthera tigris altaica,Panthera tigris altaica,Mammalia,40674,carnivore,9681,2026_03,https://rest.uniprot.org/taxonomy/74533,2026-09-03
+74926,Mauremys mutica,Mauremys mutica,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/74926,2026-09-03
+74940,Oncorhynchus tshawytscha,Oncorhynchus tshawytscha,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/74940,2026-09-03
 75038,Scatophagus argus,Scatophagus argus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/75038,2026-09-03
+75352,Megalobrama amblycephala,Megalobrama amblycephala,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/75352,2026-09-03
+75362,Schizothorax prenanti,Schizothorax prenanti,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/75362,2026-09-03
 75366,Sinocyclocheilus grahami,Sinocyclocheilus grahami,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/75366,2026-09-03
 75743,Scyliorhinus torazame,Scyliorhinus torazame,Chondrichthyes,7777,fish,7777,2026_03,https://rest.uniprot.org/taxonomy/75743,2026-09-03
 75864,Anas zonorhyncha,Anas zonorhyncha,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/75864,2026-09-03
+75934,Umbra pygmaea,Umbra pygmaea,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/75934,2026-09-03
+75939,Dallia pectoralis,Dallia pectoralis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/75939,2026-09-03
 76066,Engystomops pustulosus,Engystomops pustulosus,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/76066,2026-09-03
-79016,Rana ornativentris,Rana ornativentris,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/79016,2026-09-03
+77932,Diceros bicornis minor,Diceros bicornis minor,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/77932,2026-09-03
+78454,Saguinus labiatus,Saguinus labiatus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/78454,2026-09-03
+79684,Microtus ochrogaster,Microtus ochrogaster,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/79684,2026-09-03
+79784,Tursiops aduncus,Tursiops aduncus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/79784,2026-09-03
+80966,Acanthochromis polyacanthus,Acanthochromis polyacanthus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/80966,2026-09-03
+80972,Amphiprion ocellaris,Amphiprion ocellaris,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/80972,2026-09-03
+82366,Verasper variegatus,Verasper variegatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/82366,2026-09-03
+82655,Conger conger,Conger conger,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/82655,2026-09-03
 84645,Labeo rohita,Labeo rohita,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/84645,2026-09-03
 87175,Geospiza parvula,Geospiza parvula,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/87175,2026-09-03
+88029,Semnopithecus entellus,Semnopithecus entellus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/88029,2026-09-03
+88201,Mugilogobius chulae,Mugilogobius chulae,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/88201,2026-09-03
+89462,Bubalus bubalis,Bubalus bubalis,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/89462,2026-09-03
+89673,Phyllostomus discolor,Phyllostomus discolor,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/89673,2026-09-03
 89951,Merluccius polli,Merluccius polli,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/89951,2026-09-03
+90387,Macaca leonina,Macaca leonina,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/90387,2026-09-03
 91951,Catharus ustulatus,Catharus ustulatus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/91951,2026-09-03
 93934,Coturnix japonica,Coturnix japonica,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/93934,2026-09-03
-94827,Tinamus guttatus,Tinamus guttatus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/94827,2026-09-03
+94232,Epinephelus coioides,Epinephelus coioides,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/94232,2026-09-03
+94237,Mola mola,Mola mola,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/94237,2026-09-03
 94885,Pantherophis guttatus,Pantherophis guttatus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/94885,2026-09-03
 96440,Salvator merianae,Salvator merianae,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/96440,2026-09-03
+99837,Spermophilus dauricus,Spermophilus dauricus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/99837,2026-09-03
+99883,Tetraodon nigroviridis,Tetraodon nigroviridis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/99883,2026-09-03
 100907,Dissostichus eleginoides,Dissostichus eleginoides,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/100907,2026-09-03
 103695,Pogona vitticeps,Pogona vitticeps,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/103695,2026-09-03
+104659,Oryzias luzonensis,Oryzias luzonensis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/104659,2026-09-03
+105023,Nothobranchius furzeri,Nothobranchius furzeri,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/105023,2026-09-03
+105255,Dipodomys spectabilis,Dipodomys spectabilis,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/105255,2026-09-03
+105296,Apodemus speciosus,Apodemus speciosus,Mammalia,40674,murine,39107,2026_03,https://rest.uniprot.org/taxonomy/105296,2026-09-03
+106582,Maylandia zebra,Maylandia zebra,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/106582,2026-09-03
+106734,Chelonoidis abingdonii,Chelonoidis abingdonii,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/106734,2026-09-03
+109274,Hippocampus abdominalis,Hippocampus abdominalis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/109274,2026-09-03
 109280,Hippocampus comes,Hippocampus comes,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/109280,2026-09-03
+109281,Hippocampus erectus,Hippocampus erectus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/109281,2026-09-03
+109478,Myotis brandtii,Myotis brandtii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/109478,2026-09-03
+109678,Phodopus roborovskii,Phodopus roborovskii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/109678,2026-09-03
 109965,Quasipaa spinosa,Quasipaa spinosa,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/109965,2026-09-03
 111125,Ranitomeya imitator,Ranitomeya imitator,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/111125,2026-09-03
 113540,Scleropages formosus,Scleropages formosus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/113540,2026-09-03
-118200,Dryobates pubescens,Dryobates pubescens,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/118200,2026-09-03
+113544,Arapaima gigas,Arapaima gigas,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/113544,2026-09-03
+118154,Synaphobranchus kaupii,Synaphobranchus kaupii,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/118154,2026-09-03
+118797,Lipotes vexillifer,Lipotes vexillifer,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/118797,2026-09-03
+123683,Oryzias javanicus,Oryzias javanicus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/123683,2026-09-03
 126716,Chroicocephalus scopulinus,Chroicocephalus scopulinus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/126716,2026-09-03
+127582,Trichechus manatus latirostris,Trichechus manatus latirostris,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/127582,2026-09-03
 128390,Nipponia nippon,Nipponia nippon,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/128390,2026-09-03
 129467,Micrurus lemniscatus lemniscatus,Micrurus lemniscatus lemniscatus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/129467,2026-09-03
+132585,Anser brachyrhynchus,Anser brachyrhynchus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/132585,2026-09-03
 132908,Pteropus vampyrus,Pteropus vampyrus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/132908,2026-09-03
 137246,Chiloscyllium punctatum,Chiloscyllium punctatum,Chondrichthyes,7777,fish,7777,2026_03,https://rest.uniprot.org/taxonomy/137246,2026-09-03
+138676,Carassius langsdorfii,Carassius langsdorfii,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/138676,2026-09-03
 141262,Andrias davidianus,Andrias davidianus,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/141262,2026-09-03
+143345,Kareius bicoloratus,Kareius bicoloratus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/143345,2026-09-03
+143350,Pagrus major,Pagrus major,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/143350,2026-09-03
+143900,Aldrovandia affinis,Aldrovandia affinis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/143900,2026-09-03
 144197,Stegastes partitus,Stegastes partitus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/144197,2026-09-03
 146911,Gekko japonicus,Gekko japonicus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/146911,2026-09-03
+155063,Leuciscus waleckii,Leuciscus waleckii,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/155063,2026-09-03
 156563,Cyanistes caeruleus,Cyanistes caeruleus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/156563,2026-09-03
 158456,Betta splendens,Betta splendens,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/158456,2026-09-03
+161767,Amphiprion percula,Amphiprion percula,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/161767,2026-09-03
+163134,Oplegnathus fasciatus,Oplegnathus fasciatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/163134,2026-09-03
+163135,Oplegnathus punctatus,Oplegnathus punctatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/163135,2026-09-03
 170824,Pseudobatos productus,Pseudobatos productus,Chondrichthyes,7777,fish,7777,2026_03,https://rest.uniprot.org/taxonomy/170824,2026-09-03
 171643,Phrynocephalus forsythii,Phrynocephalus forsythii,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/171643,2026-09-03
+172907,Cirrhinus molitorella,Cirrhinus molitorella,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/172907,2026-09-03
 173247,Echeneis naucrates,Echeneis naucrates,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/173247,2026-09-03
 173339,Trachinotus ovatus,Trachinotus ovatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/173339,2026-09-03
+175787,Leiocassis longirostris,Leiocassis longirostris,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/175787,2026-09-03
+175788,Hemibagrus guttatus,Hemibagrus guttatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/175788,2026-09-03
+175792,Tachysurus vachellii,Tachysurus vachellii,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/175792,2026-09-03
+175797,Silurus meridionalis,Silurus meridionalis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/175797,2026-09-03
 176946,Python bivittatus,Python bivittatus,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/176946,2026-09-03
+178740,Rucervus eldii hainanus,Rucervus eldii hainanus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/178740,2026-09-03
 181472,Salarias fasciatus,Salarias fasciatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/181472,2026-09-03
 181631,Cyanoderma ruficeps,Cyanoderma ruficeps,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/181631,2026-09-03
-188344,Leptosomus discolor,Leptosomus discolor,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/188344,2026-09-03
+183150,Oryzias sinensis,Oryzias sinensis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/183150,2026-09-03
+185453,Chrysochloris asiatica,Chrysochloris asiatica,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/185453,2026-09-03
+185735,Arctogadus glacialis,Arctogadus glacialis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/185735,2026-09-03
+186990,Hipposideros armiger,Hipposideros armiger,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/186990,2026-09-03
+190117,Saimiri sciureus sciureus,Saimiri sciureus sciureus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/190117,2026-09-03
+191816,Lynx pardinus,Lynx pardinus,Mammalia,40674,carnivore,9681,2026_03,https://rest.uniprot.org/taxonomy/191816,2026-09-03
 194338,Athene cunicularia,Athene cunicularia,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/194338,2026-09-03
+202257,Galemys pyrenaicus,Galemys pyrenaicus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/202257,2026-09-03
 205130,Mastacembelus armatus,Mastacembelus armatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/205130,2026-09-03
+208324,Ameca splendens,Ameca splendens,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/208324,2026-09-03
+208326,Ataeniobius toweri,Ataeniobius toweri,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/208326,2026-09-03
+208331,Characodon lateralis,Characodon lateralis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/208331,2026-09-03
+208336,Goodea atripinnis,Goodea atripinnis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/208336,2026-09-03
+208358,Xenotaenia resolanae,Xenotaenia resolanae,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/208358,2026-09-03
 210632,Parambassis ranga,Parambassis ranga,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/210632,2026-09-03
+211598,Accipiter nisus,Accipiter nisus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/211598,2026-09-03
+214431,Scortum barcoo,Scortum barcoo,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/214431,2026-09-03
+215347,Epinephelus akaara,Epinephelus akaara,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/215347,2026-09-03
 215358,Larimichthys crocea,Larimichthys crocea,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/215358,2026-09-03
 215402,Channa argus,Channa argus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/215402,2026-09-03
+219545,Ameiurus melas,Ameiurus melas,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/219545,2026-09-03
 219594,Aythya fuligula,Aythya fuligula,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/219594,2026-09-03
 223781,Aquila chrysaetos chrysaetos,Aquila chrysaetos chrysaetos,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/223781,2026-09-03
 224669,Buteo japonicus,Buteo japonicus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/224669,2026-09-03
+225400,Myotis davidii,Myotis davidii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/225400,2026-09-03
 227173,Calidris canutus,Calidris canutus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/227173,2026-09-03
 230148,Liparis tanakae,Liparis tanakae,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/230148,2026-09-03
+230172,Ovis ammon polii,Ovis ammon polii,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/230172,2026-09-03
 230844,Peromyscus maniculatus bairdii,Peromyscus maniculatus bairdii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/230844,2026-09-03
 240159,Collichthys lucidus,Collichthys lucidus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/240159,2026-09-03
-240206,Pterocles gutturalis,Pterocles gutturalis,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/240206,2026-09-03
+240162,Miichthys miiuy,Miichthys miiuy,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/240162,2026-09-03
 244447,Cynoglossus semilaevis,Cynoglossus semilaevis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/244447,2026-09-03
+245042,Lamprotornis superbus,Lamprotornis superbus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/245042,2026-09-03
+246437,Tupaia chinensis,Tupaia chinensis,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/246437,2026-09-03
 257818,Otus sunia,Otus sunia,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/257818,2026-09-03
 260995,Geotrypetes seraphini,Geotrypetes seraphini,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/260995,2026-09-03
-279965,Antrostomus carolinensis,Antrostomus carolinensis,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/279965,2026-09-03
+264213,Lutjanus sanguineus,Lutjanus sanguineus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/264213,2026-09-03
+270547,Lates japonicus,Lates japonicus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/270547,2026-09-03
+278164,Alosa alosa,Alosa alosa,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/278164,2026-09-03
 283035,Sander lucioperca,Sander lucioperca,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/283035,2026-09-03
 283036,Sander vitreus,Sander vitreus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/283036,2026-09-03
+286419,Canis lupus dingo,Canis lupus dingo,Mammalia,40674,carnivore,9608,2026_03,https://rest.uniprot.org/taxonomy/286419,2026-09-03
+291360,Oryzias dancena,Oryzias dancena,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/291360,2026-09-03
+299321,Denticeps clupeoides,Denticeps clupeoides,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/299321,2026-09-03
 303518,Pundamilia nyererei,Pundamilia nyererei,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/303518,2026-09-03
 307959,Sinocyclocheilus rhinocerous,Sinocyclocheilus rhinocerous,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/307959,2026-09-03
+310352,Pygathrix nigripes,Pygathrix nigripes,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/310352,2026-09-03
 311401,Strix occidentalis caurina,Strix occidentalis caurina,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/311401,2026-09-03
+315492,Lateolabrax maculatus,Lateolabrax maculatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/315492,2026-09-03
 321398,Lepidothrix coronata,Lepidothrix coronata,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/321398,2026-09-03
+328277,Gadus morhua 'NCC',Gadus morhua 'NCC',Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/328277,2026-09-03
+331036,Bos grunniens x Bos taurus,Bos grunniens x Bos taurus,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/331036,2026-09-03
 333673,Hirundo rustica rustica,Hirundo rustica rustica,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/333673,2026-09-03
-345573,Podiceps cristatus,Podiceps cristatus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/345573,2026-09-03
+336983,Colobus angolensis palliatus,Colobus angolensis palliatus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/336983,2026-09-03
+363190,Coilia grayii,Coilia grayii,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/363190,2026-09-03
 364589,Zosterops borbonicus,Zosterops borbonicus,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/364589,2026-09-03
+367368,Pelusios castaneus,Pelusios castaneus,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/367368,2026-09-03
+369639,Onychostoma macrolepis,Onychostoma macrolepis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/369639,2026-09-03
 375764,Sphaeramia orbicularis,Sphaeramia orbicularis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/375764,2026-09-03
 379532,Propithecus coquereli,Propithecus coquereli,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/379532,2026-09-03
 386267,Staurois parvus,Staurois parvus,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/386267,2026-09-03
-400035,Gallus gallus murghi,Gallus gallus murghi,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/400035,2026-09-03
+391180,Enhydra lutris kenyoni,Enhydra lutris kenyoni,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/391180,2026-09-03
+406788,Gorilla gorilla diehli,Gorilla gorilla diehli,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/406788,2026-09-03
+409849,Periophthalmus magnuspinnatus,Periophthalmus magnuspinnatus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/409849,2026-09-03
+415978,Sus scrofa scrofa,Sus scrofa scrofa,Mammalia,40674,ungulate,9821,2026_03,https://rest.uniprot.org/taxonomy/415978,2026-09-03
+419612,Camelus ferus,Camelus ferus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/419612,2026-09-03
 425635,Calidris pygmaea,Calidris pygmaea,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/425635,2026-09-03
 426483,Mugil incilis,Mugil incilis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/426483,2026-09-03
 433684,Takifugu flavidus,Takifugu flavidus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/433684,2026-09-03
 441366,Gouania willdenowi,Gouania willdenowi,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/441366,2026-09-03
-441894,Struthio camelus australis,Struthio camelus australis,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/441894,2026-09-03
 445787,Leptobrachium leishanense,Leptobrachium leishanense,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/445787,2026-09-03
+447135,Myodes glareolus,Myodes glareolus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/447135,2026-09-03
+452646,Neogale vison,Neogale vison,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/452646,2026-09-03
 458089,Egretta eulophotes,Egretta eulophotes,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/458089,2026-09-03
 481883,Eublepharis macularius,Eublepharis macularius,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/481883,2026-09-03
+482537,Galeopterus variegatus,Galeopterus variegatus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/482537,2026-09-03
+495550,Anabarilius grahami,Anabarilius grahami,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/495550,2026-09-03
 586833,Myripristis murdjan,Myripristis murdjan,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/586833,2026-09-03
-607699,Oreochromis niloticus niloticus,Oreochromis niloticus niloticus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/607699,2026-09-03
+591936,Piliocolobus tephrosceles,Piliocolobus tephrosceles,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/591936,2026-09-03
+630221,Cyprinus carpio carpio,Cyprinus carpio carpio,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/630221,2026-09-03
+631713,Pachyptila belcheri,Pachyptila belcheri,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/631713,2026-09-03
 649802,Pipra filicauda,Pipra filicauda,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/649802,2026-09-03
-748659,Rana tagoi tagoi,Rana tagoi tagoi,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/748659,2026-09-03
+749192,Cyprinus carpio var. jian,Cyprinus carpio var. jian,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/749192,2026-09-03
+861788,Coregonus suidteri,Coregonus suidteri,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/861788,2026-09-03
+870457,Bos frontalis x Bos taurus,Bos frontalis x Bos taurus,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/870457,2026-09-03
+885580,Fukomys damarensis,Fukomys damarensis,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/885580,2026-09-03
+933632,Sphaerodactylus townsendi,Sphaerodactylus townsendi,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/933632,2026-09-03
+992332,Triplophysa rosa,Triplophysa rosa,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/992332,2026-09-03
+1026970,Nannospalax galili,Nannospalax galili,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/1026970,2026-09-03
+1090488,Pogonophryne albipinna,Pogonophryne albipinna,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/1090488,2026-09-03
+1170810,Sus scrofa affinis,Sus scrofa affinis,Mammalia,40674,ungulate,9821,2026_03,https://rest.uniprot.org/taxonomy/1170810,2026-09-03
+1220523,Zosterops lateralis melanops,Zosterops lateralis melanops,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/1220523,2026-09-03
+1230840,Orycteropus afer afer,Orycteropus afer afer,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/1230840,2026-09-03
+1233216,Lyrurus tetrix,Lyrurus tetrix,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/1233216,2026-09-03
 1328070,Prolemur simus,Prolemur simus,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/1328070,2026-09-03
 1415580,Microcaecilia unicolor,Microcaecilia unicolor,Amphibia,8292,other_vertebrate,8292,2026_03,https://rest.uniprot.org/taxonomy/1415580,2026-09-03
+1517983,Xenoophorus captivus,Xenoophorus captivus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/1517983,2026-09-03
+1534307,Albula goreensis,Albula goreensis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/1534307,2026-09-03
+1566151,Willisornis vidua,Willisornis vidua,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/1566151,2026-09-03
 1572043,Triplophysa tibetana,Triplophysa tibetana,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/1572043,2026-09-03
+1594786,Clarias magur,Clarias magur,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/1594786,2026-09-03
 1608454,Sinocyclocheilus anshuiensis,Sinocyclocheilus anshuiensis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/1608454,2026-09-03
 1676925,Paramormyrops kingsleyae,Paramormyrops kingsleyae,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/1676925,2026-09-03
+1706337,Neophocaena asiaeorientalis asiaeorientalis,Neophocaena asiaeorientalis asiaeorientalis,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/1706337,2026-09-03
+1758121,Limosa lapponica baueri,Limosa lapponica baueri,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/1758121,2026-09-03
+1825980,Gopherus evgoodei,Gopherus evgoodei,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/1825980,2026-09-03
+1841481,Seriola lalandi dorsalis,Seriola lalandi dorsalis,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/1841481,2026-09-03
 1868482,Carlito syrichta,Carlito syrichta,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/1868482,2026-09-03
 1899461,Philothamnus irregularis,Philothamnus irregularis,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/1899461,2026-09-03
+1960649,Notamacropus,Notamacropus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/1960649,2026-09-03
 1970185,Micrurus paraensis,Micrurus paraensis,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/1970185,2026-09-03
 2489341,Strigops habroptila,Strigops habroptila,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/2489341,2026-09-03
+2587831,Terrapene triunguis,Terrapene triunguis,Testudines,8459,other_vertebrate,8459,2026_03,https://rest.uniprot.org/taxonomy/2587831,2026-09-03
+2609070,Electrophorus voltai,Electrophorus voltai,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/2609070,2026-09-03
 2696672,Apteryx mantelli,Apteryx mantelli,Aves,8782,bird,8782,2026_03,https://rest.uniprot.org/taxonomy/2696672,2026-09-03
 2715852,Cebus imitator,Cebus imitator,Mammalia,40674,nhp,9443,2026_03,https://rest.uniprot.org/taxonomy/2715852,2026-09-03
-3147026,Micrurus carvalhoi,Micrurus carvalhoi,Lepidosauria,8504,other_vertebrate,8504,2026_03,https://rest.uniprot.org/taxonomy/3147026,2026-09-03
+2918886,Ovis ammon polii x Ovis aries,Ovis ammon polii x Ovis aries,Mammalia,40674,ungulate,9895,2026_03,https://rest.uniprot.org/taxonomy/2918886,2026-09-03
+3082113,Rangifer tarandus platyrhynchus,Rangifer tarandus platyrhynchus,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/3082113,2026-09-03
+3231064,Leuciscus chuanchicus,Leuciscus chuanchicus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/3231064,2026-09-03
+3358257,Odontobutis potamophilus,Odontobutis potamophilus,Actinopterygii,7898,fish,7898,2026_03,https://rest.uniprot.org/taxonomy/3358257,2026-09-03
 3360502,Rostroraja eglanteria,Rostroraja eglanteria,Chondrichthyes,7777,fish,7777,2026_03,https://rest.uniprot.org/taxonomy/3360502,2026-09-03
+3371016,Cnephaeus nilssonii,Cnephaeus nilssonii,Mammalia,40674,other_mammal,40674,2026_03,https://rest.uniprot.org/taxonomy/3371016,2026-09-03

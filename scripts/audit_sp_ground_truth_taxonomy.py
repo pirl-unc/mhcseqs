@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
-"""Audit stored SP taxa against UniProt taxonomy and persist source clades."""
+"""Audit SP taxa against the release-pinned taxonomy artifact."""
 
 from __future__ import annotations
 
 import argparse
 import csv
-import json
 import sys
-import time
-import urllib.error
-import urllib.request
-from concurrent.futures import ThreadPoolExecutor
-from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -21,11 +15,11 @@ if str(ROOT) not in sys.path:
 from scripts.enrich_sp_ground_truth import CONTROL_FIELDS, ENRICHED_FIELDS, GT_ENRICHED_CSV, NEGATIVE_CONTROL_CSV
 from scripts.fetch_sp_ground_truth import FIELDS as RAW_FIELDS
 from scripts.fetch_sp_ground_truth import OUTPUT as RAW_CSV
+from scripts.sp_corpus_artifacts import taxonomy_by_id, validate_artifact_bundle
 from scripts.sp_ground_truth_taxonomy import (
     SOURCE_CLADES,
     TAXONOMY_AUDIT_CSV,
-    category_from_lineage,
-    source_clade_from_lineage,
+    classification_from_taxonomy_row,
 )
 
 AUDIT_FIELDS = [
@@ -47,53 +41,24 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def _fetch_taxonomy(taxon_id: int, attempts: int = 4) -> tuple[str, dict, str]:
-    """Return the request URL, decoded payload, and UniProt release for a taxon.
-
-    Retries with exponential backoff: an audit is 253 requests against a
-    rate-limited public endpoint, and a single transient 429/503 would
-    otherwise discard the whole run.
-    """
-    url = f"https://rest.uniprot.org/taxonomy/{taxon_id}"
-    request = urllib.request.Request(url, headers={"User-Agent": "mhcseqs-sp-taxonomy-audit/1.0"})
-    for attempt in range(attempts):
-        try:
-            with urllib.request.urlopen(request, timeout=60) as response:
-                payload = json.loads(response.read())
-                release = response.headers.get("X-UniProt-Release", "")
-            return url, payload, release
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
-            if attempt == attempts - 1:
-                raise RuntimeError(f"UniProt taxonomy lookup failed for {taxon_id} after {attempts} attempts") from exc
-            time.sleep(2**attempt)
-    raise AssertionError("unreachable")
-
-
-def _verify_source_clade_roots() -> None:
-    """Check every hardcoded clade name against the UniProt scientific name.
-
-    The leaf taxa are resolved from UniProt, so the six lineage roots that
-    define the benchmark must be held to the same standard instead of being
-    trusted as handwritten labels.
-    """
+def _verify_source_clade_roots(taxonomy: dict[str, dict[str, str]]) -> None:
+    """Check every source-clade label against the pinned taxonomy snapshot."""
     for name, taxon_id in SOURCE_CLADES:
-        _url, payload, _release = _fetch_taxonomy(taxon_id)
-        scientific_name = str(payload.get("scientificName", ""))
+        scientific_name = taxonomy[str(taxon_id)]["Scientific name"]
         if scientific_name != name:
             raise ValueError(f"Source clade {name!r} does not match UniProt name {scientific_name!r} for taxon {taxon_id}")
-    print(f"Verified {len(SOURCE_CLADES)} source-clade root names against UniProt")
+    print(f"Verified {len(SOURCE_CLADES)} source-clade root names against the taxonomy snapshot")
 
 
-def _fetch_taxon(item: tuple[str, str]) -> dict[str, str]:
+def _audit_taxon(item: tuple[str, str], taxonomy: dict[str, dict[str, str]]) -> dict[str, str]:
     taxon_id_text, organism = item
-    taxon_id = int(taxon_id_text)
-    url, payload, release = _fetch_taxonomy(taxon_id)
-    scientific_name = str(payload.get("scientificName", ""))
+    snapshot = taxonomy.get(taxon_id_text)
+    if snapshot is None:
+        raise ValueError(f"Taxonomy artifact has no record for taxon {taxon_id_text}")
+    scientific_name = snapshot["Scientific name"]
     if scientific_name != organism:
-        raise ValueError(f"Taxon {taxon_id} is stored as {organism!r} but UniProt now reports {scientific_name!r}")
-    lineage_ids = {int(node["taxonId"]) for node in payload.get("lineage", [])}
-    source_clade, source_root = source_clade_from_lineage(taxon_id, lineage_ids)
-    category, category_root = category_from_lineage(taxon_id, lineage_ids)
+        raise ValueError(f"Taxon {taxon_id_text} is stored as {organism!r} but the artifact reports {scientific_name!r}")
+    source_clade, source_root, category, category_root = classification_from_taxonomy_row(snapshot)
     return {
         "taxon_id": taxon_id_text,
         "organism": organism,
@@ -102,15 +67,15 @@ def _fetch_taxon(item: tuple[str, str]) -> dict[str, str]:
         "source_clade_taxon_id": str(source_root),
         "species_category": category,
         "category_basis_taxon_id": str(category_root),
-        "taxonomy_release": release,
-        "source_url": url,
-        "audited_on": date.today().isoformat(),
+        "taxonomy_release": snapshot["Taxonomy release"],
+        "source_url": snapshot["Source URL"],
+        "audited_on": snapshot["Retrieved on"],
     }
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -138,19 +103,23 @@ def _apply_audit(rows: list[dict[str, str]], audit: dict[str, dict[str, str]]) -
             row["species_category"] = decision["species_category"]
 
 
-def main() -> None:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--raw", type=Path, default=RAW_CSV)
     parser.add_argument("--enriched", type=Path, default=GT_ENRICHED_CSV)
     parser.add_argument("--controls", type=Path, default=NEGATIVE_CONTROL_CSV)
     parser.add_argument("--output", type=Path, default=TAXONOMY_AUDIT_CSV)
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--data-dir", type=Path, help="Artifact cache root.")
     parser.add_argument(
         "--reuse-audit",
         action="store_true",
-        help="Apply the existing audit without querying UniProt again.",
+        help="Apply the existing audit instead of rebuilding it from the artifact bundle.",
     )
-    args = parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
 
     raw_rows = _read_csv(args.raw)
     organisms_by_taxon: dict[str, str] = {}
@@ -165,9 +134,10 @@ def main() -> None:
     if args.reuse_audit:
         audit_rows = _read_csv(args.output)
     else:
-        _verify_source_clade_roots()
-        with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            audit_rows = list(pool.map(_fetch_taxon, items))
+        validate_artifact_bundle(args.data_dir)
+        taxonomy = taxonomy_by_id(args.data_dir)
+        _verify_source_clade_roots(taxonomy)
+        audit_rows = [_audit_taxon(item, taxonomy) for item in items]
     releases = {row["taxonomy_release"] for row in audit_rows}
     if len(releases) != 1 or "" in releases:
         raise ValueError(f"Expected one non-empty UniProt release, found {releases!r}")
@@ -192,7 +162,10 @@ def main() -> None:
     _write_csv(args.enriched, enriched_rows, ENRICHED_FIELDS)
     _write_csv(args.controls, control_rows, CONTROL_FIELDS)
 
-    print(f"Audited {len(audit_rows)} taxa across {len(raw_rows)} raw and {len(enriched_rows)} enriched rows against UniProt {releases.pop()}")
+    print(
+        f"Audited {len(audit_rows)} taxa across {len(raw_rows)} raw and {len(enriched_rows)} enriched rows "
+        f"against the pinned UniProt {releases.pop()} snapshot"
+    )
     for clade, _taxon_id in SOURCE_CLADES:
         count = sum(row["source_clade"] == clade for row in raw_rows)
         print(f"  {clade}: {count}")
