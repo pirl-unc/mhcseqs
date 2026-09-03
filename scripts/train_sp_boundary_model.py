@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.evaluate_sp_ground_truth import GT_CSV, _species_category
+from scripts.evaluate_sp_ground_truth import GT_CSV, _row_species_category
 
 OUT_JSON = ROOT / "data" / "sp_boundary_model.json"
 AA_ORDER = tuple("ACDEFGHIKLMNPQRSTVWY")
@@ -141,7 +141,7 @@ def train() -> dict[str, object]:
         if boundary < 5 or boundary >= len(seq) - 5:
             continue
 
-        species_group = _refinement_group(_species_category(row["organism"], row.get("taxon_id", "")))
+        species_group = _refinement_group(_row_species_category(row))
         for key in ("global", species_group):
             _observe_boundary(seq, boundary, counts[key], positive=True)
 

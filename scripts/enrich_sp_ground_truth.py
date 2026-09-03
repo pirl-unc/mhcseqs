@@ -11,7 +11,7 @@ Outputs:
   - data/sp_negative_controls.csv
 
 The enriched CSV adds:
-  - species_category
+  - source_clade / lineage-backed species_category
   - mhc_class / chain / gene
   - protein_name / gene_names
   - is_fragment / source_group
@@ -59,6 +59,7 @@ ENRICHED_FIELDS = [
     "accession",
     "organism",
     "taxon_id",
+    "source_clade",
     "species_category",
     "sp_length",
     "reviewed",
@@ -82,6 +83,7 @@ CONTROL_FIELDS = [
     "control_type",
     "organism",
     "taxon_id",
+    "source_clade",
     "species_category",
     "reviewed",
     "mhc_class",
@@ -291,7 +293,8 @@ def _merge_row(
     accession = row["accession"]
     organism = row["organism"]
     taxon_id = row.get("taxon_id", "")
-    species_category = _species_category(organism, taxon_id)
+    source_clade = row.get("source_clade", "")
+    species_category = _species_category(organism, taxon_id, source_clade)
 
     local_curated = curated.get(accession)
     local_mouse = mouse.get(accession)
@@ -311,6 +314,7 @@ def _merge_row(
         "accession": accession,
         "organism": organism,
         "taxon_id": taxon_id,
+        "source_clade": source_clade,
         "species_category": species_category,
         "sp_length": row["sp_length"],
         "reviewed": row["reviewed"],
@@ -406,6 +410,7 @@ def _build_controls(rows: list[dict[str, str]], *, include_fragment_controls: bo
             "source_accession": row["accession"],
             "organism": row["organism"],
             "taxon_id": row["taxon_id"],
+            "source_clade": row["source_clade"],
             "species_category": row["species_category"],
             "reviewed": row["reviewed"],
             "mhc_class": mhc_class,
