@@ -7,6 +7,8 @@ import argparse
 import csv
 import json
 import sys
+import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
@@ -45,14 +47,26 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def _fetch_taxonomy(taxon_id: int) -> tuple[str, dict, str]:
-    """Return the request URL, decoded payload, and UniProt release for a taxon."""
+def _fetch_taxonomy(taxon_id: int, attempts: int = 4) -> tuple[str, dict, str]:
+    """Return the request URL, decoded payload, and UniProt release for a taxon.
+
+    Retries with exponential backoff: an audit is 253 requests against a
+    rate-limited public endpoint, and a single transient 429/503 would
+    otherwise discard the whole run.
+    """
     url = f"https://rest.uniprot.org/taxonomy/{taxon_id}"
     request = urllib.request.Request(url, headers={"User-Agent": "mhcseqs-sp-taxonomy-audit/1.0"})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        payload = json.loads(response.read())
-        release = response.headers.get("X-UniProt-Release", "")
-    return url, payload, release
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                payload = json.loads(response.read())
+                release = response.headers.get("X-UniProt-Release", "")
+            return url, payload, release
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+            if attempt == attempts - 1:
+                raise RuntimeError(f"UniProt taxonomy lookup failed for {taxon_id} after {attempts} attempts") from exc
+            time.sleep(2**attempt)
+    raise AssertionError("unreachable")
 
 
 def _verify_source_clade_roots() -> None:
@@ -102,11 +116,23 @@ def _write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) ->
 
 
 def _apply_audit(rows: list[dict[str, str]], audit: dict[str, dict[str, str]]) -> None:
-    """Replace only taxonomy fields, leaving scientific labels untouched."""
+    """Reconcile taxonomy fields against the audit, leaving labels untouched.
+
+    A stored source clade that disagrees with the lineage-derived one means the
+    fetch query and the returned lineage have diverged (a reclassified taxon, or
+    a root alias change like Reptilia -> Lepidosauria). Overwriting it silently
+    would erase exactly the signal this audit exists to surface, so it raises.
+    """
     for row in rows:
         decision = audit.get(row["taxon_id"])
         if decision is None:
             raise ValueError(f"Missing taxonomy audit for taxon {row['taxon_id']}")
+        stored_clade = row.get("source_clade", "")
+        if stored_clade and stored_clade != decision["source_clade"]:
+            raise ValueError(
+                f"Source clade drift for taxon {row['taxon_id']}: stored={stored_clade!r}, lineage={decision['source_clade']!r}. "
+                f"Re-fetch the corpus if the clade genuinely moved."
+            )
         row["source_clade"] = decision["source_clade"]
         if "species_category" in row:
             row["species_category"] = decision["species_category"]

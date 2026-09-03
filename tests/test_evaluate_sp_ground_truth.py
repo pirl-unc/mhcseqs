@@ -5,6 +5,7 @@ from collections import Counter
 import pytest
 
 from mhcseqs.domain_parsing import analyze_sequence, decompose_domains
+from scripts.audit_sp_ground_truth_taxonomy import _apply_audit
 from scripts.enrich_sp_ground_truth import (
     GT_ENRICHED_CSV,
     NEGATIVE_CONTROL_CSV,
@@ -23,6 +24,8 @@ from scripts.evaluate_sp_ground_truth import (
     predict_sp_for_row,
 )
 from scripts.sp_ground_truth_taxonomy import (
+    CATEGORY_LINEAGE_RULES,
+    MAMMAL_CATEGORIES,
     SOURCE_CLADES,
     category_from_lineage,
     load_taxonomy_audit,
@@ -65,6 +68,64 @@ def test_lineage_rules_preserve_established_mammal_categories():
 def test_human_subspecies_resolve_through_the_lineage_not_an_exact_id():
     """Homo sapiens subspecies must stay human rather than falling back to nhp."""
     assert category_from_lineage(63221, {9606, 9443, 40674}) == ("human", 9606)
+
+
+def test_category_rule_order_is_specific_to_general():
+    """Rule order decides the answer, so pin it: a later broad root hides earlier ones."""
+    assert [category for category, _roots in CATEGORY_LINEAGE_RULES] == [
+        "human",
+        "nhp",
+        "murine",
+        "ungulate",
+        "carnivore",
+        "other_mammal",
+        "bird",
+        "fish",
+        "other_vertebrate",
+    ]
+    # Mammalia matches every mammal, so no mammal rule may follow it.
+    categories = [category for category, _roots in CATEGORY_LINEAGE_RULES]
+    after_other_mammal = set(categories[categories.index("other_mammal") + 1 :])
+    assert not (after_other_mammal & MAMMAL_CATEGORIES)
+
+
+def test_every_category_rule_is_reachable():
+    """A rule shadowed by an earlier root would be silent dead code."""
+    for category, roots in CATEGORY_LINEAGE_RULES:
+        for root in roots:
+            assert category_from_lineage(root, {root}) == (category, root)
+
+
+def test_missing_taxonomy_audit_fails_loudly(tmp_path):
+    """The audit is authoritative; absence must not degrade to name matching."""
+    with pytest.raises(FileNotFoundError, match="SP taxonomy audit is missing"):
+        load_taxonomy_audit(tmp_path / "absent.csv")
+
+
+def test_apply_audit_rejects_source_clade_drift():
+    """A stored clade disagreeing with the lineage is the signal, not noise."""
+    audit = {"9606": {"source_clade": "Mammalia", "species_category": "human"}}
+    rows = [{"taxon_id": "9606", "source_clade": "Aves", "species_category": "bird"}]
+    with pytest.raises(ValueError, match="Source clade drift"):
+        _apply_audit(rows, audit)
+
+
+def test_apply_audit_fills_fields_without_touching_labels():
+    audit = {"9606": {"source_clade": "Mammalia", "species_category": "human"}}
+    raw_row = {"taxon_id": "9606", "organism": "Homo sapiens", "sp_length": "21", "source_clade": ""}
+    enriched_row = {"taxon_id": "9606", "organism": "Homo sapiens", "source_clade": "", "species_category": "stale", "mhc_class": "I"}
+    _apply_audit([raw_row], audit)
+    _apply_audit([enriched_row], audit)
+    assert raw_row["source_clade"] == "Mammalia"
+    assert "species_category" not in raw_row  # raw rows carry no category column
+    assert raw_row["organism"] == "Homo sapiens" and raw_row["sp_length"] == "21"
+    assert enriched_row["species_category"] == "human"
+    assert enriched_row["mhc_class"] == "I"
+
+
+def test_apply_audit_requires_every_taxon():
+    with pytest.raises(ValueError, match="Missing taxonomy audit"):
+        _apply_audit([{"taxon_id": "9999", "source_clade": ""}], {})
 
 
 def test_source_clade_roots_are_mutually_exclusive():

@@ -26,6 +26,7 @@ SOURCE_CLADES = (
     ("Amphibia", 8292),
     ("Chondrichthyes", 7777),
 )
+MAMMAL_CATEGORIES = frozenset({"human", "nhp", "murine", "ungulate", "carnivore", "other_mammal"})
 SOURCE_CLADE_TO_CATEGORY = {
     "Aves": "bird",
     "Actinopterygii": "fish",
@@ -38,9 +39,15 @@ SOURCE_CLADE_TO_CATEGORY = {
 # established semantics: "ungulate" covers bovids, suids, and equids, while
 # other hoofed mammals and cetaceans remain "other_mammal"; "carnivore" covers
 # canids and felids, as the package has historically done.
-HUMAN_TAXON_ID = 9606
+#
+# ORDER IS LOAD-BEARING: category_from_lineage returns the first rule whose root
+# appears in the lineage, so roots must run specific -> general. "other_mammal"
+# (Mammalia) matches every mammal, so any finer mammal rule placed after it
+# would be dead code. test_category_rule_order_is_specific_to_general pins the
+# order so inserting a rule is a deliberate, reviewed change.
 CATEGORY_LINEAGE_RULES = (
-    ("nhp", (9443,)),  # Primates (human is handled first)
+    ("human", (9606,)),  # Homo sapiens, including subspecies
+    ("nhp", (9443,)),  # Primates
     ("murine", (39107,)),  # Murinae
     ("ungulate", (9895, 9821, 9788)),  # Bovidae, Suidae, Equidae
     ("carnivore", (9608, 9681)),  # Canidae, Felidae
@@ -53,9 +60,15 @@ CATEGORY_LINEAGE_RULES = (
 
 @lru_cache(maxsize=None)
 def load_taxonomy_audit(path: Path = TAXONOMY_AUDIT_CSV) -> dict[str, dict[str, str]]:
-    """Load the accession-independent UniProt taxon audit."""
+    """Load the accession-independent UniProt taxon audit.
+
+    Raises if the audit is absent. It is the authoritative source for every
+    benchmark category, and returning an empty mapping here would silently
+    demote 613 of 2,402 rows to the name-matching fallback this module exists
+    to replace. Callers that genuinely want the fallback pass ``audit={}``.
+    """
     if not path.exists():
-        return {}
+        raise FileNotFoundError(f"SP taxonomy audit is missing: {path}. Run scripts/audit_sp_ground_truth_taxonomy.py")
     with path.open("r", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     result = {row["taxon_id"]: row for row in rows}
@@ -68,8 +81,6 @@ def category_from_lineage(taxon_id: int, lineage_taxon_ids: set[int]) -> tuple[s
     """Return reporting category and supporting lineage root for one taxon."""
     lineage = set(lineage_taxon_ids)
     lineage.add(taxon_id)
-    if HUMAN_TAXON_ID in lineage:
-        return "human", HUMAN_TAXON_ID
     for category, roots in CATEGORY_LINEAGE_RULES:
         for root in roots:
             if root in lineage:
@@ -116,10 +127,20 @@ def species_category(
     if source_clade in SOURCE_CLADE_TO_CATEGORY:
         return SOURCE_CLADE_TO_CATEGORY[source_clade]
 
+    # Only two cases reach here: source_clade == "Mammalia", or no clade at all.
     from mhcseqs.species import extract_latin_binomial, normalize_mhc_species
 
-    for candidate in (organism, extract_latin_binomial(organism)):
+    candidates = (organism, extract_latin_binomial(organism))
+    if source_clade == "Mammalia":
+        # A name match that claims a non-mammalian category is wrong by
+        # construction, so only mammalian answers are accepted.
+        for candidate in candidates:
+            category = normalize_mhc_species(candidate)
+            if category in MAMMAL_CATEGORIES:
+                return category
+        return "other_mammal"
+    for candidate in candidates:
         category = normalize_mhc_species(candidate)
-        if category and (source_clade != "Mammalia" or category not in {"bird", "fish", "other_vertebrate"}):
+        if category:
             return category
-    return "other_mammal" if source_clade == "Mammalia" else "other_vertebrate"
+    return "other_vertebrate"

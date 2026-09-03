@@ -44,6 +44,7 @@ mhcseqs = [
     "b2m_sequences.csv",
     "mouse_h2_sequences.csv",
     "diverse_mhc_sequences.csv",
+    "genbank_saha_sequences.csv",
     "mhc_prefix_aliases.csv",
     "sp_boundary_model.json",
     "sp_sequence_cue_model.json",
