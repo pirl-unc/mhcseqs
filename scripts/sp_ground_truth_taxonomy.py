@@ -3,21 +3,17 @@
 from __future__ import annotations
 
 import csv
+import re
 from functools import lru_cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TAXONOMY_AUDIT_CSV = ROOT / "data" / "sp_ground_truth_taxonomy.csv"
 
-# These are the six lineage-root queries used to build the benchmark. Each name
-# is the UniProt scientific name of its root taxon, verified by
-# scripts/audit_sp_ground_truth_taxonomy.py, and the roots are mutually
-# exclusive so every taxon resolves to exactly one of them.
-#
-# Note that 8504 is Lepidosauria (squamates and the tuatara), not Reptilia.
-# Reptilia is only a UniProt alias for it, and true Reptilia (Sauropsida,
-# 8457) would overlap Aves. Testudines and Crocodylia are therefore absent
-# from the corpus; extending coverage to them is tracked in issue #71.
+# These mutually exclusive roots partition the Vertebrata candidate artifact.
+# Each label is the UniProt scientific name of its root taxon.  Broad parent
+# roots such as Sauropsida and Sarcopterygii cannot be used because they would
+# overlap narrower benchmark roots (Aves and the tetrapod clades).
 SOURCE_CLADES = (
     ("Mammalia", 40674),
     ("Aves", 8782),
@@ -25,6 +21,11 @@ SOURCE_CLADES = (
     ("Lepidosauria", 8504),
     ("Amphibia", 8292),
     ("Chondrichthyes", 7777),
+    ("Testudines", 8459),
+    ("Crocodylia", 1294634),
+    ("Coelacanthimorpha", 118072),
+    ("Dipnomorpha", 7878),
+    ("Myxini", 117565),
 )
 MAMMAL_CATEGORIES = frozenset({"human", "nhp", "murine", "ungulate", "carnivore", "other_mammal"})
 SOURCE_CLADE_TO_CATEGORY = {
@@ -33,6 +34,11 @@ SOURCE_CLADE_TO_CATEGORY = {
     "Chondrichthyes": "fish",
     "Lepidosauria": "other_vertebrate",
     "Amphibia": "other_vertebrate",
+    "Testudines": "other_vertebrate",
+    "Crocodylia": "other_vertebrate",
+    "Coelacanthimorpha": "fish",
+    "Dipnomorpha": "fish",
+    "Myxini": "fish",
 }
 
 # The finer mammalian reporting categories intentionally preserve the package's
@@ -53,8 +59,8 @@ CATEGORY_LINEAGE_RULES = (
     ("carnivore", (9608, 9681)),  # Canidae, Felidae
     ("other_mammal", (40674,)),  # Mammalia
     ("bird", (8782,)),  # Aves
-    ("fish", (7898, 7777)),  # Actinopterygii, Chondrichthyes
-    ("other_vertebrate", (8504, 8292)),  # Lepidosauria, Amphibia
+    ("fish", (7898, 7777, 118072, 7878, 117565)),
+    ("other_vertebrate", (8504, 8292, 8459, 1294634)),
 )
 
 
@@ -64,8 +70,8 @@ def load_taxonomy_audit(path: Path = TAXONOMY_AUDIT_CSV) -> dict[str, dict[str, 
 
     Raises if the audit is absent. It is the authoritative source for every
     benchmark category, and returning an empty mapping here would silently
-    demote 613 of 2,402 rows to the name-matching fallback this module exists
-    to replace. Callers that genuinely want the fallback pass ``audit={}``.
+    demote audited rows to the name-matching fallback this module exists to
+    replace. Callers that genuinely want the fallback pass ``audit={}``.
     """
     if not path.exists():
         raise FileNotFoundError(f"SP taxonomy audit is missing: {path}. Run scripts/audit_sp_ground_truth_taxonomy.py")
@@ -96,6 +102,15 @@ def source_clade_from_lineage(taxon_id: int, lineage_taxon_ids: set[int]) -> tup
     if len(matches) != 1:
         raise ValueError(f"Expected one source clade for taxon {taxon_id}, found {matches!r}")
     return matches[0]
+
+
+def classification_from_taxonomy_row(row: dict[str, str]) -> tuple[str, int, str, int]:
+    """Return source clade and reporting category from one snapshot row."""
+    taxon_id = int(row["Taxon ID"])
+    lineage_ids = {int(value) for value in re.findall(r"\d+", row.get("Taxonomic lineage (Ids)", ""))}
+    source_clade, source_root = source_clade_from_lineage(taxon_id, lineage_ids)
+    category, category_root = category_from_lineage(taxon_id, lineage_ids)
+    return source_clade, source_root, category, category_root
 
 
 def species_category(

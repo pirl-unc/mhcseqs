@@ -25,7 +25,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from mhcseqs.domain_parsing import _refinement_group
-from scripts.evaluate_sp_ground_truth import GT_CSV, _row_species_category
+from scripts.evaluate_sp_ground_truth import GT_CSV, _row_benchmark_stratum, _row_species_category
 
 OUT_JSON = ROOT / "mhcseqs" / "sp_boundary_model.json"
 AA_ORDER = tuple("ACDEFGHIKLMNPQRSTVWY")
@@ -118,18 +118,23 @@ def _log_odds_table(
     return out
 
 
-def train() -> dict[str, object]:
-    with GT_CSV.open("r", encoding="utf-8") as f:
+def train(path: Path = GT_CSV) -> dict[str, object]:
+    """Train only from source-backed curated/gold MHC alpha/beta rows."""
+    with path.open("r", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
+    strata = Counter(_row_benchmark_stratum(row) for row in rows)
+    eligible_rows = [row for row in rows if _row_benchmark_stratum(row) == "curated/gold"]
 
     counts = defaultdict(_new_group_counts)
     counts["global"] = _new_group_counts()
 
-    for row in rows:
+    used_rows = 0
+    for row in eligible_rows:
         seq = str(row["sequence"]).strip().upper()
         boundary = int(row["sp_length"])
         if boundary < 5 or boundary >= len(seq) - 5:
             continue
+        used_rows += 1
 
         species_group = _refinement_group(_row_species_category(row))
         for key in ("global", species_group):
@@ -144,9 +149,18 @@ def train() -> dict[str, object]:
                 _observe_boundary(seq, neg_boundary, counts[key], positive=False)
 
     payload: dict[str, object] = {
-        "version": 1,
+        "version": 2,
         "window_offsets": list(OFFSETS),
         "negative_radius": NEGATIVE_RADIUS,
+        "training": {
+            "source": path.name,
+            "policy": "label_status in {gold,curated} and MHC class/chain in {I alpha,II alpha,II beta}",
+            "source_rows": len(rows),
+            "eligible_rows": len(eligible_rows),
+            "used_rows": used_rows,
+            "excluded_rows": strata["excluded"],
+            "unresolved_rows": strata["unresolved/inferred"],
+        },
         "groups": {},
     }
     for group, group_counts in counts.items():
@@ -173,6 +187,12 @@ def main() -> None:
         json.dump(model, f, indent=2, sort_keys=True)
         f.write("\n")
     print(f"Wrote {OUT_JSON.relative_to(ROOT)}")
+    training = model["training"]
+    print(
+        "Training rows:"
+        f" source={training['source_rows']} eligible={training['eligible_rows']} used={training['used_rows']}"
+        f" excluded={training['excluded_rows']} unresolved={training['unresolved_rows']}"
+    )
     for group, payload in model["groups"].items():
         print(f"{group:>16}  positives={payload['n_positive']:4d}  negatives={payload['n_negative']:5d}")
 
