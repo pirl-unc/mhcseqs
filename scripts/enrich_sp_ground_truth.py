@@ -49,6 +49,7 @@ from evaluate_sp_ground_truth import GT_RAW_CSV, _species_category
 
 ROOT = Path(__file__).resolve().parent.parent
 GT_ENRICHED_CSV = ROOT / "data" / "sp_ground_truth_enriched.csv"
+GT_LABEL_CURATION_CSV = ROOT / "data" / "sp_ground_truth_label_curation.csv"
 NEGATIVE_CONTROL_CSV = ROOT / "data" / "sp_negative_controls.csv"
 DIVERSE_CURATED_CSV = ROOT / "mhcseqs" / "diverse_mhc_sequences.csv"
 MOUSE_H2_CSV = ROOT / "mhcseqs" / "mouse_h2_sequences.csv"
@@ -107,6 +108,47 @@ def _load_local_metadata() -> tuple[dict[str, dict], dict[str, dict], dict[str, 
     mouse = {row["uniprot_accession"]: row for row in mouse_rows}
     raw = {row["uniprot_accession"]: row for row in raw_rows}
     return curated, mouse, raw
+
+
+def _load_label_curation(path: Path = GT_LABEL_CURATION_CSV) -> dict[str, dict[str, str]]:
+    """Load accession-level benchmark label decisions and provenance."""
+    if not path.exists():
+        return {}
+    rows = _read_csv(path)
+    curation = {row["accession"]: row for row in rows}
+    if len(curation) != len(rows):
+        raise ValueError(f"Duplicate accessions in {path}")
+    return curation
+
+
+def _apply_label_curation(
+    row: dict[str, str],
+    curation: dict[str, dict[str, str]],
+) -> dict[str, str]:
+    """Apply a source-backed class/chain decision to one enriched row."""
+    decision = curation.get(row["accession"])
+    if decision is None:
+        return row
+
+    disposition = decision.get("disposition", "")
+    if disposition == "include":
+        mhc_class = decision.get("mhc_class", "")
+        chain = decision.get("chain", "")
+        if mhc_class not in {"I", "II"} or chain not in {"alpha", "beta"}:
+            raise ValueError(f"Invalid curated MHC label for {row['accession']}: {(mhc_class, chain)!r}")
+        row["mhc_class"] = mhc_class
+        row["chain"] = chain
+    elif disposition == "exclude_non_mhc":
+        row["mhc_class"] = ""
+        row["chain"] = ""
+    elif disposition == "retain_unresolved":
+        row["mhc_class"] = decision.get("mhc_class", "")
+        row["chain"] = decision.get("chain", "")
+    else:
+        raise ValueError(f"Invalid curation disposition for {row['accession']}: {disposition!r}")
+
+    row["label_status"] = decision.get("label_status", "")
+    return row
 
 
 def _chunked(values: list[str], size: int) -> list[list[str]]:
@@ -244,6 +286,7 @@ def _merge_row(
     mouse: dict[str, dict],
     raw: dict[str, dict],
     fetched: dict[str, dict[str, str]],
+    label_curation: dict[str, dict[str, str]],
 ) -> dict[str, str]:
     accession = row["accession"]
     organism = row["organism"]
@@ -299,7 +342,7 @@ def _merge_row(
                 "raw_gene_label": local_curated.get("gene", ""),
             }
         )
-        return merged
+        return _apply_label_curation(merged, label_curation)
 
     if local_mouse:
         merged.update(
@@ -315,7 +358,7 @@ def _merge_row(
                 "raw_gene_label": local_mouse.get("gene", ""),
             }
         )
-        return merged
+        return _apply_label_curation(merged, label_curation)
 
     if local_raw:
         merged["is_fragment"] = local_raw.get("is_fragment", "")
@@ -334,7 +377,7 @@ def _merge_row(
     else:
         merged["metadata_source"] = "none"
 
-    return merged
+    return _apply_label_curation(merged, label_curation)
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) -> None:
@@ -350,7 +393,8 @@ def _build_controls(rows: list[dict[str, str]], *, include_fragment_controls: bo
     for row in rows:
         mhc_class = row.get("mhc_class", "")
         chain = row.get("chain", "")
-        if mhc_class not in {"I", "II"}:
+        label_status = row.get("label_status", "")
+        if label_status not in {"gold", "curated"} or mhc_class not in {"I", "II"} or chain not in {"alpha", "beta"}:
             continue
 
         sequence = row["sequence"]
@@ -442,9 +486,20 @@ def main() -> None:
     gt_rows = _read_csv(GT_RAW_CSV)
     accessions = [row["accession"] for row in gt_rows]
     curated, mouse, raw = _load_local_metadata()
+    label_curation = _load_label_curation()
     fetched = _fetch_uniprot_metadata(accessions)
 
-    enriched = [_merge_row(row, curated=curated, mouse=mouse, raw=raw, fetched=fetched) for row in gt_rows]
+    enriched = [
+        _merge_row(
+            row,
+            curated=curated,
+            mouse=mouse,
+            raw=raw,
+            fetched=fetched,
+            label_curation=label_curation,
+        )
+        for row in gt_rows
+    ]
     controls = _build_controls(enriched, include_fragment_controls=args.include_fragment_controls)
 
     _write_csv(GT_ENRICHED_CSV, enriched, ENRICHED_FIELDS)

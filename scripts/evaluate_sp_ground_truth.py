@@ -3,9 +3,9 @@
 
 Prefers ``data/sp_ground_truth_enriched.csv`` when available.  That enriched
 benchmark carries gold MHC class / chain metadata so the evaluator can dispatch
-the parser directly instead of guessing class from the sequence alone.  When
-the enriched file is absent, the evaluator falls back to the original raw GT
-CSV and the older classless parser-selection heuristic.
+the parser directly instead of guessing class from the sequence alone. Any
+classless rows use the same whole-parse competition as the production library.
+Curated/gold and unresolved/inferred results are reported separately.
 
 Usage:
     python scripts/evaluate_sp_ground_truth.py
@@ -45,11 +45,14 @@ def _parse_cli_args(argv: list[str]) -> dict[str, bool]:
 
 def _hint_match(text: str, keyword: str) -> bool:
     """Word-boundary-aware fallback matching for genus/common-name hints."""
-    if keyword.endswith((" ", "-")):
-        return keyword in text
     pat = _HINT_REGEX_CACHE.get(keyword)
     if pat is None:
-        pat = re.compile(r"\b" + re.escape(keyword) + r"\b")
+        if keyword.endswith(" "):
+            pat = re.compile(r"\b" + re.escape(keyword.rstrip()) + r"\s")
+        elif keyword.endswith("-"):
+            pat = re.compile(r"\b" + re.escape(keyword))
+        else:
+            pat = re.compile(r"\b" + re.escape(keyword) + r"\b")
         _HINT_REGEX_CACHE[keyword] = pat
     return bool(pat.search(text))
 
@@ -358,6 +361,17 @@ def _row_dispatch_metadata(row: dict[str, str]) -> tuple[str, str, str]:
     return mhc_class, chain, gene
 
 
+def _row_benchmark_stratum(row: dict[str, str]) -> str:
+    """Return the source-confidence stratum used in benchmark denominators."""
+    label_status = str(row.get("label_status", "") or "").strip().lower()
+    mhc_class, chain, _gene = _row_dispatch_metadata(row)
+    if label_status.startswith("excluded_"):
+        return "excluded"
+    if label_status in {"gold", "curated"} and mhc_class in {"I", "II"} and chain in {"alpha", "beta"}:
+        return "curated/gold"
+    return "unresolved/inferred"
+
+
 def _parser_name_for_dispatch(mhc_class: str, chain: str) -> str:
     if mhc_class == "I":
         return "class_I"
@@ -369,49 +383,23 @@ def _parser_name_for_dispatch(mhc_class: str, chain: str) -> str:
 
 
 def _try_parse(seq: str, *, features=None, use_early_shortcuts: bool = True) -> tuple[int, str]:
-    """Try all domain parsers and pick the most plausible result.
+    """Run the production classless whole-parse competition.
 
-    When multiple parsers succeed, pick the one whose mature_start is
-    in the plausible SP range [10, 50] and closest to a typical MHC
-    signal peptide length (~23 aa).  This avoids the class-I parser
-    falsely matching Cys pairs deep inside class-II proteins.
-
-    Returns (mature_start, parser_used) or (0, "") on failure.
+    Returns ``(mature_start, parser_used)`` or ``(0, "")`` on failure.
     """
-    from mhcseqs.domain_parsing import (
-        analyze_sequence,
-        decompose_class_i,
-        decompose_class_ii_alpha,
-        decompose_class_ii_beta,
-    )
+    from mhcseqs.domain_parsing import analyze_sequence, decompose_domains
 
     if features is None:
         features = analyze_sequence(seq)
-
-    TYPICAL_SP = 23  # median MHC SP length across vertebrates
-    candidates = []
-    for parser, name in [
-        (decompose_class_i, "class_I"),
-        (decompose_class_ii_beta, "class_II_beta"),
-        (decompose_class_ii_alpha, "class_II_alpha"),
-    ]:
-        try:
-            result = parser(seq, features=features, use_early_shortcuts=use_early_shortcuts)
-            if result.ok and result.mature_start > 0:
-                candidates.append((result.mature_start, name))
-        except Exception:
-            pass
-
-    if not candidates:
+    result = decompose_domains(
+        seq,
+        mhc_class="",
+        features=features,
+        use_early_shortcuts=use_early_shortcuts,
+    )
+    if not result.ok or result.mature_start <= 0:
         return 0, ""
-
-    # Prefer candidates in plausible SP range, closest to typical length
-    in_range = [(ms, n) for ms, n in candidates if 10 <= ms <= 50]
-    if in_range:
-        return min(in_range, key=lambda x: abs(x[0] - TYPICAL_SP))
-
-    # Fallback: pick the smallest positive mature_start
-    return min(candidates, key=lambda x: x[0])
+    return int(result.mature_start), _parser_name_for_dispatch(result.mhc_class, result.chain)
 
 
 def predict_sp_for_row(
@@ -422,12 +410,26 @@ def predict_sp_for_row(
     """Predict SP length for a GT row, using gold dispatch when available."""
     from mhcseqs.domain_parsing import analyze_sequence, decompose_domains, refine_signal_peptide
 
+    if _row_benchmark_stratum(row) == "excluded":
+        return {
+            "ok": False,
+            "dispatch_mode": "excluded",
+            "parser": "",
+            "mhc_class": "",
+            "chain": "",
+            "gene": str(row.get("gene", "") or ""),
+            "status": str(row.get("label_status", "") or "excluded"),
+            "mature_start": 0,
+            "predicted_sp": 0,
+        }
+
     seq = row["sequence"]
     category = _row_species_category(row)
     mhc_class, chain, gene = _row_dispatch_metadata(row)
     features = analyze_sequence(seq)
 
-    if mhc_class in {"I", "II"}:
+    has_complete_dispatch = mhc_class == "I" or (mhc_class == "II" and chain in {"alpha", "beta"})
+    if has_complete_dispatch:
         parser_name = _parser_name_for_dispatch(mhc_class, chain)
         try:
             result = decompose_domains(
@@ -492,31 +494,68 @@ def predict_sp_for_row(
             "mature_start": int(result.mature_start),
             "predicted_sp": int(refined),
         }
-    cys_start, parser_name = _try_parse(seq, features=features, use_early_shortcuts=use_early_shortcuts)
-    if cys_start == 0:
+    try:
+        inferred_class_hint = mhc_class if mhc_class in {"I", "II"} else ""
+        inferred_chain_hint = chain if inferred_class_hint == "II" and chain else None
+        result = decompose_domains(
+            seq,
+            mhc_class=inferred_class_hint,
+            chain=inferred_chain_hint,
+            gene=gene,
+            species=row.get("organism", ""),
+            features=features,
+            use_early_shortcuts=use_early_shortcuts,
+        )
+    except Exception as exc:  # pragma: no cover - defensive evaluator path
         return {
             "ok": False,
             "dispatch_mode": "inferred",
             "parser": "",
             "mhc_class": "",
             "chain": "",
-            "gene": "",
-            "status": "unparsed",
+            "gene": gene,
+            "status": f"exception:{type(exc).__name__}",
             "mature_start": 0,
             "predicted_sp": 0,
         }
+    if not result.ok or result.mature_start <= 0:
+        return {
+            "ok": False,
+            "dispatch_mode": "inferred",
+            "parser": _parser_name_for_dispatch(result.mhc_class, result.chain),
+            "mhc_class": str(result.mhc_class or ""),
+            "chain": str(result.chain or ""),
+            "gene": gene,
+            "status": result.status,
+            "mature_start": int(result.mature_start or 0),
+            "predicted_sp": 0,
+        }
 
-    inferred_class = "I" if parser_name == "class_I" else "II"
-    refined = refine_signal_peptide(seq, cys_start, category, inferred_class, features=features)
+    inferred_class = str(result.mhc_class or inferred_class_hint or "")
+    inferred_chain = str(result.chain or "")
+    parser_name = _parser_name_for_dispatch(inferred_class, inferred_chain)
+    groove_anchor = (
+        (int(result.anchor_cys1), int(result.anchor_cys2))
+        if result.anchor_cys1 is not None and result.anchor_cys2 is not None
+        else None
+    )
+    refined = refine_signal_peptide(
+        seq,
+        result.mature_start,
+        category,
+        inferred_class,
+        features=features,
+        groove_anchor=groove_anchor,
+    )
     return {
         "ok": True,
         "dispatch_mode": "inferred",
         "parser": parser_name,
         "mhc_class": inferred_class,
-        "chain": ("alpha" if parser_name == "class_II_alpha" else ("beta" if parser_name == "class_II_beta" else "alpha")),
-        "gene": "",
-        "status": "ok",
-        "mature_start": int(cys_start),
+        "chain": inferred_chain,
+        "gene": gene,
+        "status": result.status,
+        "mature_start": int(result.mature_start),
         "predicted_sp": int(refined),
     }
 
@@ -535,6 +574,7 @@ def evaluate(*, use_early_shortcuts: bool = True):
 
     # Counters
     total = 0
+    excluded = 0
     parsed = 0
     unparsed = 0
     exact = 0
@@ -546,22 +586,33 @@ def evaluate(*, use_early_shortcuts: bool = True):
     by_class: dict[tuple[str, str], Counter] = {}
     by_reviewed: dict[str, Counter] = {}
     by_dispatch: Counter = Counter()
+    by_stratum: dict[str, Counter] = {
+        "curated/gold": Counter(),
+        "unresolved/inferred": Counter(),
+    }
     mismatches_gt3: list[dict] = []
 
     for row in rows:
+        stratum = _row_benchmark_stratum(row)
+        if stratum == "excluded":
+            excluded += 1
+            continue
         gt_sp_len = int(row["sp_length"])
         organism = row["organism"]
         reviewed = row["reviewed"]
         accession = row["accession"]
         total += 1
+        by_stratum[stratum]["total"] += 1
 
         prediction = predict_sp_for_row(row, use_early_shortcuts=use_early_shortcuts)
+        by_dispatch[str(prediction["dispatch_mode"])] += 1
         if not prediction["ok"]:
             unparsed += 1
+            by_stratum[stratum]["unparsed"] += 1
             continue
 
         parsed += 1
-        by_dispatch[str(prediction["dispatch_mode"])] += 1
+        by_stratum[stratum]["parsed"] += 1
 
         cat = _row_species_category(row)
         refined = int(prediction["predicted_sp"])
@@ -572,12 +623,16 @@ def evaluate(*, use_early_shortcuts: bool = True):
         # Accuracy bins
         if delta == 0:
             exact += 1
+            by_stratum[stratum]["exact"] += 1
         if abs(delta) <= 1:
             within_1 += 1
+            by_stratum[stratum]["within_1"] += 1
         if abs(delta) <= 2:
             within_2 += 1
+            by_stratum[stratum]["within_2"] += 1
         if abs(delta) <= 3:
             within_3 += 1
+            by_stratum[stratum]["within_3"] += 1
 
         if abs(delta) > 3:
             mismatches_gt3.append(
@@ -637,6 +692,7 @@ def evaluate(*, use_early_shortcuts: bool = True):
     print("OVERALL RESULTS")
     print("=" * 70)
     print(f"Total entries:    {total}")
+    print(f"Excluded non-MHC: {excluded}")
     print(f"Parsed:           {parsed} ({100 * parsed / total:.1f}%)")
     print(f"Unparsed:         {unparsed} ({100 * unparsed / total:.1f}%)")
     if by_dispatch:
@@ -655,6 +711,21 @@ def evaluate(*, use_early_shortcuts: bool = True):
         print(f"\nMean delta:       {statistics.mean(deltas):+.2f} aa")
         print(f"Median delta:     {statistics.median(deltas):+.1f} aa")
         print(f"Std dev:          {statistics.stdev(deltas):.2f} aa")
+
+    print("\n" + "=" * 70)
+    print("BY CURATION STRATUM")
+    print("=" * 70)
+    print(f"{'Stratum':<22} {'Total':>6} {'Parsed':>12} {'Exact':>12} {'<=1':>12} {'<=2':>12}")
+    print("-" * 80)
+    for stratum in ("curated/gold", "unresolved/inferred"):
+        c = by_stratum[stratum]
+        t = c["total"]
+        p = c["parsed"]
+        parsed_text = f"{p:>4} ({100 * p / t:5.1f}%)" if t else "   0 (  n/a)"
+        exact_text = f"{c['exact']:>4} ({100 * c['exact'] / p:5.1f}%)" if p else "   0 (  n/a)"
+        one_text = f"{c['within_1']:>4} ({100 * c['within_1'] / p:5.1f}%)" if p else "   0 (  n/a)"
+        two_text = f"{c['within_2']:>4} ({100 * c['within_2'] / p:5.1f}%)" if p else "   0 (  n/a)"
+        print(f"{stratum:<22} {t:>6} {parsed_text} {exact_text} {one_text} {two_text}")
 
     # Delta distribution
     delta_counts = Counter(deltas)
