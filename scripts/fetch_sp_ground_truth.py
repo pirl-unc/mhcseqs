@@ -6,6 +6,9 @@ vertebrate clades. These are primarily SignalP computational predictions
 from unreviewed TrEMBL entries, with a few experimentally validated
 annotations from reviewed Swiss-Prot entries.
 
+The source lineage-root query is persisted with every row so downstream tools
+do not need to reconstruct taxonomy from organism names.
+
 Output: data/sp_ground_truth.csv
 
 Usage:
@@ -16,30 +19,30 @@ from __future__ import annotations
 
 import csv
 import json
+import sys
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.sp_ground_truth_taxonomy import SOURCE_CLADES
+
 OUTPUT = ROOT / "data" / "sp_ground_truth.csv"
 
 FIELDS = [
     "accession",
     "organism",
     "taxon_id",
+    "source_clade",
     "sp_length",
     "reviewed",
     "sequence",
 ]
 
-CLADES = [
-    ("Mammalia", 40674),
-    ("Aves", 8782),
-    ("Actinopterygii", 7898),
-    ("Reptilia", 8504),
-    ("Amphibia", 8292),
-    ("Chondrichthyes", 7777),
-]
+CLADES = SOURCE_CLADES
 
 
 def fetch_clade(name: str, taxid: int, max_results: int = 500) -> list[dict]:
@@ -88,6 +91,7 @@ def fetch_clade(name: str, taxid: int, max_results: int = 500) -> list[dict]:
                 "accession": entry.get("primaryAccession", ""),
                 "organism": organism,
                 "taxon_id": str(taxon),
+                "source_clade": name,
                 "sp_length": str(sp_end),
                 "reviewed": "Y" if is_reviewed else "N",
                 "sequence": seq,

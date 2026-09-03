@@ -22,6 +22,8 @@ classifiers = [
 dev = [
     "pytest>=7",
     "ruff>=0.4",
+    # tests/test_package_data.py reads pyproject.toml; tomllib is 3.11+
+    "tomli>=2.0; python_version < '3.11'",
 ]
 
 [project.scripts]
@@ -43,6 +45,8 @@ mhcseqs = [
     "mouse_h2_sequences.csv",
     "diverse_mhc_sequences.csv",
     "mhc_prefix_aliases.csv",
+    "sp_boundary_model.json",
+    "sp_sequence_cue_model.json",
 ]
 
 [tool.ruff]

@@ -6,6 +6,8 @@ benchmark carries gold MHC class / chain metadata so the evaluator can dispatch
 the parser directly instead of guessing class from the sequence alone. Any
 classless rows use the same whole-parse competition as the production library.
 Curated/gold and unresolved/inferred results are reported separately.
+Species-category strata come from the checked-in UniProt taxonomy audit rather
+than open-ended organism-name hints.
 
 Usage:
     python scripts/evaluate_sp_ground_truth.py
@@ -14,26 +16,20 @@ Usage:
 from __future__ import annotations
 
 import csv
-import re
 import sys
 from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.sp_ground_truth_taxonomy import species_category as _species_category
+
 GT_RAW_CSV = ROOT / "data" / "sp_ground_truth.csv"
 GT_ENRICHED_CSV = ROOT / "data" / "sp_ground_truth_enriched.csv"
 NEGATIVE_CONTROL_CSV = ROOT / "data" / "sp_negative_controls.csv"
 GT_CSV = GT_ENRICHED_CSV if GT_ENRICHED_CSV.exists() else GT_RAW_CSV
-
-# Exact taxon IDs we can categorize without ambiguity.
-_TAXID_TO_CATEGORY = {
-    9606: "human",
-    10090: "murine",
-    10116: "murine",
-}
-
-
-_HINT_REGEX_CACHE: dict[str, re.Pattern[str]] = {}
 
 
 def _parse_cli_args(argv: list[str]) -> dict[str, bool]:
@@ -41,306 +37,6 @@ def _parse_cli_args(argv: list[str]) -> dict[str, bool]:
     return {
         "use_early_shortcuts": "--no-early-shortcuts" not in argv,
     }
-
-
-def _hint_match(text: str, keyword: str) -> bool:
-    """Word-boundary-aware fallback matching for genus/common-name hints."""
-    pat = _HINT_REGEX_CACHE.get(keyword)
-    if pat is None:
-        if keyword.endswith(" "):
-            pat = re.compile(r"\b" + re.escape(keyword.rstrip()) + r"\s")
-        elif keyword.endswith("-"):
-            pat = re.compile(r"\b" + re.escape(keyword))
-        else:
-            pat = re.compile(r"\b" + re.escape(keyword) + r"\b")
-        _HINT_REGEX_CACHE[keyword] = pat
-    return bool(pat.search(text))
-
-
-def _species_category(organism: str, taxon_id: str = "") -> str:
-    """Map organism name to mhcseqs species category.
-
-    Uses the species module first, then falls back to taxonomy-based
-    heuristics for organisms not in the mhcseqs species table.
-    """
-    from mhcseqs.species import extract_latin_binomial, normalize_mhc_species
-
-    try:
-        taxid_value = int(str(taxon_id or "").strip())
-    except ValueError:
-        taxid_value = 0
-    exact_taxid_cat = _TAXID_TO_CATEGORY.get(taxid_value)
-    if exact_taxid_cat:
-        return exact_taxid_cat
-
-    for candidate in (organism, extract_latin_binomial(organism)):
-        cat = normalize_mhc_species(candidate)
-        if cat:
-            return cat
-
-    org_lower = extract_latin_binomial(organism).lower()
-
-    # Broad taxonomic heuristics for vertebrate clades in the ground truth
-
-    # Aves (birds) — common family/genus indicators
-    _BIRD_HINTS = (
-        "gallus",
-        "chicken",
-        "meleagris",
-        "turkey",
-        "anas ",
-        "duck",
-        "goose",
-        "anser",
-        "columba",
-        "pigeon",
-        "strix",
-        "owl",
-        "falco",
-        "eagle",
-        "hawk",
-        "pipra",
-        "parus",
-        "corvus",
-        "fringill",
-        "passer",
-        "taeniopygia",
-        "zebra finch",
-        "ficedula",
-        "cyanistes",
-        "sturnus",
-        "acrocephalus",
-        "phylloscopus",
-        "lanius",
-        "hirundo",
-        "apus",
-        "coturnix",
-        "quail",
-        "numida",
-        "struthio",
-        "dromaius",
-        "apteryx",
-        "rhea",
-        "accipiter",
-        "buteo",
-        "aquila",
-        "haliaeetus",
-        "catharus",
-        "turdus",
-        "serinus",
-        "lonchura",
-        "melopsittacus",
-        "psittac",
-        "cacatua",
-        "ara ",
-        "amazona",
-        "nymphicus",
-        "pelecanus",
-        "phalacrocorax",
-        "ardea",
-        "ciconia",
-        "phoenicopterus",
-        "spheniscus",
-        "pygoscelis",
-        "aptenodytes",
-        "larus",
-        "sterna",
-        "alcedo",
-        "merops",
-        "upupa",
-        "bucorvus",
-        "picus",
-        "dendrocopos",
-        "indicator",
-        "galbula",
-        "pterocles",
-    )
-
-    # Actinopterygii + Chondrichthyes (fish)
-    _FISH_HINTS = (
-        "danio",
-        "salmo",
-        "oncorhynch",
-        "ictalur",
-        "oreochrom",
-        "cyprinus",
-        "carassius",
-        "brachydanio",
-        "poecili",
-        "oryzias",
-        "xiphophorus",
-        "gasterosteus",
-        "takifugu",
-        "tetraodon",
-        "gadus",
-        "dicentrarchus",
-        "sparus",
-        "pagrus",
-        "lates",
-        "seriola",
-        "thunnus",
-        "rachycentron",
-        "hippoglossus",
-        "paralichthys",
-        "scophthalmus",
-        "solea",
-        "mugil",
-        "channa",
-        "clarias",
-        "pangasius",
-        "labeo",
-        "catla",
-        "tor ",
-        "epinephelus",
-        "lutjanus",
-        "acanthopagrus",
-        "salarias",
-        "syngnathus",
-        "hippocampus",
-        "acipenser",
-        "polyodon",
-        "lepisosteus",
-        "amia ",
-        "polypterus",
-        "latimeria",
-        "protopterus",
-        "lepidosiren",
-        "squalus",
-        "mustelus",
-        "triakis",
-        "heterodontus",
-        "carcharhinus",
-        "negaprion",
-        "ginglymostoma",
-        "chiloscyllium",
-        "scyliorhinus",
-        "raja ",
-        "leucoraja",
-        "dasyatis",
-        "rhinobatos",
-        "callorhinchus",
-        "liparis",
-        "larimichthys",
-        "siniperca",
-    )
-    if any(_hint_match(org_lower, h) for h in _FISH_HINTS):
-        return "fish"
-    if any(_hint_match(org_lower, h) for h in _BIRD_HINTS):
-        return "bird"
-
-    # Reptilia
-    _REPTILE_HINTS = (
-        "python",
-        "boa ",
-        "elaphe",
-        "pantherophis",
-        "naja",
-        "bungarus",
-        "crotalus",
-        "vipera",
-        "bothrops",
-        "agkistrodon",
-        "notechis",
-        "pseudonaja",
-        "ophiophagus",
-        "micrurus",
-        "laticauda",
-        "hydrophis",
-        "anolis",
-        "iguana",
-        "pogona",
-        "eublepharis",
-        "gekko",
-        "lacerta",
-        "podarcis",
-        "zootoca",
-        "varanus",
-        "heloderma",
-        "tiliqua",
-        "thamnophis",
-        "lampropeltis",
-        "coluber",
-        "natrix",
-        "salvator",
-        "tupinambis",
-        "chamaeleo",
-        "furcifer",
-        "brookesia",
-        "sphenodon",
-        "crocodylus",
-        "alligator",
-        "caiman",
-        "gavialis",
-        "tomistoma",
-        "chelonia",
-        "caretta",
-        "dermochelys",
-        "chrysemys",
-        "trachemys",
-        "testudo",
-        "terrapene",
-        "emys",
-        "mauremys",
-        "pelodiscus",
-        "amblyrhynch",
-        "cyclura",
-        "conolophus",
-        "ctenosaura",
-    )
-    if any(_hint_match(org_lower, h) for h in _REPTILE_HINTS):
-        return "other_vertebrate"
-
-    # Amphibia
-    _AMPHIBIAN_HINTS = (
-        "xenopus",
-        "rana ",
-        "lithobates",
-        "bufo",
-        "rhinella",
-        "bombina",
-        "hyla ",
-        "pseudacris",
-        "eleutherodactylus",
-        "dendrobates",
-        "phyllobates",
-        "allobates",
-        "epipedobates",
-        "ranitomeya",
-        "ambystoma",
-        "notophthalmus",
-        "plethodon",
-        "cynops",
-        "triturus",
-        "ichthyophis",
-        "typhlonectes",
-        "caecilia",
-        "microcaecilia",
-        "andrias",
-        "cryptobranchus",
-        "salamandra",
-        "lissotriton",
-        "nanorana",
-        "quasipaa",
-        "pipa",
-        "hymenochirus",
-        "leptobrachium",
-        "megophrys",
-        "scaphiopus",
-        "pelophylax",
-        "pyxicephalus",
-        "conraua",
-        "ceratobatrachus",
-        "atelopus",
-        "mantella",
-        "boophis",
-    )
-    if any(_hint_match(org_lower, h) for h in _AMPHIBIAN_HINTS):
-        return "other_vertebrate"
-
-    # Ground truth is exclusively vertebrate (fetched from Mammalia, Aves,
-    # Actinopterygii, Reptilia, Amphibia, Chondrichthyes).  Anything still
-    # unrecognized is a non-mammalian vertebrate we missed above.
-    return "other_vertebrate"
 
 
 def load_ground_truth_rows(prefer_enriched: bool = True) -> tuple[Path, list[dict[str, str]]]:
@@ -351,7 +47,11 @@ def load_ground_truth_rows(prefer_enriched: bool = True) -> tuple[Path, list[dic
 
 
 def _row_species_category(row: dict[str, str]) -> str:
-    return row.get("species_category", "") or _species_category(row["organism"], row.get("taxon_id", ""))
+    return row.get("species_category", "") or _species_category(
+        row["organism"],
+        row.get("taxon_id", ""),
+        row.get("source_clade", ""),
+    )
 
 
 def _row_dispatch_metadata(row: dict[str, str]) -> tuple[str, str, str]:
@@ -534,11 +234,7 @@ def predict_sp_for_row(
     inferred_class = str(result.mhc_class or inferred_class_hint or "")
     inferred_chain = str(result.chain or "")
     parser_name = _parser_name_for_dispatch(inferred_class, inferred_chain)
-    groove_anchor = (
-        (int(result.anchor_cys1), int(result.anchor_cys2))
-        if result.anchor_cys1 is not None and result.anchor_cys2 is not None
-        else None
-    )
+    groove_anchor = (int(result.anchor_cys1), int(result.anchor_cys2)) if result.anchor_cys1 is not None and result.anchor_cys2 is not None else None
     refined = refine_signal_peptide(
         seq,
         result.mature_start,

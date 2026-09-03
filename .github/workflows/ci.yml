@@ -26,8 +26,8 @@ jobs:
 
     - name: Lint
       run: |
-        ruff check mhcseqs/ tests/
-        ruff format --check mhcseqs/ tests/
+        ruff check mhcseqs/ tests/ scripts/
+        ruff format --check mhcseqs/ tests/ scripts/
 
     - name: Test
       run: pytest tests/ -v

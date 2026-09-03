@@ -123,7 +123,7 @@ def select_affected_rows(rows: Iterable[dict[str, str]]) -> list[dict[str, str]]
                 break
     if len(selected) != 239:
         raise ValueError(f"Expected 239 historical records, found {len(selected)}")
-    if len({row['uniprot_accession'] for row in selected}) != len(selected):
+    if len({row["uniprot_accession"] for row in selected}) != len(selected):
         raise ValueError("Historical provenance records must have unique accessions")
     return selected
 

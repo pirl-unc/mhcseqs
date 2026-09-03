@@ -7,7 +7,7 @@ The model is deliberately simple and strongly regularized:
 - positives = annotated SP boundaries from data/sp_ground_truth.csv
 - negatives = nearby same-sequence decoys within +/-10 aa
 
-The output is written to data/sp_boundary_model.json and can be consumed by
+The output is written to mhcseqs/sp_boundary_model.json and can be consumed by
 mhcseqs.domain_parsing._score_sp_boundary_composition().
 """
 
@@ -24,9 +24,9 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.evaluate_sp_ground_truth import GT_CSV, _species_category
+from scripts.evaluate_sp_ground_truth import GT_CSV, _row_species_category
 
-OUT_JSON = ROOT / "data" / "sp_boundary_model.json"
+OUT_JSON = ROOT / "mhcseqs" / "sp_boundary_model.json"
 AA_ORDER = tuple("ACDEFGHIKLMNPQRSTVWY")
 OFFSETS = tuple(range(-5, 6))
 ALPHA = 1.0
@@ -141,7 +141,7 @@ def train() -> dict[str, object]:
         if boundary < 5 or boundary >= len(seq) - 5:
             continue
 
-        species_group = _refinement_group(_species_category(row["organism"], row.get("taxon_id", "")))
+        species_group = _refinement_group(_row_species_category(row))
         for key in ("global", species_group):
             _observe_boundary(seq, boundary, counts[key], positive=True)
 
