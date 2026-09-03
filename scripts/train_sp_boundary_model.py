@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from mhcseqs.domain_parsing import _refinement_group
 from scripts.evaluate_sp_ground_truth import GT_CSV, _row_species_category
 
 OUT_JSON = ROOT / "mhcseqs" / "sp_boundary_model.json"
@@ -55,17 +56,6 @@ AA_CLASS_BY_AA = {
     "C": "cysteine",
 }
 AA_CLASS_ORDER = tuple(sorted(set(AA_CLASS_BY_AA.values())))
-MAMMAL_CATEGORIES = frozenset({"human", "nhp", "murine", "ungulate", "carnivore", "other_mammal"})
-
-
-def _refinement_group(species_category: str) -> str:
-    if species_category in MAMMAL_CATEGORIES or not species_category:
-        return "mammal"
-    if species_category == "bird":
-        return "bird"
-    if species_category == "fish":
-        return "fish"
-    return "other_vertebrate"
 
 
 def _new_group_counts() -> dict[str, object]:

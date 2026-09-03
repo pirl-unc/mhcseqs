@@ -39,13 +39,17 @@ from urllib.error import HTTPError
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
+if str(SCRIPTS_DIR.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR.parent))
 
 from curate_diverse_mhc import (
     classify_mhc,
     derive_species_alias,
     resolve_gene_annotation,
 )
-from evaluate_sp_ground_truth import GT_RAW_CSV, _species_category
+from evaluate_sp_ground_truth import GT_RAW_CSV
+
+from scripts.sp_ground_truth_taxonomy import species_category as _species_category
 
 ROOT = Path(__file__).resolve().parent.parent
 GT_ENRICHED_CSV = ROOT / "data" / "sp_ground_truth_enriched.csv"

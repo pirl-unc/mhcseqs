@@ -25,9 +25,7 @@ jobs:
       run: pip install -e ".[dev]"
 
     - name: Lint
-      run: |
-        ruff check mhcseqs/ tests/ scripts/
-        ruff format --check mhcseqs/ tests/ scripts/
+      run: bash lint.sh
 
     - name: Test
       run: pytest tests/ -v
