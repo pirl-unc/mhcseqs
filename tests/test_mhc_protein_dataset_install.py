@@ -106,6 +106,56 @@ def test_concurrent_first_installs_validate_and_reuse_winner(monkeypatch, tmp_pa
     assert not list(installed[0].records.parent.parent.glob(".uniprot-test-r1-*"))
 
 
+def test_concurrent_forced_installs_serialize_publication(monkeypatch, tmp_path):
+    records, manifest = _asset_pair()
+    monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))
+    files = {"records.csv.gz": records, "records.manifest.json": manifest}
+    _fake_download(monkeypatch, files)
+    paths = datasets.install_mhc_protein_dataset(data_dir=tmp_path)
+
+    manifests_downloaded = threading.Barrier(2)
+
+    def download(url, destination):
+        name = Path(url).name
+        destination.write_bytes(files[name])
+        if name == "records.manifest.json":
+            manifests_downloaded.wait(timeout=5)
+
+    monkeypatch.setattr(datasets, "_download", download)
+    real_replace = datasets.os.replace
+    backup = paths.records.parent.with_name(f".{paths.version}.previous")
+    delayed = threading.Event()
+    delay_once = threading.Event()
+
+    def replace(source, destination):
+        real_replace(source, destination)
+        if Path(destination) == backup and not delayed.is_set():
+            delayed.set()
+            delay_once.wait(timeout=0.1)
+
+    monkeypatch.setattr(datasets.os, "replace", replace)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(datasets.install_mhc_protein_dataset, data_dir=tmp_path, force=True) for _ in range(2)]
+        installed = [future.result(timeout=10) for future in futures]
+
+    assert installed == [paths, paths]
+    assert datasets.validate_mhc_protein_dataset(data_dir=tmp_path) == paths
+    assert not backup.exists()
+
+
+def test_force_install_recovers_interrupted_swap(monkeypatch, tmp_path):
+    records, manifest = _asset_pair()
+    monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))
+    _fake_download(monkeypatch, {"records.csv.gz": records, "records.manifest.json": manifest})
+    paths = datasets.install_mhc_protein_dataset(data_dir=tmp_path)
+    backup = paths.records.parent.with_name(f".{paths.version}.previous")
+    datasets.os.replace(paths.records.parent, backup)
+
+    assert datasets.install_mhc_protein_dataset(data_dir=tmp_path, force=True) == paths
+    assert datasets.validate_mhc_protein_dataset(data_dir=tmp_path) == paths
+    assert not backup.exists()
+
+
 def test_failed_force_install_preserves_complete_cached_version(monkeypatch, tmp_path):
     records, manifest = _asset_pair()
     monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))

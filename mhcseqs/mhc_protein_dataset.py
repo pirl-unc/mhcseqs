@@ -16,6 +16,7 @@ import os
 import shutil
 import tempfile
 import urllib.request
+from contextlib import contextmanager
 from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
@@ -148,8 +149,42 @@ def _download_asset(base_url: str, metadata: dict[str, object], destination: Pat
         raise ProteinDatasetError(f"Failed to download {filename}: {exc}") from exc
 
 
+@contextmanager
+def _publication_lock(destination: Path):
+    """Serialize cache publication for one data version."""
+    lock_path = destination.with_name(f".{destination.name}.lock")
+    with lock_path.open("a+b") as handle:
+        if os.name == "nt":
+            import msvcrt
+
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def _publish_staged_directory(staged: Path, destination: Path, *, force: bool) -> bool:
     """Publish one complete directory, returning false when another installer won."""
+    with _publication_lock(destination):
+        return _publish_staged_directory_locked(staged, destination, force=force)
+
+
+def _publish_staged_directory_locked(staged: Path, destination: Path, *, force: bool) -> bool:
     if not force:
         if destination.exists():
             return False
@@ -165,11 +200,14 @@ def _publish_staged_directory(staged: Path, destination: Path, *, force: bool) -
         return True
 
     backup = destination.with_name(f".{destination.name}.previous")
+    if backup.exists():
+        if destination.exists():
+            shutil.rmtree(backup)
+        else:
+            os.replace(backup, destination)
     if not destination.exists():
         os.replace(staged, destination)
         return True
-    if backup.exists():
-        raise ProteinDatasetError(f"Cannot publish while a previous-version backup exists: {backup}")
     os.replace(destination, backup)
     try:
         os.replace(staged, destination)
