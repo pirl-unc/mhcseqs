@@ -4,6 +4,7 @@ Usage:
     mhcseqs build [--output-dir DIR] [--data-dir DIR] [--force-download]
     mhcseqs lookup ALLELE [--output-dir DIR]
     mhcseqs data list
+    mhcseqs data install mhc-proteins [--version VERSION] [--with-sources]
     mhcseqs data refresh [--source imgt_hla|ipd_mhc]
     mhcseqs data clear [--source ...] [--built | --built-only]
     python -m mhcseqs build
@@ -22,6 +23,15 @@ from . import default_data_dir
 from .datafiles import clear as clear_data
 from .datafiles import fasta_dir, inventory
 from .download import SOURCES, download_all
+from .mhc_protein_dataset import (
+    DATASET_NAME as MHC_PROTEIN_DATASET_NAME,
+)
+from .mhc_protein_dataset import (
+    available_mhc_protein_dataset_versions,
+    install_mhc_protein_dataset,
+    install_mhc_protein_source_bundle,
+    mhc_protein_dataset_paths,
+)
 from .pipeline import build_full_seqs, build_raw_index
 from .validate import format_validation_report, validate_build
 from .version import __version__
@@ -181,6 +191,33 @@ def cmd_data(args):
                 print(f"{item.path.name:<26} {item.kind:<7} {_human_size(item.size):>10} {_human_age(item.mtime):>9}  {status}")
             else:
                 print(f"{item.path.name:<26} {item.kind:<7} {'—':>10} {'—':>9}  (not present)")
+        print("\nVersioned datasets:")
+        for version in available_mhc_protein_dataset_versions():
+            paths = mhc_protein_dataset_paths(version, data_dir=dd)
+            status = _human_size(paths.records.stat().st_size) if paths.records.exists() else "not installed"
+            print(f"  {MHC_PROTEIN_DATASET_NAME} {version}: {status}")
+        return
+
+    if action == "install":
+        paths = install_mhc_protein_dataset(args.version, data_dir=dd, force=args.force)
+        print(f"Installed {MHC_PROTEIN_DATASET_NAME} {paths.version}")
+        print(f"  records: {paths.records}")
+        print(f"  manifest: {paths.manifest}")
+        if args.with_sources:
+            sources = install_mhc_protein_source_bundle(args.version, data_dir=dd, force=args.force)
+            print(f"  source bundle: {sources.root}")
+            print(f"  label curation: {sources.label_curation}")
+        return
+
+    if action == "path":
+        paths = mhc_protein_dataset_paths(args.version, data_dir=dd)
+        if not paths.records.exists():
+            print(
+                f"{MHC_PROTEIN_DATASET_NAME} {paths.version} is not installed; run 'mhcseqs data install {MHC_PROTEIN_DATASET_NAME}'.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(paths.records)
         return
 
     if action == "refresh":
@@ -257,6 +294,18 @@ def main():
     data_parser = subparsers.add_parser("data", help="Manage cached downloads and built CSVs")
     data_sub = data_parser.add_subparsers(dest="data_command")
     data_sub.add_parser("list", help="List cached source and built data files")
+    install_parser = data_sub.add_parser("install", help="Install an immutable versioned dataset")
+    install_parser.add_argument("dataset", choices=[MHC_PROTEIN_DATASET_NAME])
+    install_parser.add_argument("--version", choices=available_mhc_protein_dataset_versions())
+    install_parser.add_argument("--force", action="store_true", help="Re-download and replace this exact cached version")
+    install_parser.add_argument(
+        "--with-sources",
+        action="store_true",
+        help="Also install the pinned source and curation artifacts needed for offline regeneration",
+    )
+    path_parser = data_sub.add_parser("path", help="Print the path to an installed versioned dataset")
+    path_parser.add_argument("dataset", choices=[MHC_PROTEIN_DATASET_NAME])
+    path_parser.add_argument("--version", choices=available_mhc_protein_dataset_versions())
     refresh_parser = data_sub.add_parser("refresh", help="Re-download source FASTA(s)")
     refresh_parser.add_argument(
         "--source",

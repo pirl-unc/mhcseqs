@@ -36,6 +36,9 @@ mhcseqs lookup "HLA-A*02:01"
 # Inspect cached downloads and built CSVs (path, size, age)
 mhcseqs data list
 
+# Install the immutable full UniProt candidate dataset
+mhcseqs data install mhc-proteins
+
 # Re-download source FASTAs (IMGT/HLA + IPD-MHC publish from a rolling "Latest")
 mhcseqs data refresh
 mhcseqs build --force-download   # equivalently, rebuild with fresh sources
@@ -86,6 +89,74 @@ df = mhcseqs.load_sequences_dataframe()
 # Or as a list of dicts (no pandas dependency)
 rows = mhcseqs.load_sequences_dict()
 ```
+
+## Full UniProt protein records
+
+The independently versioned `mhc-proteins` dataset preserves all 55,719
+current and historical records from the release-pinned UniProt Vertebrata MHC
+candidate query. It is a source-complete record layer, distinct from both the
+56,440 representative IMGT/IPD build summarized below and the smaller
+signal-peptide benchmark derived from it.
+
+Install the default data version (`uniprot-2026_03-r1`) with:
+
+```bash
+mhcseqs data install mhc-proteins
+mhcseqs data path mhc-proteins
+```
+
+Code releases and data releases are deliberately independent. Pin a data
+version in automated work:
+
+```bash
+mhcseqs data install mhc-proteins --version uniprot-2026_03-r1
+```
+
+From Python, records can be streamed without pandas or loaded eagerly. The
+requested data version is downloaded once, checksum-verified, and then reused
+from the local cache:
+
+```python
+import mhcseqs
+
+rows = mhcseqs.iter_mhc_protein_records(version="uniprot-2026_03-r1")
+first = next(rows)
+
+all_rows = mhcseqs.load_mhc_protein_records(version="uniprot-2026_03-r1")
+df = mhcseqs.load_mhc_protein_dataframe(version="uniprot-2026_03-r1")
+```
+
+The columns are intentionally separated by provenance:
+
+- `source_*` plus organism, sequence, lineage, name, and gene columns are
+  UniProtKB, UniSave, or taxonomy-snapshot facts. An empty source annotation
+  means “not annotated,” never “biologically absent.”
+- `inferred_*` columns contain normalized MHC class, chain, type, gene, and
+  candidate-disposition decisions derived from source metadata and explicit
+  accession curation.
+- `parsed_*`, `mature_sequence`, `groove1`, `groove2`, `ig_domain`, `tail`,
+  boundary, span, score, and state columns are outputs from the mhcseqs
+  sequence parser. Partial parts can remain populated when `parse_ok` is false;
+  inspect `parse_status` before treating them as a complete decomposition.
+
+The broad source query deliberately retains contaminants and ambiguous hits so
+that the source population is reproducible. `inferred_disposition` is the MHC
+identity decision; `parse_ok` only reports whether the structural parser
+produced a usable decomposition and is not an independent identity label.
+
+To reproduce the records artifact offline, install the source bundle too:
+
+```bash
+mhcseqs data install mhc-proteins --version uniprot-2026_03-r1 --with-sources
+python scripts/build_mhc_protein_dataset.py \
+  --data-dir ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r1 \
+  --label-curation ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r1/sp_ground_truth_label_curation.csv
+```
+
+The release manifest pins source queries, releases, byte counts, SHA-256
+digests, model hashes, schema, and output distributions. UniProt-derived data
+is redistributed under [CC BY 4.0](https://www.uniprot.org/help/license/) with
+attribution to the UniProt Consortium.
 
 ## Current data summary
 
@@ -260,4 +331,7 @@ No alignment tools, BLAST, or structure databases are required.
 
 ## License
 
-Apache 2.0
+The mhcseqs code is licensed under Apache 2.0. The independently distributed
+UniProt-derived `mhc-proteins` data is licensed under
+[CC BY 4.0](https://www.uniprot.org/help/license/) with attribution to the
+UniProt Consortium.

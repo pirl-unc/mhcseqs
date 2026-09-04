@@ -1,5 +1,6 @@
 import csv
 import sys
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -30,6 +31,46 @@ def test_no_args_prints_help(capsys):
         with pytest.raises(SystemExit) as exc_info:
             main()
         assert exc_info.value.code == 1
+
+
+def test_data_list_reports_versioned_dataset(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("mhcseqs.__main__.default_data_dir", lambda: str(tmp_path))
+    with patch.object(sys, "argv", ["mhcseqs", "data", "list"]):
+        main()
+    captured = capsys.readouterr()
+    assert "mhc-proteins uniprot-2026_03-r1: not installed" in captured.out
+
+
+def test_data_install_dispatches_version_and_sources(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("mhcseqs.__main__.default_data_dir", lambda: str(tmp_path))
+    records = tmp_path / "records.csv.gz"
+    manifest = tmp_path / "manifest.json"
+    source_root = tmp_path / "source-bundle"
+    curation = source_root / "sp_ground_truth_label_curation.csv"
+    seen = []
+
+    def install(version, *, data_dir, force):
+        seen.append(("records", version, data_dir, force))
+        return SimpleNamespace(version=version, records=records, manifest=manifest)
+
+    def install_sources(version, *, data_dir, force):
+        seen.append(("sources", version, data_dir, force))
+        return SimpleNamespace(root=source_root, label_curation=curation)
+
+    monkeypatch.setattr("mhcseqs.__main__.install_mhc_protein_dataset", install)
+    monkeypatch.setattr("mhcseqs.__main__.install_mhc_protein_source_bundle", install_sources)
+    with patch.object(
+        sys,
+        "argv",
+        ["mhcseqs", "data", "install", "mhc-proteins", "--version", "uniprot-2026_03-r1", "--with-sources"],
+    ):
+        main()
+
+    assert seen == [
+        ("records", "uniprot-2026_03-r1", tmp_path, False),
+        ("sources", "uniprot-2026_03-r1", tmp_path, False),
+    ]
+    assert str(records) in capsys.readouterr().out
 
 
 def test_lookup_no_csvs(capsys, tmp_path, monkeypatch):
