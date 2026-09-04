@@ -46,6 +46,7 @@ mhcseqs = [
     "diverse_mhc_sequences.csv",
     "genbank_saha_sequences.csv",
     "mhc_prefix_aliases.csv",
+    "mhc_protein_datasets.json",
     "sp_boundary_model.json",
     "sp_sequence_cue_model.json",
 ]
