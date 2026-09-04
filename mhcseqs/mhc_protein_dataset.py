@@ -112,13 +112,19 @@ def _sha256(path: Path) -> str:
 
 
 def _validate_file(path: Path, metadata: dict[str, object]) -> None:
-    if not path.is_file():
-        raise ProteinDatasetError(f"Missing dataset asset: {path}")
-    actual_bytes = path.stat().st_size
+    try:
+        if not path.is_file():
+            raise ProteinDatasetError(f"Missing dataset asset: {path}")
+        actual_bytes = path.stat().st_size
+    except OSError as exc:
+        raise ProteinDatasetError(f"Cannot read dataset asset {path}: {exc}") from exc
     expected_bytes = int(metadata["bytes"])
     if actual_bytes != expected_bytes:
         raise ProteinDatasetError(f"Wrong byte count for {path.name}: expected {expected_bytes}, found {actual_bytes}")
-    actual_sha256 = _sha256(path)
+    try:
+        actual_sha256 = _sha256(path)
+    except OSError as exc:
+        raise ProteinDatasetError(f"Cannot read dataset asset {path}: {exc}") from exc
     if actual_sha256 != metadata["sha256"]:
         raise ProteinDatasetError(f"SHA-256 mismatch for {path.name}: expected {metadata['sha256']}, found {actual_sha256}")
 
@@ -142,14 +148,26 @@ def _download_asset(base_url: str, metadata: dict[str, object], destination: Pat
         raise ProteinDatasetError(f"Failed to download {filename}: {exc}") from exc
 
 
-def _publish_staged_directory(staged: Path, destination: Path, *, force: bool) -> None:
-    if destination.exists() and not force:
-        raise ProteinDatasetError(f"Refusing to replace existing dataset directory without force: {destination}")
-    if not destination.exists():
-        os.replace(staged, destination)
-        return
+def _publish_staged_directory(staged: Path, destination: Path, *, force: bool) -> bool:
+    """Publish one complete directory, returning false when another installer won."""
+    if not force:
+        if destination.exists():
+            return False
+        try:
+            os.replace(staged, destination)
+        except OSError:
+            # Another process can publish after the exists() check. Only
+            # convert that race into reuse when a destination now exists;
+            # callers validate the winner before returning it.
+            if destination.exists():
+                return False
+            raise
+        return True
 
     backup = destination.with_name(f".{destination.name}.previous")
+    if not destination.exists():
+        os.replace(staged, destination)
+        return True
     if backup.exists():
         raise ProteinDatasetError(f"Cannot publish while a previous-version backup exists: {backup}")
     os.replace(destination, backup)
@@ -159,6 +177,7 @@ def _publish_staged_directory(staged: Path, destination: Path, *, force: bool) -
         os.replace(backup, destination)
         raise
     shutil.rmtree(backup)
+    return True
 
 
 def _validate_records(paths: ProteinDatasetPaths, spec: dict[str, object]) -> None:
@@ -173,6 +192,18 @@ def _validate_records(paths: ProteinDatasetPaths, spec: dict[str, object]) -> No
     records = manifest.get("records", {})
     if records.get("filename") != paths.records.name or records.get("sha256") != spec["records"]["sha256"]:
         raise ProteinDatasetError(f"Records manifest and registry disagree for {paths.version}")
+
+
+def validate_mhc_protein_dataset(
+    version: str | None = None,
+    *,
+    data_dir: str | Path | None = None,
+) -> ProteinDatasetPaths:
+    """Validate a cached records/manifest pair and return its paths."""
+    resolved, spec = _version_spec(version)
+    paths = mhc_protein_dataset_paths(resolved, data_dir=data_dir)
+    _validate_records(paths, spec)
+    return paths
 
 
 def install_mhc_protein_dataset(
@@ -201,7 +232,9 @@ def install_mhc_protein_dataset(
         _download_asset(base_url, spec["records"], staged_paths.records)
         _download_asset(base_url, spec["records_manifest"], staged_paths.manifest)
         _validate_records(staged_paths, spec)
-        _publish_staged_directory(staged, paths.records.parent, force=force)
+        published = _publish_staged_directory(staged, paths.records.parent, force=force)
+        if not published:
+            _validate_records(paths, spec)
     finally:
         if staged.exists():
             shutil.rmtree(staged)
@@ -238,7 +271,9 @@ def install_mhc_protein_source_bundle(
             asset_metadata = {"filename": filename, **metadata}
             _download_asset(str(spec["release_url"]), asset_metadata, staged / relative)
         validate(staged)
-        _publish_staged_directory(staged, destination, force=force)
+        published = _publish_staged_directory(staged, destination, force=force)
+        if not published:
+            validate(destination)
     finally:
         if staged.exists():
             shutil.rmtree(staged)

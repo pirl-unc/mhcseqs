@@ -8,6 +8,7 @@ from mhcseqs import (
     parse_class_i,
     parse_class_ii_alpha,
     parse_class_ii_beta,
+    validate_mhc_protein_dataset,
 )
 
 
@@ -20,3 +21,4 @@ def test_package_root_legacy_groove_exports_are_preserved():
 
 def test_package_root_exports_versioned_mhc_protein_data():
     assert available_mhc_protein_dataset_versions() == ("uniprot-2026_03-r1",)
+    assert callable(validate_mhc_protein_dataset)

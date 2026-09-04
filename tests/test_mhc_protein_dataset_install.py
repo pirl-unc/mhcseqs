@@ -2,6 +2,8 @@ import csv
 import gzip
 import hashlib
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -82,6 +84,28 @@ def test_install_validates_and_publishes_complete_pair(monkeypatch, tmp_path):
     assert not list(paths.records.parent.parent.glob(".uniprot-test-r1-*"))
 
 
+def test_concurrent_first_installs_validate_and_reuse_winner(monkeypatch, tmp_path):
+    records, manifest = _asset_pair()
+    monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))
+    files = {"records.csv.gz": records, "records.manifest.json": manifest}
+    manifests_downloaded = threading.Barrier(2)
+
+    def download(url, destination):
+        name = Path(url).name
+        destination.write_bytes(files[name])
+        if name == "records.manifest.json":
+            manifests_downloaded.wait(timeout=5)
+
+    monkeypatch.setattr(datasets, "_download", download)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(datasets.install_mhc_protein_dataset, data_dir=tmp_path) for _ in range(2)]
+        installed = [future.result(timeout=10) for future in futures]
+
+    assert installed[0] == installed[1]
+    assert installed[0] == datasets.validate_mhc_protein_dataset(data_dir=tmp_path)
+    assert not list(installed[0].records.parent.parent.glob(".uniprot-test-r1-*"))
+
+
 def test_failed_force_install_preserves_complete_cached_version(monkeypatch, tmp_path):
     records, manifest = _asset_pair()
     monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))
@@ -110,6 +134,20 @@ def test_checksum_failure_never_publishes_partial_version(monkeypatch, tmp_path)
 
     paths = datasets.mhc_protein_dataset_paths(data_dir=tmp_path)
     assert not paths.records.parent.exists()
+
+
+def test_unreadable_cache_is_reported_as_dataset_error(monkeypatch, tmp_path):
+    records, manifest = _asset_pair()
+    monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))
+    _fake_download(monkeypatch, {"records.csv.gz": records, "records.manifest.json": manifest})
+    datasets.install_mhc_protein_dataset(data_dir=tmp_path)
+
+    def fail_read(_path):
+        raise OSError("simulated read failure")
+
+    monkeypatch.setattr(datasets, "_sha256", fail_read)
+    with pytest.raises(datasets.ProteinDatasetError, match="Cannot read dataset asset"):
+        datasets.validate_mhc_protein_dataset(data_dir=tmp_path)
 
 
 def test_source_bundle_is_installed_in_offline_builder_layout(monkeypatch, tmp_path):

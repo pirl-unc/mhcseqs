@@ -57,6 +57,7 @@ __all__ = [
     "load_mhc_protein_dataframe",
     "load_mhc_protein_records",
     "mhc_protein_dataset_paths",
+    "validate_mhc_protein_dataset",
     # alleles
     "infer_gene",
     "infer_mhc_class",
@@ -118,6 +119,7 @@ from .mhc_protein_dataset import (
     load_mhc_protein_dataframe,
     load_mhc_protein_records,
     mhc_protein_dataset_paths,
+    validate_mhc_protein_dataset,
 )
 from .pipeline import (
     FULL_FIELDS,
@@ -402,6 +404,7 @@ __all__ = [
     "load_mhc_protein_records",
     "load_mhc_protein_dataframe",
     "mhc_protein_dataset_paths",
+    "validate_mhc_protein_dataset",
     "ProteinDatasetError",
     "ProteinDatasetPaths",
     "ProteinSourceBundlePaths",

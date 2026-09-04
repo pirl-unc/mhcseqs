@@ -27,10 +27,13 @@ from .mhc_protein_dataset import (
     DATASET_NAME as MHC_PROTEIN_DATASET_NAME,
 )
 from .mhc_protein_dataset import (
+    ProteinDatasetError,
     available_mhc_protein_dataset_versions,
+    default_mhc_protein_dataset_version,
     install_mhc_protein_dataset,
     install_mhc_protein_source_bundle,
     mhc_protein_dataset_paths,
+    validate_mhc_protein_dataset,
 )
 from .pipeline import build_full_seqs, build_raw_index
 from .validate import format_validation_report, validate_build
@@ -194,7 +197,14 @@ def cmd_data(args):
         print("\nVersioned datasets:")
         for version in available_mhc_protein_dataset_versions():
             paths = mhc_protein_dataset_paths(version, data_dir=dd)
-            status = _human_size(paths.records.stat().st_size) if paths.records.exists() else "not installed"
+            if paths.records.parent.exists():
+                try:
+                    validate_mhc_protein_dataset(version, data_dir=dd)
+                    status = _human_size(paths.records.stat().st_size)
+                except ProteinDatasetError:
+                    status = "invalid; reinstall with --force"
+            else:
+                status = "not installed"
             print(f"  {MHC_PROTEIN_DATASET_NAME} {version}: {status}")
         return
 
@@ -210,10 +220,13 @@ def cmd_data(args):
         return
 
     if action == "path":
-        paths = mhc_protein_dataset_paths(args.version, data_dir=dd)
-        if not paths.records.exists():
+        try:
+            paths = validate_mhc_protein_dataset(args.version, data_dir=dd)
+        except ProteinDatasetError as exc:
+            version = args.version or default_mhc_protein_dataset_version()
             print(
-                f"{MHC_PROTEIN_DATASET_NAME} {paths.version} is not installed; run 'mhcseqs data install {MHC_PROTEIN_DATASET_NAME}'.",
+                f"{MHC_PROTEIN_DATASET_NAME} {version} is missing or corrupt: {exc}\n"
+                f"Reinstall it with 'mhcseqs data install {MHC_PROTEIN_DATASET_NAME} --version {version} --force'.",
                 file=sys.stderr,
             )
             sys.exit(1)
