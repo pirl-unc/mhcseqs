@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from mhcseqs.alleles import is_non_mhc_gene, parse_allele_name
+from mhcseqs.alleles import is_non_mhc_gene, parse_allele_name, parse_gene_class
 from scripts.curate_diverse_mhc import _infer_class_ii_chain, classify_mhc
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -70,7 +70,18 @@ def resolve_mhc_label(
     # an MHC chain. Consult the same species-aware identity policy as parsing
     # before the permissive name heuristics, keeping explicit curation first.
     species = row.get("Organism", "").strip() or None
-    if any(is_non_mhc_gene(token, species=species) for token in re.split(r"[\s,;]+", gene_names) if token):
+    gene_tokens = [token for token in re.split(r"[\s,;]+", gene_names) if token]
+    non_mhc_tokens = {token for token in gene_tokens if is_non_mhc_gene(token, species=species)}
+    if non_mhc_tokens:
+        # Some source rows conflate MHC genes and nearby helper genes in one
+        # synonym list. Conflicting gene evidence warrants abstention, not an
+        # exclusion (or a guessed choice of the first token).
+        for token in gene_tokens:
+            if token in non_mhc_tokens:
+                continue
+            gene_class = parse_gene_class(token, species=species)
+            if gene_class and not gene_class["non_mhc"] and (gene_class["mhc_class"], gene_class["chain"]) in ELIGIBLE_MHC_CHAINS:
+                return MhcLabel("", "", "unresolved", "retain_unresolved")
         return MhcLabel("", "", "excluded_non_mhc", "exclude_non_mhc")
     classified = _classify_from_parsed_names(protein_name, gene_names)
     if classified is None:

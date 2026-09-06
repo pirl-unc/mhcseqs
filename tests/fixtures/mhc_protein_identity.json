@@ -61,6 +61,33 @@
       "Organism (ID)": "9606",
       "Keywords": "Adaptive immunity;Disulfide bond;Endosome;Glycoprotein;Immunity;Immunoglobulin domain;Lysosome;Membrane;MHC II;Signal;Transmembrane;Transmembrane helix",
       "Sequence": "MSWKKALRIPGGLRVATVTLMLAMLSTPVAEGRDSPEDFVYQFKGMCYFTNGTERVRLVTRYIYNREEYARFDSDVGVYRAVTPLGPPDAEYWNSQKEVLERTRAELDTVCRHNYQLELRTTLQRRVEPTVTISPSRTEALNHHNLLVCSVTDFYPAQIKVRWFRNDQEETTGVVSTPLIRNGDWTFQILVMLEMTPQRGDVYTCHVEHPSLQNPIIVEWRLLH"
+    },
+    {
+      "Entry": "Q6MG98",
+      "Protein names": "Histocompatibility 2, class II antigen E alpha (RT1-Da)",
+      "Gene Names": "RT1-Da Arrb2-ps DA1 H2-Ea Hla-dma Hla-dmb Psmb9 RT1-Ba RT1-Bb RT1-Db1 RT1-Db2 RT1-DOb Tap1 Tap2 Tesb",
+      "Organism": "Rattus norvegicus (Rat)",
+      "Organism (ID)": "10116",
+      "Keywords": "Adaptive immunity;Disulfide bond;Glycoprotein;Immunity;Immunoglobulin domain;Membrane;MHC II;Signal;Transmembrane;Transmembrane helix",
+      "Sequence": "MATLGDLVIRFFFMAVLMSPQKSWAIREEHTIIQAEFYLSPDQNGEFMFDFDGDEIFHVDIKKSETIWRLEEFAQFASFEAQGALANIAVDKANLDIMIKRSNNTPDANVIPEVTVLPKSPVNLGEPNILICFIDKFSPPAVNVTWLRNGQPVTKGVSETVFLPREDHLFRKFHYLTFLPSTEDYYDCEVDHWGLEEPLRKHWEFEEKTLLPETKENVLCVLGLFVGLVGIVVGIVLIIKGLRKRNAVERRQGAL"
+    },
+    {
+      "Entry": "Q6MGA0",
+      "Protein names": "MHC class II antigen (RT1 class II, locus Ba) (RT1-Ba)",
+      "Gene Names": "RT1-Ba Arrb2-ps BA1 Hla-dma Hla-dmb Psmb9 RT1-Bb RT1-Da RT1-Db1 RT1-Db2 RT1-DOb Tap1 Tap2 Tesb",
+      "Organism": "Rattus norvegicus (Rat)",
+      "Organism (ID)": "10116",
+      "Keywords": "Adaptive immunity;Disulfide bond;Glycoprotein;Immunity;Immunoglobulin domain;Membrane;MHC II;Signal;Transmembrane;Transmembrane helix",
+      "Sequence": "MPLSRALILGVLALTTMLSPCGGQDDIEADHVAAYGINMYQYYESRGQYTHEFDGDEEFYVDLDKKETIWRIPEFGQLTSFDPQGGLQEIATAKYNLEILMKSNSTPATNKVPEATVFSKSPVLLGQPNTLICFVDNIFPPAINITWLRNSKPVTEGTFETSFLSNPDHSFHKMAYLTFIPSNDDIYDCKVEHWGLDEPVLKHWEPEIPAPMSELTETVVCALGLSVGLVGIVVGTIFIIQGLRSGGPSRHPGPL"
+    },
+    {
+      "Entry": "Q9TQA6",
+      "Protein names": "Class II MHC RT1.D(N) beta chain (MHC class II antigen) (RT1-Db1)",
+      "Gene Names": "RT1-Db1 Arrb2-ps Db1 Hla-dma Hla-dmb Psmb9 RT1-Ba RT1-Bb RT1-Da RT1-Db RT1-Db2 RT1-DOb RT1.D(n) Tap1 Tap2 Tesb",
+      "Organism": "Rattus norvegicus (Rat)",
+      "Organism (ID)": "10116",
+      "Keywords": "Adaptive immunity;Disulfide bond;Glycoprotein;Immunity;Immunoglobulin domain;Membrane;MHC II;Signal;Transmembrane;Transmembrane helix",
+      "Sequence": "MVWLARDSCVAAVILLLTVLSPPVALVRDPTPRFLEQYKSECYFYNGTQRVRLLVRYIYNREEYTRFDSDVGEFRAVTELGRRDTEYYNKQKEYIERERAAVDTICRHNYEISDRFLVPRTVEPKVTVYPSKTQPLKHHNLLVCSVSDFYPGSVEVRWFRNGEEEKDGLVSTGLIPNGDWTFQLLVMLEMVPQGGEVYTCQVEHPSLTSPVRVEWKAQSTSAQNKKMSGVGGIVLGLLFLGAGLFVYFRNQKGQSGLQPTGLLN"
     }
   ]
 }

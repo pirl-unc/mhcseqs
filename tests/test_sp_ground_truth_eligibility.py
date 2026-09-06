@@ -52,6 +52,17 @@ def test_each_gene_token_is_checked_with_its_source_species(monkeypatch):
     assert seen == [(token, "Mus musculus") for token in ["opaque", "alias", "CIITA"]]
 
 
+@pytest.mark.parametrize("accession", ["Q6MG98", "Q6MGA0", "Q9TQA6"])
+def test_conflicting_mhc_and_helper_gene_metadata_stays_unresolved(source_rows, accession):
+    row = source_rows[accession]
+    label = eligibility.resolve_mhc_label(row, {})
+    assert label.disposition == "retain_unresolved"
+    assert not label.eligible
+    # Do not resolve contradictory synonyms by relying on their list order.
+    reversed_genes = " ".join(reversed(row["Gene Names"].split()))
+    assert eligibility.resolve_mhc_label({**row, "Gene Names": reversed_genes}, {}) == label
+
+
 @pytest.mark.parametrize("disposition", ["include", "exclude_non_mhc", "retain_unresolved"])
 def test_explicit_accession_curation_still_takes_precedence(source_rows, disposition):
     decision = {"disposition": disposition, "mhc_class": "I", "chain": "alpha", "label_status": "curated"}
