@@ -28,11 +28,11 @@ from .mhc_protein_dataset import (
 )
 from .mhc_protein_dataset import (
     ProteinDatasetError,
+    ProteinDatasetNotInstalledError,
     available_mhc_protein_dataset_versions,
     default_mhc_protein_dataset_version,
     install_mhc_protein_dataset,
     install_mhc_protein_source_bundle,
-    mhc_protein_dataset_paths,
     validate_mhc_protein_dataset,
 )
 from .pipeline import build_full_seqs, build_raw_index
@@ -196,15 +196,13 @@ def cmd_data(args):
                 print(f"{item.path.name:<26} {item.kind:<7} {'—':>10} {'—':>9}  (not present)")
         print("\nVersioned datasets:")
         for version in available_mhc_protein_dataset_versions():
-            paths = mhc_protein_dataset_paths(version, data_dir=dd)
-            if paths.records.parent.exists():
-                try:
-                    validate_mhc_protein_dataset(version, data_dir=dd)
-                    status = _human_size(paths.records.stat().st_size)
-                except ProteinDatasetError:
-                    status = "invalid; reinstall with --force"
-            else:
+            try:
+                validate_mhc_protein_dataset(version, data_dir=dd)
+                status = "installed; verified"
+            except ProteinDatasetNotInstalledError:
                 status = "not installed"
+            except ProteinDatasetError:
+                status = "invalid; reinstall with --force"
             print(f"  {MHC_PROTEIN_DATASET_NAME} {version}: {status}")
         return
 

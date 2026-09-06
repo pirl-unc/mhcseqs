@@ -1,0 +1,66 @@
+{
+  "source_release": "2026_03",
+  "source_sha256": "89eb3003c42a8a5630ac6337605bf63ee84f53a6037c3a82fe8f029381d06464",
+  "rows": [
+    {
+      "Entry": "A0A061ILP8",
+      "Protein names": "Proline-rich protein 3 (MHC class I region proline-rich protein CAT56)",
+      "Gene Names": "Prr3",
+      "Organism": "Cricetulus griseus (Chinese hamster) (Cricetulus barabensis griseus)",
+      "Organism (ID)": "10029",
+      "Keywords": "Metal-binding;Methylation;Reference proteome;Zinc;Zinc-finger"
+    },
+    {
+      "Entry": "A0A087X276",
+      "Protein names": "Class II major histocompatibility complex transactivator",
+      "Gene Names": "CIITA",
+      "Organism": "Homo sapiens (Human)",
+      "Organism (ID)": "9606",
+      "Keywords": "Leucine-rich repeat;Proteomics identification;Reference proteome;Repeat"
+    },
+    {
+      "Entry": "A0A0G2JHZ7",
+      "Protein names": "Major histocompatibility complex, class II, DQ beta 1",
+      "Gene Names": "HLA-DQB1",
+      "Organism": "Homo sapiens (Human)",
+      "Organism (ID)": "9606",
+      "Keywords": "Adaptive immunity;Disulfide bond;Endosome;Glycoprotein;Immunity;Immunoglobulin domain;Lysosome;Membrane;MHC II;Proteomics identification;Reference proteome;Signal;Transmembrane;Transmembrane helix",
+      "Sequence": "MSWKKALRIPGGLRVATVTLMLAMLSTPVAEGRDSPEDFVYQFKGMCYFTNGTERVRLVTRYIYNREEYARFDSDVGVYRAVTPLGPPDAEYWNSQKEVLERTRAELDTVCRHNYQLELRTTLQRRVEPTVTISPSRTEALNHHNLLVCSVTDFYPAQIKVRWFRNDQEETTGVVSTPLIRNGDWTFQILVMLEMTPQRGDVYTCHVEHPSLQNPIIVEWRLLH"
+    },
+    {
+      "Entry": "A0A0G2JMH6",
+      "Protein names": "Ig-like domain-containing protein",
+      "Gene Names": "",
+      "Organism": "Homo sapiens (Human)",
+      "Organism (ID)": "9606",
+      "Keywords": "Adaptive immunity;Disulfide bond;Endosome;Glycoprotein;Immunity;Immunoglobulin domain;Lysosome;Membrane;MHC II;Proteomics identification;Reference proteome;Signal;Transmembrane;Transmembrane helix",
+      "Sequence": "MAISGVPVLGFFIIAVLMSAQESWAIKEEHVIIQAEFYLNPDQSGEFMFDFDGDEIFHVDMAKKETVWRLEEFGRFASFEAQGALANIAVDKANLEIMTKRSNYTPITNVPPEVTVLTNSPVELREPNVLICFIDKFTPPVVNVTWLRNGKPVTTGVSETVFLPREDHLFRKFHYLPFLPSTEDVYDCRVEHWGLDEPLLKHWEFDAPSPLPETTENVVCALGLTVGLVGIIIGTIFIIKGLRKSNAAERRGPL"
+    },
+    {
+      "Entry": "P01903",
+      "Protein names": "HLA class II histocompatibility antigen, DR alpha chain (MHC class II antigen DRA)",
+      "Gene Names": "HLA-DRA HLA-DRA1",
+      "Organism": "Homo sapiens (Human)",
+      "Organism (ID)": "9606",
+      "Keywords": "3D-structure;Adaptive immunity;Cell membrane;Cytoplasmic vesicle;Direct protein sequencing;Disulfide bond;Endoplasmic reticulum;Endosome;Glycoprotein;Host-virus interaction;Immunity;Isopeptide bond;Lysosome;Membrane;MHC II;Proteomics identification;Reference proteome;Signal;Transmembrane;Transmembrane helix;Ubl conjugation",
+      "Sequence": "MAISGVPVLGFFIIAVLMSAQESWAIKEEHVIIQAEFYLNPDQSGEFMFDFDGDEIFHVDMAKKETVWRLEEFGRFASFEAQGALANIAVDKANLEIMTKRSNYTPITNVPPEVTVLTNSPVELREPNVLICFIDKFTPPVVNVTWLRNGKPVTTGVSETVFLPREDHLFRKFHYLPFLPSTEDVYDCRVEHWGLDEPLLKHWEFDAPSPLPETTENVVCALGLTVGLVGIIIGTIFIIKGLRKSNAAERRGPL"
+    },
+    {
+      "Entry": "P33076",
+      "Protein names": "MHC class II transactivator (CIITA) (EC 2.3.1.-) (EC 2.7.11.1)",
+      "Gene Names": "CIITA MHC2TA",
+      "Organism": "Homo sapiens (Human)",
+      "Organism (ID)": "9606",
+      "Keywords": "Activator;Acyltransferase;Alternative splicing;ATP-binding;Disease variant;GTP-binding;Kinase;Leucine-rich repeat;Nucleotide-binding;Nucleus;Phosphoprotein;Proteomics identification;Reference proteome;Repeat;SCID;Transcription;Transcription regulation;Transferase"
+    },
+    {
+      "Entry": "Q29967",
+      "Protein names": "Lymphocyte antigen",
+      "Gene Names": "",
+      "Organism": "Homo sapiens (Human)",
+      "Organism (ID)": "9606",
+      "Keywords": "Adaptive immunity;Disulfide bond;Endosome;Glycoprotein;Immunity;Immunoglobulin domain;Lysosome;Membrane;MHC II;Signal;Transmembrane;Transmembrane helix",
+      "Sequence": "MSWKKALRIPGGLRVATVTLMLAMLSTPVAEGRDSPEDFVYQFKGMCYFTNGTERVRLVTRYIYNREEYARFDSDVGVYRAVTPLGPPDAEYWNSQKEVLERTRAELDTVCRHNYQLELRTTLQRRVEPTVTISPSRTEALNHHNLLVCSVTDFYPAQIKVRWFRNDQEETTGVVSTPLIRNGDWTFQILVMLEMTPQRGDVYTCHVEHPSLQNPIIVEWRLLH"
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from mhcseqs.alleles import parse_allele_name
+from mhcseqs.alleles import is_non_mhc_gene, parse_allele_name
 from scripts.curate_diverse_mhc import _infer_class_ii_chain, classify_mhc
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -66,6 +66,12 @@ def resolve_mhc_label(
 
     protein_name = row.get("Protein names", "")
     gene_names = row.get("Gene Names", "")
+    # Helper genes such as CIITA mention MHC in their names but do not encode
+    # an MHC chain. Consult the same species-aware identity policy as parsing
+    # before the permissive name heuristics, keeping explicit curation first.
+    species = row.get("Organism", "").strip() or None
+    if any(is_non_mhc_gene(token, species=species) for token in re.split(r"[\s,;]+", gene_names) if token):
+        return MhcLabel("", "", "excluded_non_mhc", "exclude_non_mhc")
     classified = _classify_from_parsed_names(protein_name, gene_names)
     if classified is None:
         classified = classify_mhc(protein_name, gene_names)
@@ -73,7 +79,8 @@ def resolve_mhc_label(
         mhc_class, chain = classified
         return MhcLabel(mhc_class, chain, "gold", "include")
     if classified is None:
-        return MhcLabel("", "", "excluded_non_mhc", "exclude_non_mhc")
+        # Missing or vague metadata is not affirmative non-MHC evidence.
+        return MhcLabel("", "", "unresolved", "retain_unresolved")
     mhc_class, chain = classified
     return MhcLabel(mhc_class, chain, "unresolved", "retain_unresolved")
 

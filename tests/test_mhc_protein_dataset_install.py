@@ -3,8 +3,9 @@ import gzip
 import hashlib
 import json
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -154,6 +155,153 @@ def test_force_install_recovers_interrupted_swap(monkeypatch, tmp_path):
     assert datasets.install_mhc_protein_dataset(data_dir=tmp_path, force=True) == paths
     assert datasets.validate_mhc_protein_dataset(data_dir=tmp_path) == paths
     assert not backup.exists()
+
+
+@pytest.fixture(params=["records", "sources"])
+def installed_bundle(request, monkeypatch, tmp_path):
+    records, manifest = _asset_pair()
+    source_files = {"uniprot_artifacts.json": b"{}\n", "sp_ground_truth_label_curation.csv": b"accession,disposition\n"}
+    metadata = {name: _metadata(name, content) for name, content in source_files.items()}
+    monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest, metadata))
+    files = {"records.csv.gz": records, "records.manifest.json": manifest, **source_files}
+    _fake_download(monkeypatch, files)
+    installer = datasets.install_mhc_protein_dataset if request.param == "records" else datasets.install_mhc_protein_source_bundle
+
+    def install(**kwargs):
+        return installer(data_dir=tmp_path, **kwargs)
+
+    paths = install()
+    root = paths.records.parent if request.param == "records" else paths.root
+    return SimpleNamespace(kind=request.param, paths=paths, root=root, install=install, data_dir=tmp_path)
+
+
+def test_normal_install_recovers_interrupted_swap_without_network(monkeypatch, installed_bundle):
+    bundle = installed_bundle
+    backup = bundle.root.with_name(f".{bundle.root.name}.previous")
+    datasets.os.replace(bundle.root, backup)
+
+    def deny_download(*_args, **_kwargs):
+        pytest.fail("A complete previous installation must be recovered offline")
+
+    monkeypatch.setattr(datasets, "_download", deny_download)
+    assert bundle.install() == bundle.paths
+    assert not backup.exists()
+    if bundle.kind == "records":
+        assert datasets.load_mhc_protein_records(data_dir=bundle.data_dir)[0]["accession"] == "TEST123"
+
+
+def test_recovered_backup_is_validated_before_reuse(monkeypatch, installed_bundle):
+    bundle = installed_bundle
+    asset = bundle.paths.records if bundle.kind == "records" else bundle.paths.label_curation
+    asset.write_bytes(b"corrupt")
+    backup = bundle.root.with_name(f".{bundle.root.name}.previous")
+    datasets.os.replace(bundle.root, backup)
+
+    def deny_download(*_args, **_kwargs):
+        pytest.fail("A corrupt cache should require an explicit forced reinstall")
+
+    monkeypatch.setattr(datasets, "_download", deny_download)
+    with pytest.raises(datasets.ProteinDatasetError, match="byte count"):
+        bundle.install()
+
+
+def test_force_recovers_previous_installation_before_failed_download(monkeypatch, installed_bundle):
+    bundle = installed_bundle
+    backup = bundle.root.with_name(f".{bundle.root.name}.previous")
+    datasets.os.replace(bundle.root, backup)
+
+    def fail_download(*_args, **_kwargs):
+        assert bundle.root.is_dir() and not backup.exists()
+        raise OSError("offline")
+
+    monkeypatch.setattr(datasets, "_download", fail_download)
+    with pytest.raises(datasets.ProteinDatasetError, match="offline"):
+        bundle.install(force=True)
+    assert bundle.install() == bundle.paths
+
+
+@pytest.mark.parametrize("reader_kind", ["reuse", "validate", "records", "dataframe"])
+def test_readers_wait_for_forced_publication(monkeypatch, installed_bundle, reader_kind):
+    bundle = installed_bundle
+    if bundle.kind == "sources" and reader_kind != "reuse":
+        pytest.skip("Source bundles are validated by their installer")
+    if reader_kind == "dataframe":
+        pytest.importorskip("pandas")
+    readers = {
+        "reuse": bundle.install,
+        "validate": lambda: datasets.validate_mhc_protein_dataset(data_dir=bundle.data_dir),
+        "records": lambda: datasets.load_mhc_protein_records(data_dir=bundle.data_dir),
+        "dataframe": lambda: datasets.load_mhc_protein_dataframe(data_dir=bundle.data_dir),
+    }
+    backup = bundle.root.with_name(f".{bundle.root.name}.previous")
+    moved, resume, reading = threading.Event(), threading.Event(), threading.Event()
+    real_replace = datasets.os.replace
+
+    def replace(source, destination):
+        real_replace(source, destination)
+        if Path(destination) == backup:
+            moved.set()
+            assert resume.wait(timeout=5)
+
+    def read():
+        reading.set()
+        return readers[reader_kind]()
+
+    monkeypatch.setattr(datasets.os, "replace", replace)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        writer = pool.submit(bundle.install, force=True)
+        try:
+            assert moved.wait(timeout=5)
+            reader = pool.submit(read)
+            assert reading.wait(timeout=5)
+            # Deliberately keep the destination absent until the reader has
+            # attempted access; it must wait rather than fail or download.
+            with pytest.raises(TimeoutError):
+                reader.result(timeout=0.1)
+        finally:
+            resume.set()
+        assert writer.result(timeout=5) == bundle.paths
+        result = reader.result(timeout=5)
+    if reader_kind == "records":
+        assert result == [{"accession": "TEST123", "sequence": "MAAA"}]
+    elif reader_kind == "dataframe":
+        assert list(result["accession"]) == ["TEST123"]
+    else:
+        assert result == bundle.paths
+
+
+def test_iterator_releases_lock_before_yielding_records(monkeypatch, tmp_path):
+    records, manifest = _asset_pair()
+    monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))
+    _fake_download(monkeypatch, {"records.csv.gz": records, "records.manifest.json": manifest})
+    iterator = datasets.iter_mhc_protein_records(data_dir=tmp_path)
+    assert next(iterator)["accession"] == "TEST123"
+    installing = threading.Event()
+
+    def force_install():
+        installing.set()
+        return datasets.install_mhc_protein_dataset(data_dir=tmp_path, force=True)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(force_install)
+        try:
+            assert installing.wait(timeout=5)
+            future.result(timeout=5)
+            # Both a nested reader and a writer can run while the first
+            # iterator is suspended. It retains a stable compressed snapshot.
+            assert datasets.load_mhc_protein_records(data_dir=tmp_path)[0]["accession"] == "TEST123"
+            assert list(iterator) == []
+        finally:
+            iterator.close()
+
+
+def test_validation_recovers_previous_pair_without_download(monkeypatch, tmp_path):
+    records, manifest = _asset_pair()
+    monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))
+    _fake_download(monkeypatch, {"records.csv.gz": records, "records.manifest.json": manifest})
+    paths = datasets.install_mhc_protein_dataset(data_dir=tmp_path)
+    datasets.os.replace(paths.records.parent, paths.records.parent.with_name(f".{paths.version}.previous"))
+    assert datasets.validate_mhc_protein_dataset(data_dir=tmp_path) == paths
 
 
 def test_failed_force_install_preserves_complete_cached_version(monkeypatch, tmp_path):
