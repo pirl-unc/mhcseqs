@@ -389,5 +389,7 @@ def load_mhc_protein_dataframe(
     """Load all records as a pandas DataFrame (pandas is an optional dependency)."""
     import pandas as pd
 
+    if path is not None:
+        return pd.read_csv(Path(path), keep_default_na=False)
     with _open_mhc_protein_records(path, version=version, data_dir=data_dir) as handle:
         return pd.read_csv(handle, keep_default_na=False)

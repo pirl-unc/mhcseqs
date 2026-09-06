@@ -304,6 +304,21 @@ def test_validation_recovers_previous_pair_without_download(monkeypatch, tmp_pat
     assert datasets.validate_mhc_protein_dataset(data_dir=tmp_path) == paths
 
 
+@pytest.mark.parametrize("suffix", [".csv", ".csv.gz"])
+def test_explicit_dataframe_paths_preserve_pandas_compression_detection(monkeypatch, tmp_path, suffix):
+    pytest.importorskip("pandas")
+    path = tmp_path / f"records{suffix}"
+    compressed = _record_bytes()
+    path.write_bytes(compressed if suffix.endswith(".gz") else gzip.decompress(compressed))
+
+    def unexpected_install(*_args, **_kwargs):
+        pytest.fail("Explicit paths must remain caller-managed")
+
+    monkeypatch.setattr(datasets, "install_mhc_protein_dataset", unexpected_install)
+    frame = datasets.load_mhc_protein_dataframe(path)
+    assert frame.to_dict("records") == [{"accession": "TEST123", "sequence": "MAAA"}]
+
+
 def test_failed_force_install_preserves_complete_cached_version(monkeypatch, tmp_path):
     records, manifest = _asset_pair()
     monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))
