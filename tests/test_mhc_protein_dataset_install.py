@@ -175,6 +175,72 @@ def installed_bundle(request, monkeypatch, tmp_path):
     return SimpleNamespace(kind=request.param, paths=paths, root=root, install=install, data_dir=tmp_path)
 
 
+@pytest.mark.parametrize("corrupt", [False, True])
+def test_read_only_cache_reuse_still_validates(monkeypatch, installed_bundle, corrupt):
+    bundle = installed_bundle
+    if corrupt:
+        asset = bundle.paths.records if bundle.kind == "records" else bundle.paths.label_curation
+        asset.write_bytes(b"corrupt")
+    lock = bundle.root.with_name(f".{bundle.root.name}.lock")
+    managed_paths = [bundle.root.parent, *bundle.root.parent.rglob("*")]
+    modes = {path: path.stat().st_mode & 0o777 for path in managed_paths}
+    real_open = Path.open
+
+    def read_only_open(path, mode="r", *args, **kwargs):
+        # Enforce the read-only constraint even when tests run as root.
+        if path == lock and any(flag in mode for flag in "wax+"):
+            raise PermissionError("read-only cache lock")
+        return real_open(path, mode, *args, **kwargs)
+
+    def deny_download(*_args, **_kwargs):
+        pytest.fail("Reading a preinstalled cache must not download anything")
+
+    monkeypatch.setattr(Path, "open", read_only_open)
+    monkeypatch.setattr(datasets, "_download", deny_download)
+    try:
+        for path in managed_paths:
+            path.chmod(0o555 if path.is_dir() else 0o444)
+        if corrupt:
+            with pytest.raises(datasets.ProteinDatasetError, match="byte count"):
+                bundle.install()
+        else:
+            assert bundle.install() == bundle.paths
+            if bundle.kind == "records":
+                assert datasets.validate_mhc_protein_dataset(data_dir=bundle.data_dir) == bundle.paths
+                assert datasets.load_mhc_protein_records(data_dir=bundle.data_dir) == [{"accession": "TEST123", "sequence": "MAAA"}]
+    finally:
+        for path, mode in modes.items():
+            path.chmod(mode)
+
+
+@pytest.mark.parametrize("contents", [b"", b"\0"])
+def test_read_only_lock_still_serializes_access(tmp_path, contents):
+    destination = tmp_path / "version"
+    lock = tmp_path / ".version.lock"
+    lock.write_bytes(contents)
+    attempted = threading.Event()
+
+    def contender():
+        attempted.set()
+        with datasets._cache_read_lock(destination):
+            return "locked"
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            with datasets._publication_lock(destination):
+                # The publisher already has its writable handle. A different
+                # user only needs read access to wait on the same lock file.
+                lock.chmod(0o444)
+                future = pool.submit(contender)
+                assert attempted.wait(timeout=5)
+                with pytest.raises(TimeoutError):
+                    future.result(timeout=0.1)
+            assert future.result(timeout=5) == "locked"
+        assert lock.read_bytes() == contents
+    finally:
+        lock.chmod(0o644)
+
+
 def test_normal_install_recovers_interrupted_swap_without_network(monkeypatch, installed_bundle):
     bundle = installed_bundle
     backup = bundle.root.with_name(f".{bundle.root.name}.previous")

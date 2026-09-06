@@ -127,6 +127,10 @@ all_rows = mhcseqs.load_mhc_protein_records(version="uniprot-2026_03-r2")
 df = mhcseqs.load_mhc_protein_dataframe(version="uniprot-2026_03-r2")
 ```
 
+For read-only/shared deployments, preinstall the cache and retain its sibling
+`.<version>.lock` files. Reads need only read access to those files; creating
+an installation or recovering an interrupted swap still requires write access.
+
 The columns are intentionally separated by provenance:
 
 - `source_*` plus organism, sequence, lineage, name, and gene columns are

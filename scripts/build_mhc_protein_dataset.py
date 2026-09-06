@@ -32,6 +32,7 @@ if str(ROOT) not in sys.path:
 from mhcseqs.domain_grammar import SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH
 from mhcseqs.domain_parsing import AlleleRecord, decompose_domains
 from mhcseqs.mhc_protein_dataset import (
+    _cache_read_lock,
     _publication_lock,
     _publish_staged_directory_locked,
     _recover_previous_directory,
@@ -553,16 +554,15 @@ def _check_output_directory(directory: Path, filenames: set[str]) -> None:
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
-    cache_root = args.data_dir or Path(os.environ.get("MHCSEQS_DATA", Path.home() / ".cache" / "mhcseqs"))
+    cache_root = (args.data_dir or Path(os.environ.get("MHCSEQS_DATA", Path.home() / ".cache" / "mhcseqs"))).resolve()
     # Snapshot all inputs under the source installer's lock, then release it
     # before parsing. Recovery also permits rebuilding offline after a crash.
-    with _publication_lock(cache_root):
-        _recover_previous_directory(cache_root)
+    with _cache_read_lock(cache_root):
         if not args.label_curation.is_file():
             raise FileNotFoundError(f"Missing pinned MHC label curation: {args.label_curation}")
-        source_manifest = validate_artifact_bundle(args.data_dir)
-        artifacts = load_corpus_artifact(args.data_dir) + load_deleted_artifact(args.data_dir)
-        taxonomy = taxonomy_by_id(args.data_dir)
+        source_manifest = validate_artifact_bundle(cache_root)
+        artifacts = load_corpus_artifact(cache_root) + load_deleted_artifact(cache_root)
+        taxonomy = taxonomy_by_id(cache_root)
         curation = load_label_curation(args.label_curation)
         curation_sha256 = _sha256(args.label_curation)
 

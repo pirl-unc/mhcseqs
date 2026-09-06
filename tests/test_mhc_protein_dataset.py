@@ -298,6 +298,47 @@ def _generation_args(tmp_path):
     return args, output, manifest, curation
 
 
+@pytest.mark.parametrize("source_option", ["argument", "environment"])
+def test_builder_accepts_current_directory_source(monkeypatch, tmp_path, source_option):
+    args, output, manifest, _curation = _generation_args(tmp_path)
+    dataset.main(args)
+    before = output.read_bytes(), manifest.read_bytes()
+    monkeypatch.chdir(tmp_path)
+    if source_option == "argument":
+        args[args.index("--data-dir") + 1] = "."
+    else:
+        del args[:2]
+        monkeypatch.setenv("MHCSEQS_DATA", ".")
+
+    def deny_network(*_args, **_kwargs):
+        pytest.fail("Current-directory regeneration must use the stored source bundle")
+
+    monkeypatch.setattr(urllib.request, "urlopen", deny_network)
+    dataset.main(args)
+    assert (output.read_bytes(), manifest.read_bytes()) == before
+
+
+def test_builder_can_regenerate_from_read_only_source_bundle(tmp_path):
+    source_root = tmp_path / "source"
+    args, original_output, original_manifest, _curation = _generation_args(source_root)
+    output = tmp_path / "generated" / original_output.name
+    manifest = output.with_name(original_manifest.name)
+    args[args.index(str(original_output))] = str(output)
+    args[args.index(str(original_manifest))] = str(manifest)
+    dataset.main(args)
+    before = output.read_bytes(), manifest.read_bytes()
+    protected = [source_root, *source_root.rglob("*"), tmp_path / ".source.lock"]
+    modes = {path: path.stat().st_mode & 0o777 for path in protected}
+    try:
+        for path in protected:
+            path.chmod(0o555 if path.is_dir() else 0o444)
+        dataset.main(args)
+        assert (output.read_bytes(), manifest.read_bytes()) == before
+    finally:
+        for path, mode in modes.items():
+            path.chmod(mode)
+
+
 @pytest.mark.parametrize("failure", ["manifest_write", "manifest_validation", "publication"])
 def test_failed_regeneration_preserves_records_and_manifest(monkeypatch, tmp_path, failure):
     args, output, manifest, curation = _generation_args(tmp_path)

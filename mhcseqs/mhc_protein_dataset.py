@@ -155,22 +155,28 @@ def _download_asset(base_url: str, metadata: dict[str, object], destination: Pat
 
 
 @contextmanager
-def _publication_lock(destination: Path):
+def _publication_lock(destination: Path, *, shared: bool = False):
     """Coordinate readers, recovery, and publication for one data version."""
     lock_path = destination.with_name(f".{destination.name}.lock")
     try:
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        handle = lock_path.open("a+b")
+        handle = None
+        if shared:
+            try:
+                handle = lock_path.open("rb")
+            except FileNotFoundError:
+                pass
+        if handle is None:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            handle = lock_path.open("a+b")
     except OSError as exc:
         raise ProteinDatasetError(f"Cannot lock dataset directory {destination}: {exc}") from exc
     with handle:
         if os.name == "nt":
             import msvcrt
 
-            handle.seek(0, os.SEEK_END)
-            if handle.tell() == 0:
-                handle.write(b"\0")
-                handle.flush()
+            # Windows byte-range locks work past EOF, including on a read-only
+            # descriptor. No initialization write is needed for an empty lock.
+            # msvcrt provides only exclusive locks, also suitable for readers.
             handle.seek(0)
             msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
             try:
@@ -181,7 +187,7 @@ def _publication_lock(destination: Path):
         else:
             import fcntl
 
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            fcntl.flock(handle.fileno(), fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
             try:
                 yield
             finally:
@@ -198,6 +204,21 @@ def _recover_previous_directory(destination: Path) -> None:
     backup = destination.with_name(f".{destination.name}.previous")
     if backup.exists() and not destination.exists():
         os.replace(backup, destination)
+
+
+@contextmanager
+def _cache_read_lock(destination: Path):
+    """Read without write access, taking an exclusive lock only for recovery."""
+    with _publication_lock(destination, shared=True):
+        backup = destination.with_name(f".{destination.name}.previous")
+        if destination.exists() or not backup.exists():
+            yield
+            return
+    # Release the shared lock before taking an exclusive one; another process
+    # may recover/publish in between, so recovery rechecks the directory state.
+    with _publication_lock(destination):
+        _recover_previous_directory(destination)
+        yield
 
 
 def _publish_staged_directory_locked(staged: Path, destination: Path, *, force: bool) -> bool:
@@ -249,8 +270,7 @@ def validate_mhc_protein_dataset(
     """Validate a cached records/manifest pair and return its paths."""
     resolved, spec = _version_spec(version)
     paths = mhc_protein_dataset_paths(resolved, data_dir=data_dir)
-    with _publication_lock(paths.records.parent):
-        _recover_previous_directory(paths.records.parent)
+    with _cache_read_lock(paths.records.parent):
         _validate_records(paths, spec)
     return paths
 
@@ -264,8 +284,7 @@ def install_mhc_protein_dataset(
     """Download, verify, and atomically install one records data version."""
     resolved, spec = _version_spec(version)
     paths = mhc_protein_dataset_paths(resolved, data_dir=data_dir)
-    with _publication_lock(paths.records.parent):
-        _recover_previous_directory(paths.records.parent)
+    with _cache_read_lock(paths.records.parent):
         if paths.records.parent.exists() and not force:
             _validate_records(paths, spec)
             return paths
@@ -310,8 +329,7 @@ def install_mhc_protein_source_bundle(
             relative = Path(filename) if filename == curation_name else Path("uniprot") / filename
             _validate_file(root / relative, metadata)
 
-    with _publication_lock(destination):
-        _recover_previous_directory(destination)
+    with _cache_read_lock(destination):
         if destination.exists() and not force:
             validate(destination)
             return result
@@ -344,8 +362,7 @@ def _open_mhc_protein_records(path, *, version, data_dir):
     # Capture the compressed bytes (~10 MB for 55k rows) under the same lock as
     # validation. Release before parsing/yielding so slow or nested iterators
     # cannot block other readers or installers, including on Windows.
-    with _publication_lock(paths.records.parent):
-        _recover_previous_directory(paths.records.parent)
+    with _cache_read_lock(paths.records.parent):
         _validate_records(paths, spec)
         try:
             compressed = paths.records.read_bytes()
