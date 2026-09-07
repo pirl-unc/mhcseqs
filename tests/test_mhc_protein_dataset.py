@@ -1,7 +1,11 @@
 import csv
 import gzip
 import json
+import threading
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+
+import pytest
 
 from mhcseqs.domain_parsing import AlleleRecord
 from scripts import build_mhc_protein_dataset as dataset
@@ -241,8 +245,8 @@ def test_dataset_manifest_records_source_models_schema_and_counts(tmp_path):
 
 def test_dataset_regenerates_from_stored_bundle_without_network(monkeypatch, tmp_path):
     _write_fixture_bundle(tmp_path)
-    output = tmp_path / "records.csv.gz"
-    manifest = tmp_path / "records.manifest.json"
+    output = tmp_path / "bundle" / "records.csv.gz"
+    manifest = tmp_path / "bundle" / "records.manifest.json"
     curation = tmp_path / "curation.csv"
     curation.write_text("accession,disposition,mhc_class,chain,label_status,reason\n")
 
@@ -271,3 +275,169 @@ def test_dataset_regenerates_from_stored_bundle_without_network(monkeypatch, tmp
     assert rows[0]["source_signal_status"] == "exact"
     assert rows[0]["sequence"] == "M" + "A" * 119
     assert json.loads(manifest.read_text())["records"]["rows"] == 1
+
+
+def _generation_args(tmp_path):
+    _write_fixture_bundle(tmp_path)
+    output = tmp_path / "bundle" / "records.csv.gz"
+    manifest = output.with_name("records.manifest.json")
+    curation = tmp_path / "curation.csv"
+    curation.write_text("accession,disposition,mhc_class,chain,label_status\nTEST123,include,I,alpha,curated\n")
+    args = [
+        "--data-dir",
+        str(tmp_path),
+        "--output",
+        str(output),
+        "--manifest-output",
+        str(manifest),
+        "--label-curation",
+        str(curation),
+        "--workers",
+        "1",
+    ]
+    return args, output, manifest, curation
+
+
+@pytest.mark.parametrize("source_option", ["argument", "environment"])
+def test_builder_accepts_current_directory_source(monkeypatch, tmp_path, source_option):
+    args, output, manifest, _curation = _generation_args(tmp_path)
+    dataset.main(args)
+    before = output.read_bytes(), manifest.read_bytes()
+    monkeypatch.chdir(tmp_path)
+    if source_option == "argument":
+        args[args.index("--data-dir") + 1] = "."
+    else:
+        del args[:2]
+        monkeypatch.setenv("MHCSEQS_DATA", ".")
+
+    def deny_network(*_args, **_kwargs):
+        pytest.fail("Current-directory regeneration must use the stored source bundle")
+
+    monkeypatch.setattr(urllib.request, "urlopen", deny_network)
+    dataset.main(args)
+    assert (output.read_bytes(), manifest.read_bytes()) == before
+
+
+def test_builder_can_regenerate_from_read_only_source_bundle(tmp_path):
+    source_root = tmp_path / "source"
+    args, original_output, original_manifest, _curation = _generation_args(source_root)
+    output = tmp_path / "generated" / original_output.name
+    manifest = output.with_name(original_manifest.name)
+    args[args.index(str(original_output))] = str(output)
+    args[args.index(str(original_manifest))] = str(manifest)
+    dataset.main(args)
+    before = output.read_bytes(), manifest.read_bytes()
+    protected = [source_root, *source_root.rglob("*"), tmp_path / ".source.lock"]
+    modes = {path: path.stat().st_mode & 0o777 for path in protected}
+    try:
+        for path in protected:
+            path.chmod(0o555 if path.is_dir() else 0o444)
+        dataset.main(args)
+        assert (output.read_bytes(), manifest.read_bytes()) == before
+    finally:
+        for path, mode in modes.items():
+            path.chmod(mode)
+
+
+@pytest.mark.parametrize("failure", ["manifest_write", "manifest_validation", "publication"])
+def test_failed_regeneration_preserves_records_and_manifest(monkeypatch, tmp_path, failure):
+    args, output, manifest, curation = _generation_args(tmp_path)
+    dataset.main(args)
+    before = output.read_bytes(), manifest.read_bytes()
+    curation.write_text("accession,disposition,mhc_class,chain,label_status\nTEST123,retain_unresolved,,,unresolved\n")
+
+    def fail(*_args, **_kwargs):
+        raise OSError("simulated generation failure")
+
+    if failure == "manifest_write":
+        monkeypatch.setattr(dataset, "_write_json", fail)
+    elif failure == "manifest_validation":
+        monkeypatch.setattr(dataset, "_validate_file", fail)
+    else:
+        real_replace = dataset.os.replace
+        backup = output.parent.with_name(".bundle.previous")
+
+        def replace(source, destination):
+            if destination == output.parent and source != backup:
+                assert backup.exists()  # Fail after the old complete pair moved.
+                fail()
+            real_replace(source, destination)
+
+        monkeypatch.setattr(dataset.os, "replace", replace)
+
+    with pytest.raises(OSError, match="simulated generation failure"):
+        dataset.main(args)
+    assert (output.read_bytes(), manifest.read_bytes()) == before
+    assert dataset._sha256(output) == json.loads(manifest.read_text())["records"]["sha256"]
+    assert not list(tmp_path.glob(".bundle-*"))
+    assert not (tmp_path / ".bundle.previous").exists()
+
+
+def test_builder_recovers_previous_pair_before_failed_generation(monkeypatch, tmp_path):
+    args, output, manifest, _curation = _generation_args(tmp_path)
+    dataset.main(args)
+    before = output.read_bytes(), manifest.read_bytes()
+    dataset.os.replace(output.parent, tmp_path / ".bundle.previous")
+
+    def fail(*_args, **_kwargs):
+        raise OSError("simulated generation failure")
+
+    monkeypatch.setattr(dataset, "_write_json", fail)
+    with pytest.raises(OSError, match="simulated generation failure"):
+        dataset.main(args)
+    assert (output.read_bytes(), manifest.read_bytes()) == before
+
+
+def test_builder_waits_for_source_bundle_publication(tmp_path):
+    source_root = tmp_path / "source"
+    args, output, manifest, _curation = _generation_args(source_root)
+    backup = tmp_path / ".source.previous"
+    moved, resume, building = threading.Event(), threading.Event(), threading.Event()
+
+    def swap_source():
+        with dataset._publication_lock(source_root):
+            dataset.os.replace(source_root, backup)
+            moved.set()
+            try:
+                assert resume.wait(timeout=5)
+            finally:
+                dataset.os.replace(backup, source_root)
+
+    def build():
+        building.set()
+        dataset.main(args)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        writer = pool.submit(swap_source)
+        try:
+            assert moved.wait(timeout=5)
+            reader = pool.submit(build)
+            assert building.wait(timeout=5)
+            with pytest.raises(TimeoutError):
+                reader.result(timeout=0.1)
+        finally:
+            resume.set()
+        writer.result(timeout=5)
+        reader.result(timeout=5)
+    assert dataset._sha256(output) == json.loads(manifest.read_text())["records"]["sha256"]
+
+
+@pytest.mark.parametrize("unsafe_output", ["unrelated_file", "separate_directories", "same_filename"])
+def test_builder_requires_a_dedicated_output_pair_directory(monkeypatch, tmp_path, unsafe_output):
+    args, output, manifest, _curation = _generation_args(tmp_path)
+    if unsafe_output == "unrelated_file":
+        output.parent.mkdir()
+        (output.parent / "keep.txt").write_text("user data")
+    elif unsafe_output == "separate_directories":
+        args[args.index(str(manifest))] = str(tmp_path / "elsewhere" / manifest.name)
+    else:
+        args[args.index(str(manifest))] = str(output)
+
+    def unexpected_parse(*_args, **_kwargs):
+        pytest.fail("Invalid output layout should fail before expensive parsing")
+
+    monkeypatch.setattr(dataset, "build_records", unexpected_parse)
+    with pytest.raises(ValueError, match="dedicated bundle directory"):
+        dataset.main(args)
+    if unsafe_output == "unrelated_file":
+        assert (output.parent / "keep.txt").read_text() == "user data"

@@ -98,7 +98,7 @@ candidate query. It is a source-complete record layer, distinct from both the
 56,440 representative IMGT/IPD build summarized below and the smaller
 signal-peptide benchmark derived from it.
 
-Install the default data version (`uniprot-2026_03-r1`) with:
+Install the default data version (`uniprot-2026_03-r2`) with:
 
 ```bash
 mhcseqs data install mhc-proteins
@@ -109,22 +109,27 @@ Code releases and data releases are deliberately independent. Pin a data
 version in automated work:
 
 ```bash
-mhcseqs data install mhc-proteins --version uniprot-2026_03-r1
+mhcseqs data install mhc-proteins --version uniprot-2026_03-r2
 ```
 
 From Python, records can be streamed without pandas or loaded eagerly. The
 requested data version is downloaded once, checksum-verified, and then reused
-from the local cache:
+from the local cache. Cache readers capture a verified compressed snapshot
+(about 10 MB), releasing the version lock before parsing or yielding rows:
 
 ```python
 import mhcseqs
 
-rows = mhcseqs.iter_mhc_protein_records(version="uniprot-2026_03-r1")
+rows = mhcseqs.iter_mhc_protein_records(version="uniprot-2026_03-r2")
 first = next(rows)
 
-all_rows = mhcseqs.load_mhc_protein_records(version="uniprot-2026_03-r1")
-df = mhcseqs.load_mhc_protein_dataframe(version="uniprot-2026_03-r1")
+all_rows = mhcseqs.load_mhc_protein_records(version="uniprot-2026_03-r2")
+df = mhcseqs.load_mhc_protein_dataframe(version="uniprot-2026_03-r2")
 ```
+
+For read-only/shared deployments, preinstall the cache and retain its sibling
+`.<version>.lock` files. Reads need only read access to those files; creating
+an installation or recovering an interrupted swap still requires write access.
 
 The columns are intentionally separated by provenance:
 
@@ -143,15 +148,26 @@ The broad source query deliberately retains contaminants and ambiguous hits so
 that the source population is reproducible. `inferred_disposition` is the MHC
 identity decision; `parse_ok` only reports whether the structural parser
 produced a usable decomposition and is not an independent identity label.
+Known non-MHC genes are excluded; insufficient or conflicting identity
+evidence stays `retain_unresolved`. The [r2 release notes](data/mhc_protein_dataset_uniprot_2026_03-r2.md)
+describe the corrected labels. Historical `r1` remains available unchanged.
 
 To reproduce the records artifact offline, install the source bundle too:
 
 ```bash
-mhcseqs data install mhc-proteins --version uniprot-2026_03-r1 --with-sources
+mhcseqs data install mhc-proteins --version uniprot-2026_03-r2 --with-sources
 python scripts/build_mhc_protein_dataset.py \
-  --data-dir ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r1 \
-  --label-curation ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r1/sp_ground_truth_label_curation.csv
+  --data-dir ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r2 \
+  --label-curation ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r2/sp_ground_truth_label_curation.csv \
+  --revision 2
 ```
+
+The builder publishes records and their manifest together. Custom `--output`
+and `--manifest-output` paths must be distinct files in the same dedicated
+directory, containing no unrelated files. Failed builds preserve the previous
+pair, and interrupted swaps are recovered on the next access. To reproduce a
+release exactly, use its generator and mhcgnomes versions recorded in the
+manifest as well as its pinned source bundle.
 
 The release manifest pins source queries, releases, byte counts, SHA-256
 digests, model hashes, schema, and output distributions. UniProt-derived data

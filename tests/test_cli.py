@@ -120,7 +120,7 @@ def test_data_list_marks_corrupt_version_invalid(capsys, tmp_path, monkeypatch):
     with patch.object(sys, "argv", ["mhcseqs", "data", "list"]):
         main()
 
-    assert "mhc-proteins uniprot-2026_03-r1: invalid; reinstall with --force" in capsys.readouterr().out
+    assert f"mhc-proteins {paths.version}: invalid; reinstall with --force" in capsys.readouterr().out
 
 
 def test_lookup_no_csvs(capsys, tmp_path, monkeypatch):

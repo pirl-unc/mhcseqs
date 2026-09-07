@@ -1,6 +1,6 @@
 {
   "dataset": "mhc-proteins",
-  "default_version": "uniprot-2026_03-r1",
+  "default_version": "uniprot-2026_03-r2",
   "versions": {
     "uniprot-2026_03-r1": {
       "release_url": "https://github.com/pirl-unc/mhcseqs/releases/download/data-mhc-proteins-uniprot-2026_03-r1",
@@ -14,6 +14,42 @@
         "filename": "mhc-proteins-uniprot-2026_03-r1.manifest.json",
         "bytes": 6247,
         "sha256": "cf9fd6e6a058609628b63373a0505f9afaeaff8036333faaee89a176d200433d"
+      },
+      "source_bundle": {
+        "uniprot_mhc_vertebrata.tsv.gz": {
+          "bytes": 7051756,
+          "sha256": "89eb3003c42a8a5630ac6337605bf63ee84f53a6037c3a82fe8f029381d06464"
+        },
+        "uniprot_deleted_entries.tsv.gz": {
+          "bytes": 31574,
+          "sha256": "04729314a707e6194bf44105e4d6a1a74ecf2055cd1b2769f6433009d197514a"
+        },
+        "uniprot_taxonomy.tsv.gz": {
+          "bytes": 79959,
+          "sha256": "0ecee6787bc6753763e2ef54c840cb9e43f138416707f4737cc7036838f2ff0a"
+        },
+        "uniprot_artifacts.json": {
+          "bytes": 1581,
+          "sha256": "3fcb403f04a6412e6f61d5ce852d0d95d2971d7d864714e59c806cd532982cdc"
+        },
+        "sp_ground_truth_label_curation.csv": {
+          "bytes": 55933,
+          "sha256": "511569f44ee69ca5bd367afeac22daf7e2235a1d4239aa95d8f435c351a0a366"
+        }
+      }
+    },
+    "uniprot-2026_03-r2": {
+      "release_url": "https://github.com/pirl-unc/mhcseqs/releases/download/data-mhc-proteins-uniprot-2026_03-r2",
+      "records": {
+        "filename": "mhc-proteins-uniprot-2026_03-r2.csv.gz",
+        "bytes": 9986560,
+        "rows": 55719,
+        "sha256": "706a715db76dea0b139a6fb86a71b129a28556b3423f7be0aca6bd6ea9576448"
+      },
+      "records_manifest": {
+        "filename": "mhc-proteins-uniprot-2026_03-r2.manifest.json",
+        "bytes": 6282,
+        "sha256": "ddfb9f8c890278cec58dae373f57890a4f9923671aaed1a367c096ee64feb0f2"
       },
       "source_bundle": {
         "uniprot_mhc_vertebrata.tsv.gz": {

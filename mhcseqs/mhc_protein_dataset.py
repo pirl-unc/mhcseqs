@@ -11,6 +11,7 @@ from __future__ import annotations
 import csv
 import gzip
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -29,6 +30,10 @@ _READ_SIZE = 1 << 20
 
 class ProteinDatasetError(RuntimeError):
     """Invalid version, failed transfer, or corrupt cached protein data."""
+
+
+class ProteinDatasetNotInstalledError(ProteinDatasetError):
+    """The requested version has no cached installation to validate."""
 
 
 @dataclass(frozen=True)
@@ -150,17 +155,28 @@ def _download_asset(base_url: str, metadata: dict[str, object], destination: Pat
 
 
 @contextmanager
-def _publication_lock(destination: Path):
-    """Serialize cache publication for one data version."""
+def _publication_lock(destination: Path, *, shared: bool = False):
+    """Coordinate readers, recovery, and publication for one data version."""
     lock_path = destination.with_name(f".{destination.name}.lock")
-    with lock_path.open("a+b") as handle:
+    try:
+        handle = None
+        if shared:
+            try:
+                handle = lock_path.open("rb")
+            except FileNotFoundError:
+                pass
+        if handle is None:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            handle = lock_path.open("a+b")
+    except OSError as exc:
+        raise ProteinDatasetError(f"Cannot lock dataset directory {destination}: {exc}") from exc
+    with handle:
         if os.name == "nt":
             import msvcrt
 
-            handle.seek(0, os.SEEK_END)
-            if handle.tell() == 0:
-                handle.write(b"\0")
-                handle.flush()
+            # Windows byte-range locks work past EOF, including on a read-only
+            # descriptor. No initialization write is needed for an empty lock.
+            # msvcrt provides only exclusive locks, also suitable for readers.
             handle.seek(0)
             msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
             try:
@@ -171,40 +187,52 @@ def _publication_lock(destination: Path):
         else:
             import fcntl
 
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            fcntl.flock(handle.fileno(), fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
             try:
                 yield
             finally:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
-def _publish_staged_directory(staged: Path, destination: Path, *, force: bool) -> bool:
-    """Publish one complete directory, returning false when another installer won."""
+def _recover_previous_directory(destination: Path) -> None:
+    """Restore an interrupted swap before cache checks or downloads, under lock.
+
+    Callers must validate the restored contents before using them. If both
+    directories exist, publication completed; keep the backup until a verified
+    replacement is ready to be published.
+    """
+    backup = destination.with_name(f".{destination.name}.previous")
+    if backup.exists() and not destination.exists():
+        os.replace(backup, destination)
+
+
+@contextmanager
+def _cache_read_lock(destination: Path):
+    """Read without write access, taking an exclusive lock only for recovery."""
+    with _publication_lock(destination, shared=True):
+        backup = destination.with_name(f".{destination.name}.previous")
+        if destination.exists() or not backup.exists():
+            yield
+            return
+    # Release the shared lock before taking an exclusive one; another process
+    # may recover/publish in between, so recovery rechecks the directory state.
     with _publication_lock(destination):
-        return _publish_staged_directory_locked(staged, destination, force=force)
+        _recover_previous_directory(destination)
+        yield
 
 
 def _publish_staged_directory_locked(staged: Path, destination: Path, *, force: bool) -> bool:
+    """Publish a verified directory while the caller holds its version lock."""
+    _recover_previous_directory(destination)
     if not force:
         if destination.exists():
             return False
-        try:
-            os.replace(staged, destination)
-        except OSError:
-            # Another process can publish after the exists() check. Only
-            # convert that race into reuse when a destination now exists;
-            # callers validate the winner before returning it.
-            if destination.exists():
-                return False
-            raise
+        os.replace(staged, destination)
         return True
 
     backup = destination.with_name(f".{destination.name}.previous")
     if backup.exists():
-        if destination.exists():
-            shutil.rmtree(backup)
-        else:
-            os.replace(backup, destination)
+        shutil.rmtree(backup)
     if not destination.exists():
         os.replace(staged, destination)
         return True
@@ -219,6 +247,8 @@ def _publish_staged_directory_locked(staged: Path, destination: Path, *, force: 
 
 
 def _validate_records(paths: ProteinDatasetPaths, spec: dict[str, object]) -> None:
+    if not paths.records.parent.exists():
+        raise ProteinDatasetNotInstalledError(f"Dataset is not installed: {paths.version}")
     _validate_file(paths.records, spec["records"])
     _validate_file(paths.manifest, spec["records_manifest"])
     try:
@@ -240,7 +270,8 @@ def validate_mhc_protein_dataset(
     """Validate a cached records/manifest pair and return its paths."""
     resolved, spec = _version_spec(version)
     paths = mhc_protein_dataset_paths(resolved, data_dir=data_dir)
-    _validate_records(paths, spec)
+    with _cache_read_lock(paths.records.parent):
+        _validate_records(paths, spec)
     return paths
 
 
@@ -253,9 +284,10 @@ def install_mhc_protein_dataset(
     """Download, verify, and atomically install one records data version."""
     resolved, spec = _version_spec(version)
     paths = mhc_protein_dataset_paths(resolved, data_dir=data_dir)
-    if paths.records.parent.exists() and not force:
-        _validate_records(paths, spec)
-        return paths
+    with _cache_read_lock(paths.records.parent):
+        if paths.records.parent.exists() and not force:
+            _validate_records(paths, spec)
+            return paths
 
     parent = paths.records.parent.parent
     parent.mkdir(parents=True, exist_ok=True)
@@ -270,8 +302,8 @@ def install_mhc_protein_dataset(
         _download_asset(base_url, spec["records"], staged_paths.records)
         _download_asset(base_url, spec["records_manifest"], staged_paths.manifest)
         _validate_records(staged_paths, spec)
-        published = _publish_staged_directory(staged, paths.records.parent, force=force)
-        if not published:
+        with _publication_lock(paths.records.parent):
+            _publish_staged_directory_locked(staged, paths.records.parent, force=force)
             _validate_records(paths, spec)
     finally:
         if staged.exists():
@@ -297,9 +329,10 @@ def install_mhc_protein_source_bundle(
             relative = Path(filename) if filename == curation_name else Path("uniprot") / filename
             _validate_file(root / relative, metadata)
 
-    if destination.exists() and not force:
-        validate(destination)
-        return result
+    with _cache_read_lock(destination):
+        if destination.exists() and not force:
+            validate(destination)
+            return result
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     staged = Path(tempfile.mkdtemp(dir=destination.parent, prefix=f".{resolved}-"))
@@ -309,13 +342,34 @@ def install_mhc_protein_source_bundle(
             asset_metadata = {"filename": filename, **metadata}
             _download_asset(str(spec["release_url"]), asset_metadata, staged / relative)
         validate(staged)
-        published = _publish_staged_directory(staged, destination, force=force)
-        if not published:
+        with _publication_lock(destination):
+            _publish_staged_directory_locked(staged, destination, force=force)
             validate(destination)
     finally:
         if staged.exists():
             shutil.rmtree(staged)
     return result
+
+
+@contextmanager
+def _open_mhc_protein_records(path, *, version, data_dir):
+    if path is not None:
+        with gzip.open(path, "rt", encoding="utf-8", newline="") as handle:
+            yield handle
+        return
+    paths = install_mhc_protein_dataset(version, data_dir=data_dir)
+    _, spec = _version_spec(paths.version)
+    # Capture the compressed bytes (~10 MB for 55k rows) under the same lock as
+    # validation. Release before parsing/yielding so slow or nested iterators
+    # cannot block other readers or installers, including on Windows.
+    with _cache_read_lock(paths.records.parent):
+        _validate_records(paths, spec)
+        try:
+            compressed = paths.records.read_bytes()
+        except OSError as exc:
+            raise ProteinDatasetError(f"Cannot read dataset asset {paths.records}: {exc}") from exc
+    with gzip.open(io.BytesIO(compressed), "rt", encoding="utf-8", newline="") as handle:
+        yield handle
 
 
 def iter_mhc_protein_records(
@@ -324,9 +378,12 @@ def iter_mhc_protein_records(
     version: str | None = None,
     data_dir: str | Path | None = None,
 ) -> Iterator[dict[str, str]]:
-    """Yield records from a path, installing the requested version if needed."""
-    records_path = Path(path) if path is not None else install_mhc_protein_dataset(version, data_dir=data_dir).records
-    with gzip.open(records_path, "rt", encoding="utf-8", newline="") as handle:
+    """Yield records, installing if needed and taking a verified cache snapshot.
+
+    Only compressed bytes are buffered; rows are parsed lazily. Explicit paths
+    are caller-managed and stream directly without cache validation or locks.
+    """
+    with _open_mhc_protein_records(path, version=version, data_dir=data_dir) as handle:
         yield from csv.DictReader(handle)
 
 
@@ -349,5 +406,7 @@ def load_mhc_protein_dataframe(
     """Load all records as a pandas DataFrame (pandas is an optional dependency)."""
     import pandas as pd
 
-    records_path = Path(path) if path is not None else install_mhc_protein_dataset(version, data_dir=data_dir).records
-    return pd.read_csv(records_path, keep_default_na=False)
+    if path is not None:
+        return pd.read_csv(Path(path), keep_default_na=False)
+    with _open_mhc_protein_records(path, version=version, data_dir=data_dir) as handle:
+        return pd.read_csv(handle, keep_default_na=False)

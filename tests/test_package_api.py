@@ -20,5 +20,5 @@ def test_package_root_legacy_groove_exports_are_preserved():
 
 
 def test_package_root_exports_versioned_mhc_protein_data():
-    assert available_mhc_protein_dataset_versions() == ("uniprot-2026_03-r1",)
+    assert available_mhc_protein_dataset_versions() == ("uniprot-2026_03-r1", "uniprot-2026_03-r2")
     assert callable(validate_mhc_protein_dataset)

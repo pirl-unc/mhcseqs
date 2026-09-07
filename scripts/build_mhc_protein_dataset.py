@@ -21,6 +21,7 @@ import sys
 import tempfile
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
+from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Sequence
 
@@ -30,12 +31,18 @@ if str(ROOT) not in sys.path:
 
 from mhcseqs.domain_grammar import SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH
 from mhcseqs.domain_parsing import AlleleRecord, decompose_domains
+from mhcseqs.mhc_protein_dataset import (
+    _cache_read_lock,
+    _publication_lock,
+    _publish_staged_directory_locked,
+    _recover_previous_directory,
+    _validate_file,
+)
 from mhcseqs.version import __version__
 from scripts.enrich_sp_ground_truth import _classify_from_names
 from scripts.sp_corpus_artifacts import (
     load_corpus_artifact,
     load_deleted_artifact,
-    read_manifest,
     taxonomy_by_id,
     validate_artifact_bundle,
 )
@@ -43,7 +50,7 @@ from scripts.sp_ground_truth_eligibility import GT_LABEL_CURATION_CSV, load_labe
 from scripts.sp_ground_truth_taxonomy import classification_from_taxonomy_row
 
 DATASET_NAME = "mhc-proteins"
-DATASET_REVISION = 1
+DATASET_REVISION = 2
 DATASET_SCHEMA_VERSION = 1
 DATASET_FILENAME = "mhc-proteins-{version}.csv.gz"
 MANIFEST_FILENAME = "mhc-proteins-{version}.manifest.json"
@@ -337,7 +344,7 @@ def prepare_record(
     organism = taxonomy_row["Scientific name"].strip()
     protein_name = artifact.get("Protein names", "").strip()
     gene_names = artifact.get("Gene Names", "").strip()
-    label = resolve_mhc_label(artifact, curation)
+    label = resolve_mhc_label({**artifact, "Organism": organism}, curation)
     classified = _classify_from_names(organism=organism, protein_name=protein_name, gene_names=gene_names)
     inferred_gene = classified["gene"]
     archived = bool(artifact.get("Archive source URL", "").strip())
@@ -465,6 +472,7 @@ def write_dataset_manifest(
     curation_path: Path,
     version: str,
     use_early_shortcuts: bool,
+    curation_sha256: str | None = None,
 ) -> dict[str, object]:
     """Write complete source, schema, model, and content provenance."""
     payload: dict[str, object] = {
@@ -496,8 +504,9 @@ def write_dataset_manifest(
         "generator": {
             "name": "mhcseqs",
             "version": __version__,
+            "mhcgnomes_version": package_version("mhcgnomes"),
             "curation_file": curation_path.name,
-            "curation_sha256": _sha256(curation_path),
+            "curation_sha256": curation_sha256 or _sha256(curation_path),
             "sp_boundary_model_sha256": _sha256(SP_BOUNDARY_MODEL_PATH),
             "sp_sequence_cue_model_sha256": _sha256(SP_SEQUENCE_CUE_MODEL_PATH),
             "use_early_shortcuts": use_early_shortcuts,
@@ -524,8 +533,8 @@ def write_dataset_manifest(
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, help="Cache root containing the validated UniProt source bundle.")
-    parser.add_argument("--output", type=Path, help="Output .csv.gz path (default: versioned directory under the cache root).")
-    parser.add_argument("--manifest-output", type=Path, help="Output manifest path (default: beside the dataset).")
+    parser.add_argument("--output", type=Path, help="Output .csv.gz path in a dedicated bundle directory (default: under the cache root).")
+    parser.add_argument("--manifest-output", type=Path, help="Output manifest path, in the same directory as the records.")
     parser.add_argument("--label-curation", type=Path, default=GT_LABEL_CURATION_CSV)
     parser.add_argument("--revision", type=int, default=DATASET_REVISION)
     parser.add_argument("--workers", type=int, default=min(8, os.cpu_count() or 1))
@@ -537,19 +546,38 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _check_output_directory(directory: Path, filenames: set[str]) -> None:
+    """Never replace a directory containing anything except the output pair."""
+    if directory.exists() and (not directory.is_dir() or any(p.name not in filenames or not p.is_file() for p in directory.iterdir())):
+        raise ValueError(f"Output requires a dedicated bundle directory containing only {sorted(filenames)}: {directory}")
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
-    if not args.label_curation.is_file():
-        raise FileNotFoundError(f"Missing pinned MHC label curation: {args.label_curation}")
-    source_manifest = validate_artifact_bundle(args.data_dir)
-    version = dataset_version(str(source_manifest["release"]), args.revision)
-    cache_root = args.data_dir or Path(os.environ.get("MHCSEQS_DATA", Path.home() / ".cache" / "mhcseqs"))
-    output = args.output or cache_root / "datasets" / DATASET_NAME / version / DATASET_FILENAME.format(version=version)
-    manifest_output = args.manifest_output or output.with_name(MANIFEST_FILENAME.format(version=version))
+    cache_root = (args.data_dir or Path(os.environ.get("MHCSEQS_DATA", Path.home() / ".cache" / "mhcseqs"))).resolve()
+    # Snapshot all inputs under the source installer's lock, then release it
+    # before parsing. Recovery also permits rebuilding offline after a crash.
+    with _cache_read_lock(cache_root):
+        if not args.label_curation.is_file():
+            raise FileNotFoundError(f"Missing pinned MHC label curation: {args.label_curation}")
+        source_manifest = validate_artifact_bundle(cache_root)
+        artifacts = load_corpus_artifact(cache_root) + load_deleted_artifact(cache_root)
+        taxonomy = taxonomy_by_id(cache_root)
+        curation = load_label_curation(args.label_curation)
+        curation_sha256 = _sha256(args.label_curation)
 
-    artifacts = load_corpus_artifact(args.data_dir) + load_deleted_artifact(args.data_dir)
-    taxonomy = taxonomy_by_id(args.data_dir)
-    curation = load_label_curation(args.label_curation)
+    version = dataset_version(str(source_manifest["release"]), args.revision)
+    output = (args.output or cache_root / "datasets" / DATASET_NAME / version / DATASET_FILENAME.format(version=version)).resolve()
+    manifest_output = (args.manifest_output or output.with_name(MANIFEST_FILENAME.format(version=version))).resolve()
+    if output.parent != manifest_output.parent or output == manifest_output:
+        raise ValueError("Records and manifest must be distinct files in the same dedicated bundle directory")
+    destination = output.parent
+    filenames = {output.name, manifest_output.name}
+    with _publication_lock(destination):
+        _check_output_directory(destination, filenames)
+        _check_output_directory(destination.with_name(f".{destination.name}.previous"), filenames)
+        _recover_previous_directory(destination)
+
     use_early_shortcuts = args.use_early_shortcuts
     print(f"Parsing {len(artifacts):,} source records with {args.workers} worker(s)...", flush=True)
     rows = build_records(
@@ -561,16 +589,28 @@ def main(argv: Sequence[str] | None = None) -> None:
         workers=args.workers,
         use_early_shortcuts=use_early_shortcuts,
     )
-    _write_gzip_csv(output, rows)
-    manifest = write_dataset_manifest(
-        manifest_output,
-        output=output,
-        rows=rows,
-        source_manifest=read_manifest(args.data_dir),
-        curation_path=args.label_curation,
-        version=version,
-        use_early_shortcuts=use_early_shortcuts,
-    )
+    with tempfile.TemporaryDirectory(dir=destination.parent, prefix=f".{destination.name}-") as temporary:
+        staged = Path(temporary)
+        staged_output = staged / output.name
+        staged_manifest = staged / manifest_output.name
+        _write_gzip_csv(staged_output, rows)
+        manifest = write_dataset_manifest(
+            staged_manifest,
+            output=staged_output,
+            rows=rows,
+            source_manifest=source_manifest,
+            curation_path=args.label_curation,
+            curation_sha256=curation_sha256,
+            version=version,
+            use_early_shortcuts=use_early_shortcuts,
+        )
+        _validate_file(staged_output, manifest["records"])
+        if json.loads(staged_manifest.read_text(encoding="utf-8")) != manifest:
+            raise ValueError("Staged records manifest failed validation")
+        with _publication_lock(destination):
+            _check_output_directory(destination, filenames)
+            _check_output_directory(destination.with_name(f".{destination.name}.previous"), filenames)
+            _publish_staged_directory_locked(staged, destination, force=True)
 
     print(f"Wrote {len(rows):,} MHC protein records to {output}")
     print(f"Wrote data manifest to {manifest_output}")
