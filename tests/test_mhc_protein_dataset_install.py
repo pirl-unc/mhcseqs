@@ -2,6 +2,7 @@ import csv
 import gzip
 import hashlib
 import json
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from pathlib import Path
@@ -83,6 +84,79 @@ def test_install_validates_and_publishes_complete_pair(monkeypatch, tmp_path):
     assert paths.manifest.read_bytes() == manifest
     assert datasets.load_mhc_protein_records(data_dir=tmp_path) == [{"accession": "TEST123", "sequence": "MAAA"}]
     assert not list(paths.records.parent.parent.glob(".uniprot-test-r1-*"))
+
+
+@pytest.mark.parametrize("existing_lock", [False, True])
+def test_missing_read_only_version_is_not_corrupt(monkeypatch, tmp_path, capsys, existing_lock):
+    from mhcseqs.__main__ import main
+
+    records, manifest = _asset_pair()
+    registry = _registry(records, manifest)
+    missing_version = "uniprot-test-r2"
+    registry["versions"][missing_version] = registry["versions"]["uniprot-test-r1"]
+    monkeypatch.setattr(datasets, "_registry", lambda: registry)
+    _fake_download(monkeypatch, {"records.csv.gz": records, "records.manifest.json": manifest})
+    installed = datasets.install_mhc_protein_dataset(data_dir=tmp_path)
+    root = datasets.mhc_protein_dataset_paths(missing_version, data_dir=tmp_path).records.parent
+    lock = root.with_name(f".{root.name}.lock")
+    if existing_lock:
+        lock.touch()
+    before = set(tmp_path.rglob("*"))
+    modes = {path: path.stat().st_mode & 0o777 for path in (tmp_path, *before)}
+    real_open = Path.open
+
+    def read_only_open(path, mode="r", *args, **kwargs):
+        if any(flag in mode for flag in "wax+"):
+            raise PermissionError("read-only cache")
+        return real_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", read_only_open)
+    monkeypatch.setattr("mhcseqs.__main__.default_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(sys, "argv", ["mhcseqs", "data", "list"])
+    try:
+        for path in modes:
+            path.chmod(0o555 if path.is_dir() else 0o444)
+        with pytest.raises(datasets.ProteinDatasetNotInstalledError):
+            datasets.validate_mhc_protein_dataset(missing_version, data_dir=tmp_path)
+        assert datasets.validate_mhc_protein_dataset(data_dir=tmp_path) == installed
+        main()
+        output = capsys.readouterr().out
+        assert "uniprot-test-r1: installed; verified" in output
+        assert "uniprot-test-r2: not installed" in output
+        assert "invalid;" not in output
+        assert set(tmp_path.rglob("*")) == before
+    finally:
+        for path, mode in modes.items():
+            path.chmod(mode)
+
+
+def test_validation_of_absent_cache_does_not_create_parents(tmp_path):
+    cache = tmp_path / "absent"
+    with pytest.raises(datasets.ProteinDatasetNotInstalledError):
+        datasets.validate_mhc_protein_dataset(data_dir=cache)
+    assert not cache.exists()
+
+
+def test_missing_version_validation_waits_for_existing_publisher(monkeypatch, tmp_path):
+    records, manifest = _asset_pair()
+    monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest))
+    paths = datasets.mhc_protein_dataset_paths(data_dir=tmp_path)
+    attempted = threading.Event()
+
+    def validate():
+        attempted.set()
+        return datasets.validate_mhc_protein_dataset(data_dir=tmp_path)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with datasets._publication_lock(paths.records.parent):
+            reader = pool.submit(validate)
+            assert attempted.wait(timeout=5)
+            with pytest.raises(TimeoutError):
+                reader.result(timeout=0.1)
+            paths.records.parent.mkdir()
+            paths.records.write_bytes(records)
+            paths.manifest.write_bytes(manifest)
+        assert reader.result(timeout=5) == paths
 
 
 def test_concurrent_first_installs_validate_and_reuse_winner(monkeypatch, tmp_path):

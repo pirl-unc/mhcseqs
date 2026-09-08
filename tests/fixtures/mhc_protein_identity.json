@@ -1,7 +1,38 @@
 {
   "source_release": "2026_03",
   "source_sha256": "89eb3003c42a8a5630ac6337605bf63ee84f53a6037c3a82fe8f029381d06464",
+  "taxonomy": {
+    "9615": {
+      "Taxon ID": "9615",
+      "Scientific name": "Canis lupus familiaris",
+      "Taxonomic lineage (Ids)": "131567, 2759, 33154, 33208, 6072, 33213, 33511, 7711, 89593, 7742, 7776, 117570, 117571, 8287, 1338369, 32523, 32524, 40674, 32525, 9347, 1437010, 314145, 33554, 379584, 9608, 9611, 9612"
+    },
+    "9544": {
+      "Taxon ID": "9544",
+      "Scientific name": "Macaca mulatta",
+      "Taxonomic lineage (Ids)": "131567, 2759, 33154, 33208, 6072, 33213, 33511, 7711, 89593, 7742, 7776, 117570, 117571, 8287, 1338369, 32523, 32524, 40674, 32525, 9347, 1437010, 314146, 9443, 376913, 314293, 9526, 314294, 9527, 9528, 9539"
+    },
+    "10116": {
+      "Taxon ID": "10116",
+      "Scientific name": "Rattus norvegicus",
+      "Taxonomic lineage (Ids)": "131567, 2759, 33154, 33208, 6072, 33213, 33511, 7711, 89593, 7742, 7776, 117570, 117571, 8287, 1338369, 32523, 32524, 40674, 32525, 9347, 1437010, 314146, 314147, 9989, 1963758, 337687, 10066, 39107, 10114"
+    }
+  },
   "rows": [
+    {
+      "Entry": "A0A8I3PCD6",
+      "Protein names": "Major histocompatibility complex, class II, DO beta",
+      "Gene Names": "TAP2",
+      "Organism": "Canis lupus familiaris (Dog) (Canis familiaris)",
+      "Organism (ID)": "9615"
+    },
+    {
+      "Entry": "F6WA04",
+      "Protein names": "Major histocompatibility complex, class II, DO beta",
+      "Gene Names": "TAP2",
+      "Organism": "Macaca mulatta (Rhesus macaque)",
+      "Organism (ID)": "9544"
+    },
     {
       "Entry": "A0A061ILP8",
       "Protein names": "Proline-rich protein 3 (MHC class I region proline-rich protein CAT56)",

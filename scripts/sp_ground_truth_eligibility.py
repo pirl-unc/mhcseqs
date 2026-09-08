@@ -1,4 +1,4 @@
-"""Shared MHC-chain eligibility policy for the SP benchmark corpus."""
+"""SP benchmark selection and independently versioned full-dataset labels."""
 
 from __future__ import annotations
 
@@ -46,7 +46,11 @@ def resolve_mhc_label(
     row: dict[str, str],
     curation: dict[str, dict[str, str]],
 ) -> MhcLabel:
-    """Resolve artifact metadata through the shared benchmark label policy."""
+    """Resolve the stored SP benchmark's selection policy.
+
+    Keep this stable for raw derivation and enrichment together. The broader
+    protein dataset uses ``resolve_mhc_protein_label`` for identity decisions.
+    """
     accession = row.get("Entry", "").strip()
     decision = curation.get(accession)
     if decision is not None:
@@ -66,10 +70,30 @@ def resolve_mhc_label(
 
     protein_name = row.get("Protein names", "")
     gene_names = row.get("Gene Names", "")
+    classified = _classify_from_parsed_names(protein_name, gene_names)
+    if classified is None:
+        classified = classify_mhc(protein_name, gene_names)
+    if classified in ELIGIBLE_MHC_CHAINS:
+        mhc_class, chain = classified
+        return MhcLabel(mhc_class, chain, "gold", "include")
+    if classified is None:
+        return MhcLabel("", "", "excluded_non_mhc", "exclude_non_mhc")
+    mhc_class, chain = classified
+    return MhcLabel(mhc_class, chain, "unresolved", "retain_unresolved")
+
+
+def resolve_mhc_protein_label(
+    row: dict[str, str],
+    curation: dict[str, dict[str, str]],
+) -> MhcLabel:
+    """Resolve full-dataset identity without redefining the stored benchmark."""
+    if row.get("Entry", "").strip() in curation:
+        return resolve_mhc_label(row, curation)
     # Helper genes such as CIITA mention MHC in their names but do not encode
     # an MHC chain. Consult the same species-aware identity policy as parsing
     # before the permissive name heuristics, keeping explicit curation first.
     species = row.get("Organism", "").strip() or None
+    gene_names = row.get("Gene Names", "")
     gene_tokens = [token for token in re.split(r"[\s,;]+", gene_names) if token]
     non_mhc_tokens = {token for token in gene_tokens if is_non_mhc_gene(token, species=species)}
     if non_mhc_tokens:
@@ -83,17 +107,11 @@ def resolve_mhc_label(
             if gene_class and not gene_class["non_mhc"] and (gene_class["mhc_class"], gene_class["chain"]) in ELIGIBLE_MHC_CHAINS:
                 return MhcLabel("", "", "unresolved", "retain_unresolved")
         return MhcLabel("", "", "excluded_non_mhc", "exclude_non_mhc")
-    classified = _classify_from_parsed_names(protein_name, gene_names)
-    if classified is None:
-        classified = classify_mhc(protein_name, gene_names)
-    if classified in ELIGIBLE_MHC_CHAINS:
-        mhc_class, chain = classified
-        return MhcLabel(mhc_class, chain, "gold", "include")
-    if classified is None:
+    label = resolve_mhc_label(row, curation)
+    if label.disposition == "exclude_non_mhc":
         # Missing or vague metadata is not affirmative non-MHC evidence.
         return MhcLabel("", "", "unresolved", "retain_unresolved")
-    mhc_class, chain = classified
-    return MhcLabel(mhc_class, chain, "unresolved", "retain_unresolved")
+    return label
 
 
 def _classify_from_parsed_names(protein_name: str, gene_names: str) -> tuple[str, str] | None:

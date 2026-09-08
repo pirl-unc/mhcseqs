@@ -130,6 +130,7 @@ df = mhcseqs.load_mhc_protein_dataframe(version="uniprot-2026_03-r2")
 For read-only/shared deployments, preinstall the cache and retain its sibling
 `.<version>.lock` files. Reads need only read access to those files; creating
 an installation or recovering an interrupted swap still requires write access.
+Listing a missing version requires no writes and reports it as not installed.
 
 The columns are intentionally separated by provenance:
 
@@ -151,6 +152,9 @@ produced a usable decomposition and is not an independent identity label.
 Known non-MHC genes are excluded; insufficient or conflicting identity
 evidence stays `retain_unresolved`. The [r2 release notes](data/mhc_protein_dataset_uniprot_2026_03-r2.md)
 describe the corrected labels. Historical `r1` remains available unchanged.
+These full-dataset identity rules are separate from the stored SP benchmark's
+selection policy, so they do not silently change benchmark membership or prevent
+its offline enrichment.
 
 To reproduce the records artifact offline, install the source bundle too:
 
@@ -162,9 +166,12 @@ python scripts/build_mhc_protein_dataset.py \
   --revision 2
 ```
 
-The builder publishes records and their manifest together. Custom `--output`
-and `--manifest-output` paths must be distinct files in the same dedicated
-directory, containing no unrelated files. Failed builds preserve the previous
+The builder publishes records and their manifest together. By default they go
+under `<source-root>-generated/mhc-proteins/<data-version>/`, a sibling tree
+outside the replaceable source bundle. Custom `--output` and `--manifest-output`
+paths must be distinct files in the same dedicated directory outside the source
+tree, containing no unrelated files. Source reinstallation therefore cannot
+delete generated outputs or their staging directory. Failed builds preserve the previous
 pair, and interrupted swaps are recovered on the next access. To reproduce a
 release exactly, use its generator and mhcgnomes versions recorded in the
 manifest as well as its pinned source bundle.

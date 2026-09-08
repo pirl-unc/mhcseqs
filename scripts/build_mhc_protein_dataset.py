@@ -46,7 +46,7 @@ from scripts.sp_corpus_artifacts import (
     taxonomy_by_id,
     validate_artifact_bundle,
 )
-from scripts.sp_ground_truth_eligibility import GT_LABEL_CURATION_CSV, load_label_curation, resolve_mhc_label
+from scripts.sp_ground_truth_eligibility import GT_LABEL_CURATION_CSV, load_label_curation, resolve_mhc_protein_label
 from scripts.sp_ground_truth_taxonomy import classification_from_taxonomy_row
 
 DATASET_NAME = "mhc-proteins"
@@ -344,7 +344,7 @@ def prepare_record(
     organism = taxonomy_row["Scientific name"].strip()
     protein_name = artifact.get("Protein names", "").strip()
     gene_names = artifact.get("Gene Names", "").strip()
-    label = resolve_mhc_label({**artifact, "Organism": organism}, curation)
+    label = resolve_mhc_protein_label({**artifact, "Organism": organism}, curation)
     classified = _classify_from_names(organism=organism, protein_name=protein_name, gene_names=gene_names)
     inferred_gene = classified["gene"]
     archived = bool(artifact.get("Archive source URL", "").strip())
@@ -533,7 +533,11 @@ def write_dataset_manifest(
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, help="Cache root containing the validated UniProt source bundle.")
-    parser.add_argument("--output", type=Path, help="Output .csv.gz path in a dedicated bundle directory (default: under the cache root).")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Output .csv.gz path outside the source bundle (default: <source-root>-generated/mhc-proteins/<version>/).",
+    )
     parser.add_argument("--manifest-output", type=Path, help="Output manifest path, in the same directory as the records.")
     parser.add_argument("--label-curation", type=Path, default=GT_LABEL_CURATION_CSV)
     parser.add_argument("--revision", type=int, default=DATASET_REVISION)
@@ -567,11 +571,14 @@ def main(argv: Sequence[str] | None = None) -> None:
         curation_sha256 = _sha256(args.label_curation)
 
     version = dataset_version(str(source_manifest["release"]), args.revision)
-    output = (args.output or cache_root / "datasets" / DATASET_NAME / version / DATASET_FILENAME.format(version=version)).resolve()
+    generated_root = cache_root.with_name(f"{cache_root.name}-generated")
+    output = (args.output or generated_root / DATASET_NAME / version / DATASET_FILENAME.format(version=version)).resolve()
     manifest_output = (args.manifest_output or output.with_name(MANIFEST_FILENAME.format(version=version))).resolve()
     if output.parent != manifest_output.parent or output == manifest_output:
         raise ValueError("Records and manifest must be distinct files in the same dedicated bundle directory")
     destination = output.parent
+    if destination == cache_root or cache_root in destination.parents:
+        raise ValueError("Output directory must be outside the source bundle; source reinstallation replaces that entire tree")
     filenames = {output.name, manifest_output.name}
     with _publication_lock(destination):
         _check_output_directory(destination, filenames)

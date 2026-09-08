@@ -51,6 +51,12 @@ python scripts/build_mhc_protein_dataset.py \
   --revision 2
 ```
 
+Current builders write to a sibling `<source-root>-generated/mhc-proteins/<version>/`
+tree by default. A custom output directory must also be outside the source
+bundle, so reinstalling sources cannot remove the generated artifacts.
+The full dataset's identity policy is separate from the stored SP benchmark's
+selection policy; this does not change any published r2 records.
+
 Exact regeneration uses the mhcseqs 2.6.12 source and `mhcgnomes==3.41.0`.
 The manifest also pins the learned models, curation, schema, and source hashes.
 Parser exact/lexical signal-boundary shortcuts remain disabled.

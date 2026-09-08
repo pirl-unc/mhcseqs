@@ -270,6 +270,15 @@ def validate_mhc_protein_dataset(
     """Validate a cached records/manifest pair and return its paths."""
     resolved, spec = _version_spec(version)
     paths = mhc_protein_dataset_paths(resolved, data_dir=data_dir)
+    destination = paths.records.parent
+    # Inventory must not create a cache or lock just to report absence. Check
+    # the permanent lock last so an existing publisher is still coordinated.
+    if (
+        not destination.exists()
+        and not destination.with_name(f".{destination.name}.previous").exists()
+        and not destination.with_name(f".{destination.name}.lock").exists()
+    ):
+        raise ProteinDatasetNotInstalledError(f"Dataset is not installed: {resolved}")
     with _cache_read_lock(paths.records.parent):
         _validate_records(paths, spec)
     return paths
