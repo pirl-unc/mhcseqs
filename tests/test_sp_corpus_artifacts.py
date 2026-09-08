@@ -212,6 +212,7 @@ def test_corpus_derivation_separates_labels_inference_and_exclusions():
     gt_rows, unlabelled_rows, stats = fetch_sp_ground_truth.derive_corpus_rows(
         [labelled, unlabelled, fragment, non_mhc],
         TAXONOMY,
+        curation={"NOTMHC": {"disposition": "exclude_non_mhc"}},
     )
 
     assert [row["accession"] for row in gt_rows] == ["TEST123"]

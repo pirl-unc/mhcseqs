@@ -6,6 +6,10 @@ Vertebrata MHC candidate bundle and adds normalized metadata plus mhcseqs
 sequence-parser annotations. It is not the signal-peptide benchmark and is not
 tied to the mhcseqs package version.
 
+This historical revision has known identity-label errors corrected in
+[`uniprot-2026_03-r2`](mhc_protein_dataset_uniprot_2026_03-r2.md). Its files
+remain unchanged for reproducibility; use r2 for new work.
+
 ## Population
 
 | Population | Records |
@@ -79,8 +83,13 @@ mhcseqs data install mhc-proteins --version uniprot-2026_03-r1 --with-sources
 
 python scripts/build_mhc_protein_dataset.py \
   --data-dir ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r1 \
-  --label-curation ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r1/sp_ground_truth_label_curation.csv
+  --label-curation ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r1/sp_ground_truth_label_curation.csv \
+  --revision 1
 ```
+
+For exact historical regeneration, run that command from the `v2.6.11` source
+checkout with `mhcgnomes==3.41.0`. A newer generator applies newer label rules
+even when given `--revision 1`.
 
 The records manifest pins the source query and release, source artifact hashes,
 schema, curation hash, learned-model hashes, generator version, coordinate
