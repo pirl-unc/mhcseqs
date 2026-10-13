@@ -2,6 +2,7 @@ import csv
 import gzip
 import hashlib
 import json
+import re
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
@@ -121,8 +122,8 @@ def test_missing_read_only_version_is_not_corrupt(monkeypatch, tmp_path, capsys,
         assert datasets.validate_mhc_protein_dataset(data_dir=tmp_path) == installed
         main()
         output = capsys.readouterr().out
-        assert "uniprot-test-r1: installed; verified" in output
-        assert "uniprot-test-r2: not installed" in output
+        assert re.search(r"uniprot-test-r1\s+installed; verified", output)
+        assert re.search(r"uniprot-test-r2\s+not installed", output)
         assert "invalid;" not in output
         assert set(tmp_path.rglob("*")) == before
     finally:
@@ -231,22 +232,26 @@ def test_force_install_recovers_interrupted_swap(monkeypatch, tmp_path):
     assert not backup.exists()
 
 
-@pytest.fixture(params=["records", "sources"])
-def installed_bundle(request, monkeypatch, tmp_path):
+def _install_bundle(kind, monkeypatch, tmp_path):
     records, manifest = _asset_pair()
     source_files = {"uniprot_artifacts.json": b"{}\n", "sp_ground_truth_label_curation.csv": b"accession,disposition\n"}
     metadata = {name: _metadata(name, content) for name, content in source_files.items()}
     monkeypatch.setattr(datasets, "_registry", lambda: _registry(records, manifest, metadata))
     files = {"records.csv.gz": records, "records.manifest.json": manifest, **source_files}
     _fake_download(monkeypatch, files)
-    installer = datasets.install_mhc_protein_dataset if request.param == "records" else datasets.install_mhc_protein_source_bundle
+    installer = datasets.install_mhc_protein_dataset if kind == "records" else datasets.install_mhc_protein_source_bundle
 
     def install(**kwargs):
         return installer(data_dir=tmp_path, **kwargs)
 
     paths = install()
-    root = paths.records.parent if request.param == "records" else paths.root
-    return SimpleNamespace(kind=request.param, paths=paths, root=root, install=install, data_dir=tmp_path)
+    root = paths.records.parent if kind == "records" else paths.root
+    return SimpleNamespace(kind=kind, paths=paths, root=root, install=install, data_dir=tmp_path)
+
+
+@pytest.fixture(params=["records", "sources"])
+def installed_bundle(request, monkeypatch, tmp_path):
+    return _install_bundle(request.param, monkeypatch, tmp_path)
 
 
 @pytest.mark.parametrize("corrupt", [False, True])
@@ -360,11 +365,12 @@ def test_force_recovers_previous_installation_before_failed_download(monkeypatch
     assert bundle.install() == bundle.paths
 
 
-@pytest.mark.parametrize("reader_kind", ["reuse", "validate", "records", "dataframe"])
-def test_readers_wait_for_forced_publication(monkeypatch, installed_bundle, reader_kind):
-    bundle = installed_bundle
-    if bundle.kind == "sources" and reader_kind != "reuse":
-        pytest.skip("Source bundles are validated by their installer")
+@pytest.mark.parametrize(
+    "bundle_kind,reader_kind",
+    [("sources", "reuse")] + [("records", kind) for kind in ("reuse", "validate", "records", "dataframe")],
+)
+def test_readers_wait_for_forced_publication(monkeypatch, tmp_path, bundle_kind, reader_kind):
+    bundle = _install_bundle(bundle_kind, monkeypatch, tmp_path)
     if reader_kind == "dataframe":
         pytest.importorskip("pandas")
     readers = {

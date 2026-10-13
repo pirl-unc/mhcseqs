@@ -33,8 +33,9 @@ mhcseqs build --output-dir output/
 # Look up a specific allele
 mhcseqs lookup "HLA-A*02:01"
 
-# Inspect cached downloads and built CSVs (path, size, age)
+# Inspect cached downloads and built CSVs (size, age, status)
 mhcseqs data list
+mhcseqs data list --details  # full paths and source URLs
 
 # Install the immutable full UniProt candidate dataset
 mhcseqs data install mhc-proteins

@@ -1,4 +1,5 @@
 import csv
+import re
 import sys
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -38,7 +39,7 @@ def test_data_list_reports_versioned_dataset(capsys, tmp_path, monkeypatch):
     with patch.object(sys, "argv", ["mhcseqs", "data", "list"]):
         main()
     captured = capsys.readouterr()
-    assert "mhc-proteins uniprot-2026_03-r1: not installed" in captured.out
+    assert re.search(r"mhc-proteins\s+uniprot-2026_03-r1\s+not installed", captured.out)
 
 
 def test_data_install_dispatches_version_and_sources(capsys, tmp_path, monkeypatch):
@@ -120,7 +121,8 @@ def test_data_list_marks_corrupt_version_invalid(capsys, tmp_path, monkeypatch):
     with patch.object(sys, "argv", ["mhcseqs", "data", "list"]):
         main()
 
-    assert f"mhc-proteins {paths.version}: invalid; reinstall with --force" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert re.search(rf"mhc-proteins\s+{paths.version}\s+invalid; reinstall with --force", output)
 
 
 def test_lookup_no_csvs(capsys, tmp_path, monkeypatch):

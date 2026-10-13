@@ -181,29 +181,54 @@ def _human_age(mtime: float) -> str:
     return f"{secs / 60:.0f}m ago"
 
 
+def _print_file_group(title: str, items, *, details: bool) -> None:
+    print(f"\n{title}")
+    rows = [
+        (
+            item.path.name,
+            _human_size(item.size) if item.exists else "—",
+            _human_age(item.mtime) if item.exists else "—",
+            "present" if item.exists else "missing",
+        )
+        for item in items
+    ]
+    headers = ("FILE", "SIZE", "UPDATED", "STATUS")
+    widths = [max(len(headers[i]), *(len(row[i]) for row in rows)) for i in range(4)]
+    print("  ".join(header.ljust(widths[i]) for i, header in enumerate(headers)).rstrip())
+    for row in rows:
+        print("  ".join(value.ljust(widths[i]) for i, value in enumerate(row)).rstrip())
+    if details:
+        for item in items:
+            print(f"  {item.path.name}: {item.path}")
+            if item.url:
+                print(f"    Source: {item.url}")
+
+
 def cmd_data(args):
     dd = Path(default_data_dir())
     action = args.data_command
 
     if action == "list":
         print(f"Data directory: {dd}")
-        print(f"{'FILE':<26} {'KIND':<7} {'SIZE':>10} {'AGE':>9}  STATUS")
-        for item in inventory(dd):
-            if item.exists:
-                status = item.url or "built"
-                print(f"{item.path.name:<26} {item.kind:<7} {_human_size(item.size):>10} {_human_age(item.mtime):>9}  {status}")
-            else:
-                print(f"{item.path.name:<26} {item.kind:<7} {'—':>10} {'—':>9}  (not present)")
-        print("\nVersioned datasets:")
+        items = inventory(dd)
+        _print_file_group("Source FASTA files", [item for item in items if item.kind == "source"], details=args.details)
+        _print_file_group("Built CSVs and reports", [item for item in items if item.kind == "built"], details=args.details)
+        print("\nVersioned datasets")
+        print("DATASET       VERSION             STATUS")
         for version in available_mhc_protein_dataset_versions():
             try:
-                validate_mhc_protein_dataset(version, data_dir=dd)
+                paths = validate_mhc_protein_dataset(version, data_dir=dd)
                 status = "installed; verified"
             except ProteinDatasetNotInstalledError:
                 status = "not installed"
             except ProteinDatasetError:
                 status = "invalid; reinstall with --force"
-            print(f"  {MHC_PROTEIN_DATASET_NAME} {version}: {status}")
+            print(f"{MHC_PROTEIN_DATASET_NAME:<13} {version:<19} {status}")
+            if args.details and status == "installed; verified":
+                print(f"  Records: {paths.records}")
+                print(f"  Manifest: {paths.manifest}")
+        if not args.details:
+            print("\nUse 'mhcseqs data list --details' for full paths and source URLs.")
         return
 
     if action == "install":
@@ -304,7 +329,8 @@ def main():
     # data — manage cached source FASTAs and built CSVs
     data_parser = subparsers.add_parser("data", help="Manage cached downloads and built CSVs")
     data_sub = data_parser.add_subparsers(dest="data_command")
-    data_sub.add_parser("list", help="List cached source and built data files")
+    list_parser = data_sub.add_parser("list", help="List cached source and built data files")
+    list_parser.add_argument("--details", action="store_true", help="Show full paths and source URLs")
     install_parser = data_sub.add_parser("install", help="Install an immutable versioned dataset")
     install_parser.add_argument("dataset", choices=[MHC_PROTEIN_DATASET_NAME])
     install_parser.add_argument("--version", choices=available_mhc_protein_dataset_versions())
