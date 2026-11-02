@@ -15,13 +15,13 @@ def test_load_built_counts_keeps_helper_chains_out_of_class_i(monkeypatch, tmp_p
 
 
 def test_main_counts_only_completed_build(monkeypatch, tmp_path):
-    readme = tmp_path / "README.md"
-    readme.write_text(
-        "# Test\n\n## Current data summary\n\nstale\n\n## Structural decomposition\n",
+    data_doc = tmp_path / "data.md"
+    data_doc.write_text(
+        "# Test\n\n## Current data summary\n\nstale\n\n## Key columns\n",
         encoding="utf-8",
     )
     built = Counter({("human", "I"): 1, ("human", "other"): 3, ("unclassified", "II"): 2})
-    monkeypatch.setattr(update_readme_counts, "README", readme)
+    monkeypatch.setattr(update_readme_counts, "DATA_DOC", data_doc)
     monkeypatch.setattr(update_readme_counts, "load_built_counts", lambda: built)
     monkeypatch.setattr(
         update_readme_counts,
@@ -36,7 +36,7 @@ def test_main_counts_only_completed_build(monkeypatch, tmp_path):
 
     update_readme_counts.main()
 
-    text = readme.read_text(encoding="utf-8")
+    text = data_doc.read_text(encoding="utf-8")
     assert "| human | 1 | 0 | 3 | 4 |" in text
     assert "| bird | 0 | 0 | 0 | 0 |" in text
     assert "| unclassified | 0 | 2 | 0 | 2 |" in text
