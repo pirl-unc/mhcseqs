@@ -258,6 +258,11 @@ def recover_previous_directory(destination: Path) -> None:
     None
         The backup is moved back to *destination* only when the backup exists
         and *destination* does not.
+
+    Raises
+    ------
+    OSError
+        If moving the backup back into place fails.
     """
     backup = destination.with_name(f".{destination.name}.previous")
     if backup.exists() and not destination.exists():
@@ -286,6 +291,8 @@ def cache_read_lock(destination: Path):
     ------
     ProteinDatasetError
         If the lock file cannot be opened or created.
+    OSError
+        If recovering an interrupted swap fails.
     """
     with publication_lock(destination, shared=True):
         backup = destination.with_name(f".{destination.name}.previous")
@@ -300,7 +307,7 @@ def cache_read_lock(destination: Path):
 
 
 def publish_staged_directory(staged: Path, destination: Path, *, force: bool) -> bool:
-    """Atomically move a verified staged directory into place.
+    """Move a verified staged directory into place using atomic renames.
 
     The caller must hold :func:`publication_lock` for *destination* and must
     have verified *staged*. An interrupted earlier swap is recovered first.

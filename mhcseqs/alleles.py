@@ -258,7 +258,7 @@ def canonical_allele_name(parsed: Any, allele_fields: Optional[int] = None) -> s
 
     The species is written as its full binomial alias (for example
     ``HomoSapiens`` rather than ``HLA``) so that names from different
-    species can never collide on a shared short prefix.
+    species do not collide on a shared short prefix.
 
     Parameters
     ----------
@@ -273,8 +273,10 @@ def canonical_allele_name(parsed: Any, allele_fields: Optional[int] = None) -> s
     Returns
     -------
     str
-        ``"<FullSpeciesAlias>-<name without species>"`` when the result has a
-        species and a non-empty name without it; otherwise mhcgnomes' own
+        ``"<FullSpeciesAlias>-<name without species>"`` when the species
+        has a full binomial alias
+        (:func:`mhcseqs.species.full_species_name_alias` is non-empty) and the
+        name without species is non-empty; otherwise mhcgnomes' own
         ``to_string()``, or ``str(parsed)`` for objects without one.
     """
     if allele_fields is not None:
