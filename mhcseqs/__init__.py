@@ -169,8 +169,8 @@ class BuildPaths:
 def default_data_dir() -> str:
     """Return the default directory for downloads and built CSVs.
 
-    Uses ``$MHCSEQS_DATA`` if set, otherwise ``~/.cache/mhcseqs``
-    (resolved by :func:`mhcseqs.datafiles.resolve_data_dir`).
+    Uses ``$MHCSEQS_DATA`` if set to a non-empty value, otherwise
+    ``~/.cache/mhcseqs`` (resolved by :func:`mhcseqs.datafiles.resolve_data_dir`).
     The directory is created on first use.
     """
     d = resolve_data_dir()
