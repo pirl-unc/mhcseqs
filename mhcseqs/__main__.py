@@ -3,8 +3,9 @@
 Usage:
     mhcseqs build [--output-dir DIR] [--data-dir DIR] [--force-download]
     mhcseqs lookup ALLELE [--output-dir DIR]
-    mhcseqs data list
-    mhcseqs data install mhc-proteins [--version VERSION] [--with-sources]
+    mhcseqs data list [--details]
+    mhcseqs data install mhc-proteins [--version VERSION] [--with-sources] [--force]
+    mhcseqs data path mhc-proteins [--version VERSION]
     mhcseqs data refresh [--source imgt_hla|ipd_mhc]
     mhcseqs data clear [--source ...] [--built | --built-only]
     python -m mhcseqs build
@@ -284,7 +285,27 @@ def cmd_data(args):
         return
 
 
-def main():
+def main(argv: list[str] | None = None) -> None:
+    """Run the ``mhcseqs`` command line.
+
+    Parameters
+    ----------
+    argv : list of str, optional
+        Arguments after the program name. Defaults to ``sys.argv[1:]``.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    SystemExit
+        With status 0 after ``--help``/``--version``, 2 on invalid
+        arguments, and 1 when no command (or no ``data`` subcommand) is
+        given, ``lookup`` finds no built CSV or no match, or ``data path``
+        finds the dataset missing or corrupt. Other failures (for example a
+        failed download) propagate as exceptions.
+    """
     parser = argparse.ArgumentParser(
         prog="mhcseqs",
         description="MHC sequence curation and binding groove extraction",
@@ -368,7 +389,7 @@ def main():
         help="Delete only built CSVs/reports, keep source FASTAs",
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.command == "build":
         cmd_build(args)
