@@ -97,7 +97,8 @@ mkdocs build --strict
 
 ## License
 
-The mhcseqs code is licensed under [Apache 2.0](LICENSE). The independently
+The mhcseqs code is licensed under
+[Apache 2.0](https://github.com/pirl-unc/mhcseqs/blob/main/LICENSE). The independently
 distributed UniProt-derived `mhc-proteins` data is licensed under
 [CC BY 4.0](https://www.uniprot.org/help/license/) with attribution to the
 UniProt Consortium.
