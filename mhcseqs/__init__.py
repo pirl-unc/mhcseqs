@@ -75,6 +75,7 @@ from .alleles import (
     normalize_mhc_class,
     parse_allele_name,
 )
+from .datafiles import FULL_SEQS_CSV, MERGE_REPORT, RAW_CSV, VALIDATION_REPORT, fasta_dir, resolve_data_dir
 from .domain_parsing import (
     NON_GROOVE_GENES,
     AlleleRecord,
@@ -168,13 +169,11 @@ class BuildPaths:
 def default_data_dir() -> str:
     """Return the default directory for downloads and built CSVs.
 
-    Uses ``$MHCSEQS_DATA`` if set, otherwise ``~/.cache/mhcseqs``.
+    Uses ``$MHCSEQS_DATA`` if set, otherwise ``~/.cache/mhcseqs``
+    (resolved by :func:`mhcseqs.datafiles.resolve_data_dir`).
     The directory is created on first use.
     """
-    import os
-    from pathlib import Path
-
-    d = Path(os.environ.get("MHCSEQS_DATA", Path.home() / ".cache" / "mhcseqs"))
+    d = resolve_data_dir()
     d.mkdir(parents=True, exist_ok=True)
     return str(d)
 
@@ -202,7 +201,7 @@ def build(
     else:
         out = Path(output_dir)
     if data_dir is None:
-        dd = out / "fasta"
+        dd = fasta_dir(out)
     else:
         dd = Path(data_dir)
 
@@ -212,15 +211,15 @@ def build(
         (paths["ipd_mhc"], SOURCES["ipd_mhc"]["label"]),
     ]
 
-    raw_csv = out / "mhc-seqs-raw.csv"
+    raw_csv = out / RAW_CSV
     build_raw_index(fasta_inputs, raw_csv)
 
-    full_csv = out / "mhc-full-seqs.csv"
-    report_path = out / "mhc-merge-report.txt"
+    full_csv = out / FULL_SEQS_CSV
+    report_path = out / MERGE_REPORT
     build_full_seqs(raw_csv, full_csv, report_path=report_path)
 
     warnings, stats = validate_build(raw_csv, full_csv)
-    validation_path = out / "mhc-validation-report.txt"
+    validation_path = out / VALIDATION_REPORT
     with open(validation_path, "w", encoding="utf-8") as f:
         f.write(format_validation_report(warnings, stats) + "\n")
 
@@ -264,7 +263,7 @@ def load_raw_dict(path: str | None = None) -> list[dict]:
     """
     import csv as _csv
 
-    p = path or _find_csv("mhc-seqs-raw.csv")
+    p = path or _find_csv(RAW_CSV)
     with open(p, "r", encoding="utf-8") as f:
         return list(_csv.DictReader(f))
 
@@ -273,7 +272,7 @@ def load_raw_dataframe(path: str | None = None):
     """Load the raw sequence CSV as a pandas DataFrame."""
     import pandas as pd
 
-    p = path or _find_csv("mhc-seqs-raw.csv")
+    p = path or _find_csv(RAW_CSV)
     return pd.read_csv(p)
 
 
@@ -286,7 +285,7 @@ def load_sequences_dict(path: str | None = None) -> list[dict]:
     """
     import csv as _csv
 
-    p = path or _find_csv("mhc-full-seqs.csv")
+    p = path or _find_csv(FULL_SEQS_CSV)
     with open(p, "r", encoding="utf-8") as f:
         return list(_csv.DictReader(f))
 
@@ -299,7 +298,7 @@ def load_sequences_dataframe(path: str | None = None):
     """
     import pandas as pd
 
-    p = path or _find_csv("mhc-full-seqs.csv")
+    p = path or _find_csv(FULL_SEQS_CSV)
     return pd.read_csv(p)
 
 
@@ -346,7 +345,7 @@ def lookup(
                 return True
         return False
 
-    p = _find_csv("mhc-full-seqs.csv", search_dir=search_dir)
+    p = _find_csv(FULL_SEQS_CSV, search_dir=search_dir)
     hit: dict | None = None
     with open(p, "r", encoding="utf-8") as f:
         for row in _csv.DictReader(f):

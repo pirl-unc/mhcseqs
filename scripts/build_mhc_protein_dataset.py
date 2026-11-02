@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from mhcseqs.datafiles import resolve_data_dir
 from mhcseqs.domain_grammar import SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH
 from mhcseqs.domain_parsing import AlleleRecord, decompose_domains
 from mhcseqs.mhc_protein_dataset import (
@@ -558,7 +559,7 @@ def _check_output_directory(directory: Path, filenames: set[str]) -> None:
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
-    cache_root = (args.data_dir or Path(os.environ.get("MHCSEQS_DATA", Path.home() / ".cache" / "mhcseqs"))).resolve()
+    cache_root = resolve_data_dir(args.data_dir).resolve()
     # Snapshot all inputs under the source installer's lock, then release it
     # before parsing. Recovery also permits rebuilding offline after a crash.
     with _cache_read_lock(cache_root):
