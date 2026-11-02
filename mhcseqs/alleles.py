@@ -274,8 +274,8 @@ def canonical_allele_name(parsed: Any, allele_fields: Optional[int] = None) -> s
     -------
     str
         ``"<FullSpeciesAlias>-<name without species>"`` when the result has a
-        species, otherwise mhcgnomes' own ``to_string()`` (or ``str(parsed)``
-        for objects without one).
+        species and a non-empty name without it; otherwise mhcgnomes' own
+        ``to_string()``, or ``str(parsed)`` for objects without one.
     """
     if allele_fields is not None:
         target_fields = max(1, int(allele_fields))
