@@ -198,7 +198,7 @@ def canonicalize_gene_species_alias(gene: str, organism: str) -> str:
     if not gene or gene.startswith("~") or gene == "B2M":
         return gene
 
-    from mhcseqs.alleles import _canonicalize_parsed_name, parse_allele_name
+    from mhcseqs.alleles import canonical_allele_name, parse_allele_name
     from mhcseqs.species import extract_latin_binomial
 
     species_alias = derive_species_alias(organism)
@@ -213,7 +213,7 @@ def canonicalize_gene_species_alias(gene: str, organism: str) -> str:
     latin = extract_latin_binomial(organism)
     parsed = parse_allele_name(gene, species=latin)
     if parsed is not None:
-        canonical = _canonicalize_parsed_name(parsed)
+        canonical = canonical_allele_name(parsed)
         _, parsed_body = canonical.split("-", 1)
         return f"{species_alias}-{parsed_body}"
 

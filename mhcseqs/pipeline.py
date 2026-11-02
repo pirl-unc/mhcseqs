@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
 from .alleles import (
-    _canonicalize_parsed_name,
     allele_suffix_flags,
+    canonical_allele_name,
     infer_gene,
     infer_mhc_class,
     infer_species_identity,
@@ -224,7 +224,7 @@ def _resolve_header_allele(header: str):
             parsed = parse_allele_name(token)
             if parsed is None:
                 continue
-            normalized = _canonicalize_parsed_name(parsed)
+            normalized = canonical_allele_name(parsed)
             gene = getattr(parsed.gene, "name", None) if getattr(parsed, "gene", None) else None
             species = getattr(parsed.species, "name", None) if getattr(parsed, "species", None) else None
             mhc_class = normalize_mhc_class(getattr(parsed, "mhc_class", None))

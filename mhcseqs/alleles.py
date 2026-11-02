@@ -253,7 +253,30 @@ def parse_allele_name(
     return None
 
 
-def _canonicalize_parsed_name(parsed: Any, allele_fields: Optional[int] = None) -> str:
+def canonical_allele_name(parsed: Any, allele_fields: Optional[int] = None) -> str:
+    """Render an mhcgnomes parse result as an mhcseqs canonical allele name.
+
+    The species is written as its full binomial alias (for example
+    ``HomoSapiens`` rather than ``HLA``) so that names from different
+    species can never collide on a shared short prefix.
+
+    Parameters
+    ----------
+    parsed : mhcgnomes result
+        Object returned by :func:`parse_allele_name` (an mhcgnomes ``Allele``,
+        ``Gene``, ``AlleleWithoutGene`` or ``Pair``).
+    allele_fields : int, optional
+        When given, restrict the allele to this many fields (minimum 1)
+        using mhcgnomes ``restrict_allele_fields`` before rendering. Objects
+        without a ``restrict_allele_fields`` method are rendered unchanged.
+
+    Returns
+    -------
+    str
+        ``"<FullSpeciesAlias>-<name without species>"`` when the result has a
+        species, otherwise mhcgnomes' own ``to_string()`` (or ``str(parsed)``
+        for objects without one).
+    """
     if allele_fields is not None:
         target_fields = max(1, int(allele_fields))
         restrict_fn = getattr(parsed, "restrict_allele_fields", None)
@@ -285,7 +308,7 @@ def normalize_allele_name(name: str) -> str:
     parsed = parse_allele_name(name)
     if parsed is None:
         raise ValueError(f"mhcgnomes failed to parse allele: {name!r}")
-    return _canonicalize_parsed_name(parsed, allele_fields=2)
+    return canonical_allele_name(parsed, allele_fields=2)
 
 
 def infer_gene(allele: str) -> str:

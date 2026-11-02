@@ -117,7 +117,27 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _validate_file(path: Path, metadata: dict[str, object]) -> None:
+def validate_asset_file(path: Path, metadata: dict[str, object]) -> None:
+    """Check that a file has exactly the byte count and SHA-256 recorded for it.
+
+    Parameters
+    ----------
+    path : Path
+        File to check.
+    metadata : dict
+        Registry or manifest entry with integer-like ``"bytes"`` and
+        hex-digest ``"sha256"`` keys.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ProteinDatasetError
+        If the file is missing or unreadable, or its size or SHA-256 differs
+        from *metadata*.
+    """
     try:
         if not path.is_file():
             raise ProteinDatasetError(f"Missing dataset asset: {path}")
@@ -146,7 +166,7 @@ def _download_asset(base_url: str, metadata: dict[str, object], destination: Pat
     destination.parent.mkdir(parents=True, exist_ok=True)
     try:
         _download(f"{base_url}/{filename}", destination)
-        _validate_file(destination, metadata)
+        validate_asset_file(destination, metadata)
     except Exception as exc:
         destination.unlink(missing_ok=True)
         if isinstance(exc, ProteinDatasetError):
@@ -155,8 +175,33 @@ def _download_asset(base_url: str, metadata: dict[str, object], destination: Pat
 
 
 @contextmanager
-def _publication_lock(destination: Path, *, shared: bool = False):
-    """Coordinate readers, recovery, and publication for one data version."""
+def publication_lock(destination: Path, *, shared: bool = False):
+    """Lock a cache directory so readers, recovery and publication never interleave.
+
+    The lock is an OS file lock on the sibling file ``.<name>.lock`` next to
+    *destination* (``fcntl.flock`` on POSIX, ``msvcrt.locking`` on Windows).
+    The lock file is kept after release so later callers coordinate on it.
+
+    Parameters
+    ----------
+    destination : Path
+        Directory being read or published. It need not exist yet.
+    shared : bool, optional
+        Take a shared (reader) lock instead of an exclusive one. A shared
+        request opens an existing lock file read-only, so read-only caches
+        stay usable, and creates the lock file only when it is missing. On
+        Windows every lock is exclusive.
+
+    Yields
+    ------
+    None
+        Control returns to the caller while the lock is held.
+
+    Raises
+    ------
+    ProteinDatasetError
+        If the lock file cannot be opened or created.
+    """
     lock_path = destination.with_name(f".{destination.name}.lock")
     try:
         handle = None
@@ -194,12 +239,25 @@ def _publication_lock(destination: Path, *, shared: bool = False):
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
-def _recover_previous_directory(destination: Path) -> None:
+def recover_previous_directory(destination: Path) -> None:
     """Restore an interrupted swap before cache checks or downloads, under lock.
 
-    Callers must validate the restored contents before using them. If both
-    directories exist, publication completed; keep the backup until a verified
+    Callers must hold :func:`publication_lock` for *destination* and must
+    validate the restored contents before using them. If both directories
+    exist, publication completed; keep the backup until a verified
     replacement is ready to be published.
+
+    Parameters
+    ----------
+    destination : Path
+        Published cache directory. Its backup is the sibling
+        ``.<name>.previous``.
+
+    Returns
+    -------
+    None
+        The backup is moved back to *destination* only when the backup exists
+        and *destination* does not.
     """
     backup = destination.with_name(f".{destination.name}.previous")
     if backup.exists() and not destination.exists():
@@ -207,23 +265,71 @@ def _recover_previous_directory(destination: Path) -> None:
 
 
 @contextmanager
-def _cache_read_lock(destination: Path):
-    """Read without write access, taking an exclusive lock only for recovery."""
-    with _publication_lock(destination, shared=True):
+def cache_read_lock(destination: Path):
+    """Hold a reader lock on a cache directory, recovering an interrupted swap first.
+
+    Takes a shared :func:`publication_lock`. Only when *destination* is missing
+    but its ``.<name>.previous`` backup exists does it switch to an exclusive
+    lock and call :func:`recover_previous_directory` before yielding.
+
+    Parameters
+    ----------
+    destination : Path
+        Cache directory about to be read.
+
+    Yields
+    ------
+    None
+        Control returns to the caller while the lock is held.
+
+    Raises
+    ------
+    ProteinDatasetError
+        If the lock file cannot be opened or created.
+    """
+    with publication_lock(destination, shared=True):
         backup = destination.with_name(f".{destination.name}.previous")
         if destination.exists() or not backup.exists():
             yield
             return
     # Release the shared lock before taking an exclusive one; another process
     # may recover/publish in between, so recovery rechecks the directory state.
-    with _publication_lock(destination):
-        _recover_previous_directory(destination)
+    with publication_lock(destination):
+        recover_previous_directory(destination)
         yield
 
 
-def _publish_staged_directory_locked(staged: Path, destination: Path, *, force: bool) -> bool:
-    """Publish a verified directory while the caller holds its version lock."""
-    _recover_previous_directory(destination)
+def publish_staged_directory(staged: Path, destination: Path, *, force: bool) -> bool:
+    """Atomically move a verified staged directory into place.
+
+    The caller must hold :func:`publication_lock` for *destination* and must
+    have verified *staged*. An interrupted earlier swap is recovered first.
+    With *force*, an existing *destination* is renamed to its
+    ``.<name>.previous`` backup, replaced, and the backup deleted; if the
+    replacement fails the backup is restored.
+
+    Parameters
+    ----------
+    staged : Path
+        Fully written and verified directory on the same filesystem.
+    destination : Path
+        Published cache directory to create or replace.
+    force : bool
+        Replace an existing *destination* instead of keeping it.
+
+    Returns
+    -------
+    bool
+        True if *staged* was published, False if *destination* already
+        existed and *force* was not set (the staged directory is left for the
+        caller to remove).
+
+    Raises
+    ------
+    OSError
+        If a rename or backup removal fails.
+    """
+    recover_previous_directory(destination)
     if not force:
         if destination.exists():
             return False
@@ -249,8 +355,8 @@ def _publish_staged_directory_locked(staged: Path, destination: Path, *, force: 
 def _validate_records(paths: ProteinDatasetPaths, spec: dict[str, object]) -> None:
     if not paths.records.parent.exists():
         raise ProteinDatasetNotInstalledError(f"Dataset is not installed: {paths.version}")
-    _validate_file(paths.records, spec["records"])
-    _validate_file(paths.manifest, spec["records_manifest"])
+    validate_asset_file(paths.records, spec["records"])
+    validate_asset_file(paths.manifest, spec["records_manifest"])
     try:
         manifest = json.loads(paths.manifest.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -279,7 +385,7 @@ def validate_mhc_protein_dataset(
         and not destination.with_name(f".{destination.name}.lock").exists()
     ):
         raise ProteinDatasetNotInstalledError(f"Dataset is not installed: {resolved}")
-    with _cache_read_lock(paths.records.parent):
+    with cache_read_lock(paths.records.parent):
         _validate_records(paths, spec)
     return paths
 
@@ -293,7 +399,7 @@ def install_mhc_protein_dataset(
     """Download, verify, and atomically install one records data version."""
     resolved, spec = _version_spec(version)
     paths = mhc_protein_dataset_paths(resolved, data_dir=data_dir)
-    with _cache_read_lock(paths.records.parent):
+    with cache_read_lock(paths.records.parent):
         if paths.records.parent.exists() and not force:
             _validate_records(paths, spec)
             return paths
@@ -311,8 +417,8 @@ def install_mhc_protein_dataset(
         _download_asset(base_url, spec["records"], staged_paths.records)
         _download_asset(base_url, spec["records_manifest"], staged_paths.manifest)
         _validate_records(staged_paths, spec)
-        with _publication_lock(paths.records.parent):
-            _publish_staged_directory_locked(staged, paths.records.parent, force=force)
+        with publication_lock(paths.records.parent):
+            publish_staged_directory(staged, paths.records.parent, force=force)
             _validate_records(paths, spec)
     finally:
         if staged.exists():
@@ -336,9 +442,9 @@ def install_mhc_protein_source_bundle(
     def validate(root: Path) -> None:
         for filename, metadata in assets.items():
             relative = Path(filename) if filename == curation_name else Path("uniprot") / filename
-            _validate_file(root / relative, metadata)
+            validate_asset_file(root / relative, metadata)
 
-    with _cache_read_lock(destination):
+    with cache_read_lock(destination):
         if destination.exists() and not force:
             validate(destination)
             return result
@@ -351,8 +457,8 @@ def install_mhc_protein_source_bundle(
             asset_metadata = {"filename": filename, **metadata}
             _download_asset(str(spec["release_url"]), asset_metadata, staged / relative)
         validate(staged)
-        with _publication_lock(destination):
-            _publish_staged_directory_locked(staged, destination, force=force)
+        with publication_lock(destination):
+            publish_staged_directory(staged, destination, force=force)
             validate(destination)
     finally:
         if staged.exists():
@@ -371,7 +477,7 @@ def _open_mhc_protein_records(path, *, version, data_dir):
     # Capture the compressed bytes (~10 MB for 55k rows) under the same lock as
     # validation. Release before parsing/yielding so slow or nested iterators
     # cannot block other readers or installers, including on Windows.
-    with _cache_read_lock(paths.records.parent):
+    with cache_read_lock(paths.records.parent):
         _validate_records(paths, spec)
         try:
             compressed = paths.records.read_bytes()
