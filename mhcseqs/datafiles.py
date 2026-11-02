@@ -1,9 +1,10 @@
 """On-disk layout of the mhcseqs data directory: where files live and what is there.
 
-This module is the one place that decides where mhcseqs reads and writes
-cached data, and it backs the ``mhcseqs data`` CLI commands.  The data
-directory is ``$MHCSEQS_DATA`` when set, otherwise ``~/.cache/mhcseqs``
-(see :func:`resolve_data_dir`).  It holds:
+Every mhcseqs component (the build, the CLI, the versioned-dataset installer
+and the maintainer scripts) finds the data directory through
+:func:`resolve_data_dir`: ``$MHCSEQS_DATA`` when set, otherwise
+``~/.cache/mhcseqs``.  This module also names the built files and backs the
+``mhcseqs data`` CLI commands.  The data directory holds:
 
 * **source** FASTA files downloaded from IMGT/HLA and IPD-MHC, under ``fasta/``
 * **built** CSVs and reports produced by ``mhcseqs build``
