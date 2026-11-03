@@ -35,11 +35,73 @@ entries: 99.3%.
 | `mhc_class` | I or II |
 | `chain` | alpha, beta, or B2M |
 | `species` | Latin binomial from source |
-| `species_category` | One of the 9 categories above |
-| `source` | `imgt`, `ipd_mhc`, or `uniprot` |
+| `species_category` | One of the 9 [species categories](#species-categories) |
+| `source` | `imgt`, `ipd_mhc`, `uniprot`, or `genbank` |
 | `source_id` | Database accession for provenance |
 | `groove_status` | See [groove status values](parsing.md#groove-status-values) |
 | `is_functional` | True if groove parsed and not null/pseudogene |
+
+## All columns
+
+`mhcseqs build` writes two CSVs. `mhc-seqs-raw.csv` has one row per source
+sequence record; `mhc-full-seqs.csv` has one representative row per two-field
+allele, with the structural decomposition added.
+
+### `mhc-full-seqs.csv`
+
+| Column | Description |
+|---|---|
+| `two_field_allele` | Allele name at two-field resolution |
+| `representative_allele` | Full-resolution allele chosen as the representative |
+| `protein_seq_selection` | How the representative was chosen (`unique`, `nested_longest`, ...) |
+| `gene`, `mhc_class`, `chain`, `species`, `species_category`, `species_prefix`, `source`, `source_id` | As in [key columns](#key-columns); `species_prefix` is the full-binomial prefix, e.g. `HomoSapiens` |
+| `seq_len`, `sequence` | Length and sequence of the full protein |
+| `mature_start` | Offset where the mature protein begins (signal peptide length) |
+| `mature_sequence` | Protein with the signal peptide removed |
+| `groove1`, `groove2` | The two groove halves (see [structural decomposition](parsing.md)) |
+| `groove_seq` | `groove1` followed by `groove2` |
+| `groove1_len`, `groove2_len` | Lengths of the groove halves |
+| `ig_domain`, `ig_domain_len` | Ig-like support domain and its length |
+| `tail`, `tail_len` | Linker, transmembrane and cytoplasmic region, and its length |
+| `domain_architecture` | Typed domain grammar, e.g. `signal_peptide>g_alpha1>g_alpha2>c1_alpha3>tail_linker>transmembrane>cytoplasmic_tail` |
+| `domain_spans` | 1-based domain coordinates in `sequence`, e.g. `signal_peptide:1-24;g_alpha1:25-114;...` |
+| `groove_status` | Parse outcome; see [groove status values](parsing.md#groove-status-values) |
+| `groove_flags` | Comma-separated parser flags (empty for a clean parse) |
+| `anchor_type` | Which Cys pair anchored the parse (`alpha2_cys`, `alpha3_cys`, `beta1_cys`, `beta2_cys`, `raw_fragment`) |
+| `is_null`, `is_questionable`, `is_pseudogene` | Allele status flags |
+| `is_functional` | True if groove parsed and not null/pseudogene |
+
+### `mhc-seqs-raw.csv`
+
+| Column | Description |
+|---|---|
+| `allele_raw` | Allele token or accession from the source record |
+| `allele_normalized` | Full-resolution name normalized by mhcgnomes |
+| `two_field_allele` | Truncated to two-field resolution |
+| `gene`, `mhc_class`, `chain`, `species`, `species_category`, `species_prefix`, `source`, `source_id` | As in [key columns](#key-columns) |
+| `seq_len`, `sequence` | Length and sequence of the full protein |
+| `has_signal_peptide` | True when the sequence starts with Met and the parsed mature start is plausible |
+| `signal_peptide_len` | Mature start offset from the groove parser |
+| `signal_peptide_seq` | Residues before the mature start |
+| `is_null`, `is_questionable`, `is_pseudogene` | Allele status flags |
+
+## Species categories
+
+`mhcseqs.normalize_species()` assigns a fine-grained class and
+`mhcseqs.normalize_mhc_species()` maps it to one of nine `species_category`
+values:
+
+| Category | Fine-grained classes |
+|---|---|
+| `human` | human |
+| `nhp` | macaque, chimpanzee, gorilla, orangutan, baboon, other_nhp |
+| `murine` | mouse, rat |
+| `ungulate` | cattle, pig, horse, sheep, goat |
+| `carnivore` | dog, cat |
+| `other_mammal` | rabbit, bat, marsupial, monotreme, cetacean, other_mammal |
+| `bird` | chicken, other_bird |
+| `fish` | salmon, zebrafish, shark, other_fish |
+| `other_vertebrate` | reptile, amphibian, other_vertebrate |
 
 ## Species prefixes
 

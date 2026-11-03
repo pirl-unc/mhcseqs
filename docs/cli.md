@@ -18,7 +18,8 @@ sources and writes the CSVs, `lookup` reads one allele back out of them, and
 ## Build the database
 
 ```bash
-# Build all output CSVs (writes to ~/.cache/mhcseqs/)
+# Build all output CSVs (writes to ~/.cache/mhcseqs/; set MHCSEQS_DATA to use another
+# data directory for downloads, built CSVs and versioned datasets)
 mhcseqs build
 
 # Build to a specific directory instead
@@ -66,9 +67,37 @@ mhcseqs lookup "HLA-A*02:01"
   domain_spans: signal_peptide:1-24;g_alpha1:25-114;g_alpha2:115-207;c1_alpha3:208-302;tail_linker:303-307;transmembrane:308-331;cytoplasmic_tail:332-365
   groove_status: ok
   groove_flags:
+  anchor_type: alpha2_cys
+  is_null: False
+  is_questionable: False
+  is_pseudogene: False
+  is_functional: True
+
+--- mhc-seqs-raw.csv ---
+  allele_raw: A*02:01:01:01
+  allele_normalized: HomoSapiens-A*02:01:01:01
+  two_field_allele: HomoSapiens-A*02:01
+  gene: A
+  mhc_class: I
+  chain: alpha
+  species: Homo sapiens
+  species_category: human
+  species_prefix: HomoSapiens
+  source: imgt
+  source_id: HLA00005
+  seq_len: 365
+  sequence: MAVMAPRTLVLLLSGALALTQTWAGSHSMRYFFTSVSRPGRGEPRFIAVG... (365 aa)
+  has_signal_peptide: True
+  signal_peptide_len: 24
+  signal_peptide_seq: MAVMAPRTLVLLLSGALALTQTWA
+  is_null: False
+  is_questionable: False
+  is_pseudogene: False
 ```
 
-The `groove_seq` line is omitted above for width; the command prints it
+The first block is the representative row from `mhc-full-seqs.csv`; the
+second is the first matching source row from `mhc-seqs-raw.csv`. The
+`groove_seq` line is omitted above for width; the command prints it
 between `groove2` and `groove1_len`. Non-human alleles work the same way:
 `mhcseqs lookup "Mamu-A1*001:01"`. Use `--output-dir` when the CSVs are not in
 `~/.cache/mhcseqs`.
