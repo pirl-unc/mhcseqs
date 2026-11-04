@@ -12,7 +12,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # One group per ref: a docs build for one pull request must not cancel
+  # another's. Pushes to main still share a group, so deploys never overlap.
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
