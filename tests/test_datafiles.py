@@ -1,7 +1,11 @@
 """Tests for the cached-data inventory/clear helpers behind `mhcseqs data`."""
 
-from mhcseqs.datafiles import BUILT_FILES, clear, fasta_dir, inventory
+import pytest
+
+import mhcseqs
+from mhcseqs.datafiles import BUILT_FILES, DATA_DIR_ENV_VAR, clear, fasta_dir, inventory, resolve_data_dir
 from mhcseqs.download import SOURCES
+from mhcseqs.mhc_protein_dataset import mhc_protein_dataset_paths
 
 
 def _populate(data_dir):
@@ -69,3 +73,31 @@ def test_clear_everything(tmp_path):
 
 def test_clear_nothing_present(tmp_path):
     assert clear(tmp_path, sources=True, built=True) == []
+
+
+def test_resolve_data_dir_prefers_explicit_directory(monkeypatch, tmp_path):
+    monkeypatch.setenv(DATA_DIR_ENV_VAR, str(tmp_path / "from-env"))
+    assert resolve_data_dir(tmp_path / "explicit") == tmp_path / "explicit"
+    assert resolve_data_dir(str(tmp_path / "explicit")) == tmp_path / "explicit"
+
+
+def test_resolve_data_dir_uses_environment(monkeypatch, tmp_path):
+    monkeypatch.setenv(DATA_DIR_ENV_VAR, str(tmp_path))
+    assert resolve_data_dir() == tmp_path
+
+
+@pytest.mark.parametrize("env_value", [None, ""])
+def test_resolve_data_dir_defaults_to_user_cache_without_creating_it(monkeypatch, tmp_path, env_value):
+    if env_value is None:
+        monkeypatch.delenv(DATA_DIR_ENV_VAR, raising=False)
+    else:
+        monkeypatch.setenv(DATA_DIR_ENV_VAR, env_value)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert resolve_data_dir() == tmp_path / ".cache" / "mhcseqs"
+    assert not (tmp_path / ".cache").exists()
+
+
+def test_built_csvs_and_versioned_datasets_share_one_data_dir(monkeypatch, tmp_path):
+    monkeypatch.setenv(DATA_DIR_ENV_VAR, str(tmp_path))
+    assert mhcseqs.default_data_dir() == str(tmp_path)
+    assert mhc_protein_dataset_paths().records.is_relative_to(tmp_path / "datasets")

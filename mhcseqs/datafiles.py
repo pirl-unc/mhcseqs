@@ -1,29 +1,65 @@
-"""Inventory and cleanup helpers for cached mhcseqs data files.
+"""On-disk layout of the mhcseqs data directory: where files live and what is there.
 
-Backs the ``mhcseqs data`` CLI commands.  Two kinds of files live under the
-data directory (``$MHCSEQS_DATA`` or ``~/.cache/mhcseqs``):
+The build, the CLI, the versioned-dataset installer and the maintainer
+scripts that use the data directory find it through
+:func:`resolve_data_dir`: ``$MHCSEQS_DATA`` when set to a non-empty value,
+otherwise ``~/.cache/mhcseqs``.  This module also names the built files and
+backs the ``mhcseqs data`` CLI commands.  The data directory holds:
 
 * **source** FASTA files downloaded from IMGT/HLA and IPD-MHC, under ``fasta/``
 * **built** CSVs and reports produced by ``mhcseqs build``
+* versioned datasets and source bundles (managed by
+  :mod:`mhcseqs.mhc_protein_dataset`)
 
-These helpers are pure (no printing) so they can be unit-tested; the CLI layer
-in ``__main__`` handles formatting.
+These functions are pure (no printing) so they can be unit-tested; the CLI
+layer in ``__main__`` handles formatting.
 """
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 from .download import SOURCES
 
-# Built artifacts produced by the build pipeline, relative to the data dir.
+# Environment variable that overrides the default data directory.
+DATA_DIR_ENV_VAR = "MHCSEQS_DATA"
+
+# Built artifacts produced by the build pipeline, relative to the output dir.
+RAW_CSV = "mhc-seqs-raw.csv"
+FULL_SEQS_CSV = "mhc-full-seqs.csv"
+MERGE_REPORT = "mhc-merge-report.txt"
+VALIDATION_REPORT = "mhc-validation-report.txt"
 BUILT_FILES = (
-    "mhc-seqs-raw.csv",
-    "mhc-full-seqs.csv",
-    "mhc-merge-report.txt",
-    "mhc-validation-report.txt",
+    RAW_CSV,
+    FULL_SEQS_CSV,
+    MERGE_REPORT,
+    VALIDATION_REPORT,
 )
+
+
+def resolve_data_dir(data_dir: str | Path | None = None) -> Path:
+    """Return the mhcseqs data directory, without creating it.
+
+    Parameters
+    ----------
+    data_dir : str or Path, optional
+        Explicit directory chosen by the caller. When given, it is returned
+        as a :class:`~pathlib.Path` and the environment is ignored.
+
+    Returns
+    -------
+    Path
+        *data_dir* if given; otherwise the value of ``$MHCSEQS_DATA`` when it
+        is set to a non-empty string; otherwise ``~/.cache/mhcseqs``.
+    """
+    if data_dir is not None:
+        return Path(data_dir)
+    configured = os.environ.get(DATA_DIR_ENV_VAR)
+    if configured:
+        return Path(configured)
+    return Path.home() / ".cache" / "mhcseqs"
 
 
 @dataclass

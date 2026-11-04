@@ -149,7 +149,7 @@ def test_missing_version_validation_waits_for_existing_publisher(monkeypatch, tm
         return datasets.validate_mhc_protein_dataset(data_dir=tmp_path)
 
     with ThreadPoolExecutor(max_workers=1) as pool:
-        with datasets._publication_lock(paths.records.parent):
+        with datasets.publication_lock(paths.records.parent):
             reader = pool.submit(validate)
             assert attempted.wait(timeout=5)
             with pytest.raises(TimeoutError):
@@ -301,12 +301,12 @@ def test_read_only_lock_still_serializes_access(tmp_path, contents):
 
     def contender():
         attempted.set()
-        with datasets._cache_read_lock(destination):
+        with datasets.cache_read_lock(destination):
             return "locked"
 
     try:
         with ThreadPoolExecutor(max_workers=1) as pool:
-            with datasets._publication_lock(destination):
+            with datasets.publication_lock(destination):
                 # The publisher already has its writable handle. A different
                 # user only needs read access to wait on the same lock file.
                 lock.chmod(0o444)
@@ -545,3 +545,61 @@ def test_shipped_registry_pins_every_asset():
             assert int(metadata["bytes"]) > 0
             assert len(metadata["sha256"]) == 64
             int(metadata["sha256"], 16)
+
+
+def test_validate_asset_file_checks_size_and_digest(tmp_path):
+    path = tmp_path / "asset.bin"
+    path.write_bytes(b"payload")
+    datasets.validate_asset_file(path, _metadata(path.name, b"payload"))
+    with pytest.raises(datasets.ProteinDatasetError, match="Wrong byte count"):
+        datasets.validate_asset_file(path, _metadata(path.name, b"payload!"))
+    with pytest.raises(datasets.ProteinDatasetError, match="SHA-256 mismatch"):
+        datasets.validate_asset_file(path, _metadata(path.name, b"PAYLOAD"))
+    with pytest.raises(datasets.ProteinDatasetError, match="Missing dataset asset"):
+        datasets.validate_asset_file(tmp_path / "absent.bin", _metadata("absent.bin", b"payload"))
+
+
+def test_publication_lock_uses_sibling_lock_file(tmp_path):
+    destination = tmp_path / "cache" / "v1"
+    with datasets.publication_lock(destination):
+        assert (tmp_path / "cache" / ".v1.lock").is_file()
+    assert not destination.exists()
+
+
+def test_recover_previous_directory_restores_only_a_missing_destination(tmp_path):
+    destination = tmp_path / "v1"
+    backup = tmp_path / ".v1.previous"
+    backup.mkdir()
+    (backup / "records").write_text("old")
+    datasets.recover_previous_directory(destination)
+    assert (destination / "records").read_text() == "old" and not backup.exists()
+
+    backup.mkdir()
+    datasets.recover_previous_directory(destination)
+    assert backup.exists() and (destination / "records").read_text() == "old"
+
+
+def test_cache_read_lock_recovers_interrupted_swap(tmp_path):
+    destination = tmp_path / "v1"
+    backup = tmp_path / ".v1.previous"
+    backup.mkdir()
+    with datasets.cache_read_lock(destination):
+        assert destination.is_dir() and not backup.exists()
+
+
+def test_publish_staged_directory_keeps_or_replaces_destination(tmp_path):
+    destination = tmp_path / "v1"
+    first = tmp_path / "staged-1"
+    first.mkdir()
+    (first / "records").write_text("first")
+    assert datasets.publish_staged_directory(first, destination, force=False) is True
+
+    second = tmp_path / "staged-2"
+    second.mkdir()
+    (second / "records").write_text("second")
+    assert datasets.publish_staged_directory(second, destination, force=False) is False
+    assert (destination / "records").read_text() == "first" and second.exists()
+
+    assert datasets.publish_staged_directory(second, destination, force=True) is True
+    assert (destination / "records").read_text() == "second"
+    assert not second.exists() and not (tmp_path / ".v1.previous").exists()

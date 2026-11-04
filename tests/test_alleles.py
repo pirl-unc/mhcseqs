@@ -1,6 +1,7 @@
 from mhcseqs.alleles import (
     _coerce_allele_name,
     allele_suffix_flags,
+    canonical_allele_name,
     infer_gene,
     infer_mhc_class,
     infer_species,
@@ -245,3 +246,10 @@ def test_coerce_allele_name_h2_passthrough():
     assert _coerce_allele_name("H2-Kb") == "H2-Kb"
     assert _coerce_allele_name("H-2-Kb") == "H2-Kb"
     assert _coerce_allele_name("H-2Kb") == "H2-Kb"
+
+
+def test_canonical_allele_name_uses_full_binomial_species_alias():
+    parsed = parse_allele_name("HLA-A*02:01:01:02L")
+    assert canonical_allele_name(parsed) == "HomoSapiens-A*02:01:01:02L"
+    assert canonical_allele_name(parsed, allele_fields=2) == "HomoSapiens-A*02:01L"
+    assert canonical_allele_name(parse_allele_name("HLA-DRB1"), allele_fields=2) == "HomoSapiens-DRB1"

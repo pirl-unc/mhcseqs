@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Report build counts and mhcgnomes parse rate.
 
-Reads the built CSV from ~/.cache/mhcseqs/ and prints a summary.
+Reads the built CSV from the mhcseqs data directory ($MHCSEQS_DATA or
+~/.cache/mhcseqs/) and prints a summary.
 Intended to run after `mhcseqs build` or in CI after merge to main.
 
 Usage:
@@ -15,7 +16,9 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-BUILT_CSV = Path.home() / ".cache" / "mhcseqs" / "mhc-full-seqs.csv"
+from mhcseqs.datafiles import FULL_SEQS_CSV, resolve_data_dir
+
+BUILT_CSV = resolve_data_dir() / FULL_SEQS_CSV
 DIVERSE_CSV = Path(__file__).resolve().parent.parent / "mhcseqs" / "diverse_mhc_sequences.csv"
 B2M_CSV = Path(__file__).resolve().parent.parent / "mhcseqs" / "b2m_sequences.csv"
 
