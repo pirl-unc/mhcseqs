@@ -20,6 +20,8 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from mhcseqs.datafiles import FULL_SEQS_CSV, resolve_data_dir
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DOC = ROOT / "docs" / "data.md"
 DIVERSE_CSV = ROOT / "mhcseqs" / "diverse_mhc_sequences.csv"
@@ -36,7 +38,7 @@ CATEGORIES = [
     "other_vertebrate",
 ]
 
-BUILT_CSV = Path.home() / ".cache" / "mhcseqs" / "mhc-full-seqs.csv"
+BUILT_CSV = resolve_data_dir() / FULL_SEQS_CSV
 
 
 def load_built_counts() -> Counter:

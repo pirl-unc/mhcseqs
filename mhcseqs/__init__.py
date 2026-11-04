@@ -26,47 +26,6 @@ Quick start::
 from dataclasses import dataclass
 from typing import Sequence
 
-__all__ = [
-    # domain_parsing
-    "NON_GROOVE_GENES",
-    "AlleleRecord",
-    "RawAllele",
-    "SequenceFeatures",
-    "StructuralDomain",
-    "analyze_sequence",
-    "apply_mutations",
-    "decompose_class_i",
-    "decompose_class_ii_alpha",
-    "decompose_class_ii_beta",
-    "decompose_domains",
-    "extract_groove",
-    "find_cys_pairs",
-    "infer_structural_domains",
-    "parse_class_i",
-    "parse_class_ii_alpha",
-    "parse_class_ii_beta",
-    # mhc_protein_dataset
-    "ProteinDatasetError",
-    "ProteinDatasetPaths",
-    "ProteinSourceBundlePaths",
-    "available_mhc_protein_dataset_versions",
-    "default_mhc_protein_dataset_version",
-    "install_mhc_protein_dataset",
-    "install_mhc_protein_source_bundle",
-    "iter_mhc_protein_records",
-    "load_mhc_protein_dataframe",
-    "load_mhc_protein_records",
-    "mhc_protein_dataset_paths",
-    "validate_mhc_protein_dataset",
-    # alleles
-    "infer_gene",
-    "infer_mhc_class",
-    "infer_species",
-    "normalize_allele_name",
-    "normalize_mhc_class",
-    "parse_allele_name",
-]
-
 from .alleles import (
     infer_gene,
     infer_mhc_class,
@@ -75,6 +34,7 @@ from .alleles import (
     normalize_mhc_class,
     parse_allele_name,
 )
+from .datafiles import FULL_SEQS_CSV, MERGE_REPORT, RAW_CSV, VALIDATION_REPORT, fasta_dir, resolve_data_dir
 from .domain_parsing import (
     NON_GROOVE_GENES,
     AlleleRecord,
@@ -151,12 +111,19 @@ from .version import __version__
 class BuildPaths:
     """Paths to CSV files produced by :func:`build`.
 
-    Attributes:
-        raw: Every protein entry from all sources (``mhc-seqs-raw.csv``).
-        sequences: One representative per two-field allele group, with full
-            sequence, groove decomposition, and metadata (``mhc-full-seqs.csv``).
-        merge_report: Human-readable report of the merge/dedup step.
-        validation_report: Human-readable validation sanity checks.
+    Attributes
+    ----------
+    raw : str
+        Every protein entry from all sources (``mhc-seqs-raw.csv``).
+    sequences : str
+        One representative per two-field allele group, with full sequence,
+        groove decomposition, and metadata (``mhc-full-seqs.csv``).
+    merge_report : str
+        Human-readable report of the merge/dedup step
+        (``mhc-merge-report.txt``).
+    validation_report : str
+        Human-readable validation sanity checks
+        (``mhc-validation-report.txt``).
     """
 
     raw: str
@@ -168,13 +135,11 @@ class BuildPaths:
 def default_data_dir() -> str:
     """Return the default directory for downloads and built CSVs.
 
-    Uses ``$MHCSEQS_DATA`` if set, otherwise ``~/.cache/mhcseqs``.
+    Uses ``$MHCSEQS_DATA`` if set to a non-empty value, otherwise
+    ``~/.cache/mhcseqs`` (resolved by :func:`mhcseqs.datafiles.resolve_data_dir`).
     The directory is created on first use.
     """
-    import os
-    from pathlib import Path
-
-    d = Path(os.environ.get("MHCSEQS_DATA", Path.home() / ".cache" / "mhcseqs"))
+    d = resolve_data_dir()
     d.mkdir(parents=True, exist_ok=True)
     return str(d)
 
@@ -186,12 +151,27 @@ def build(
 ) -> BuildPaths:
     """Run the full build pipeline: download, parse, extract grooves.
 
-    If *output_dir* is ``None`` (default), CSVs are written to
-    :func:`default_data_dir` (``~/.cache/mhcseqs``).
-    FASTA downloads are stored in a ``fasta/`` subdirectory of the data dir.
-    Set *force_download* to re-fetch source FASTA files even when cached.
+    Parameters
+    ----------
+    output_dir : str, optional
+        Directory for the built CSVs and reports. Defaults to
+        :func:`default_data_dir` (``$MHCSEQS_DATA`` or ``~/.cache/mhcseqs``).
+    data_dir : str, optional
+        Directory for the downloaded IMGT/HLA and IPD-MHC FASTA files.
+        Defaults to the ``fasta/`` subdirectory of the output directory.
+    force_download : bool, optional
+        Re-fetch the source FASTA files even when a cached copy exists.
 
-    Returns a :class:`BuildPaths` with the paths to the generated files.
+    Returns
+    -------
+    BuildPaths
+        Paths to the four generated files.
+
+    Raises
+    ------
+    OSError
+        If a source download fails (``urllib.error.URLError`` is a subclass)
+        or an output file cannot be written.
     """
     from pathlib import Path
 
@@ -202,7 +182,7 @@ def build(
     else:
         out = Path(output_dir)
     if data_dir is None:
-        dd = out / "fasta"
+        dd = fasta_dir(out)
     else:
         dd = Path(data_dir)
 
@@ -212,15 +192,15 @@ def build(
         (paths["ipd_mhc"], SOURCES["ipd_mhc"]["label"]),
     ]
 
-    raw_csv = out / "mhc-seqs-raw.csv"
+    raw_csv = out / RAW_CSV
     build_raw_index(fasta_inputs, raw_csv)
 
-    full_csv = out / "mhc-full-seqs.csv"
-    report_path = out / "mhc-merge-report.txt"
+    full_csv = out / FULL_SEQS_CSV
+    report_path = out / MERGE_REPORT
     build_full_seqs(raw_csv, full_csv, report_path=report_path)
 
     warnings, stats = validate_build(raw_csv, full_csv)
-    validation_path = out / "mhc-validation-report.txt"
+    validation_path = out / VALIDATION_REPORT
     with open(validation_path, "w", encoding="utf-8") as f:
         f.write(format_validation_report(warnings, stats) + "\n")
 
@@ -261,19 +241,55 @@ def load_raw_dict(path: str | None = None) -> list[dict]:
 
     Contains every individual protein entry from all sources,
     including duplicates and fragments.
+
+    Parameters
+    ----------
+    path : str, optional
+        CSV to read. By default ``mhc-seqs-raw.csv`` is searched for in the
+        current directory, then :func:`default_data_dir`, then the directory
+        containing the ``mhcseqs`` package.
+
+    Returns
+    -------
+    list of dict
+        One ``{column: value}`` dict per row; all values are strings.
+
+    Raises
+    ------
+    FileNotFoundError
+        If *path* is not given and no built CSV is found.
     """
     import csv as _csv
 
-    p = path or _find_csv("mhc-seqs-raw.csv")
+    p = path or _find_csv(RAW_CSV)
     with open(p, "r", encoding="utf-8") as f:
         return list(_csv.DictReader(f))
 
 
 def load_raw_dataframe(path: str | None = None):
-    """Load the raw sequence CSV as a pandas DataFrame."""
+    """Load the raw sequence CSV as a pandas DataFrame.
+
+    Parameters
+    ----------
+    path : str, optional
+        CSV to read. Located as in :func:`load_raw_dict` when omitted.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per raw protein entry.
+
+    Raises
+    ------
+    ImportError
+        If pandas cannot be imported. mhcseqs does not list pandas itself;
+        it is installed as a dependency of mhcgnomes.
+    FileNotFoundError
+        If *path* is not given and no built CSV is found.
+    """
     import pandas as pd
 
-    p = path or _find_csv("mhc-seqs-raw.csv")
+    p = path or _find_csv(RAW_CSV)
     return pd.read_csv(p)
 
 
@@ -283,10 +299,27 @@ def load_sequences_dict(path: str | None = None) -> list[dict]:
     One row per two-field allele with the best available full-length
     protein sequence, groove decomposition, species metadata, and
     signal peptide annotation.
+
+    Parameters
+    ----------
+    path : str, optional
+        CSV to read. By default ``mhc-full-seqs.csv`` is searched for in the
+        current directory, then :func:`default_data_dir`, then the directory
+        containing the ``mhcseqs`` package.
+
+    Returns
+    -------
+    list of dict
+        One ``{column: value}`` dict per row; all values are strings.
+
+    Raises
+    ------
+    FileNotFoundError
+        If *path* is not given and no built CSV is found.
     """
     import csv as _csv
 
-    p = path or _find_csv("mhc-full-seqs.csv")
+    p = path or _find_csv(FULL_SEQS_CSV)
     with open(p, "r", encoding="utf-8") as f:
         return list(_csv.DictReader(f))
 
@@ -296,10 +329,28 @@ def load_sequences_dataframe(path: str | None = None):
 
     One row per two-field allele with full protein, mature sequence,
     groove decomposition, species metadata, and allele status flags.
+
+    Parameters
+    ----------
+    path : str, optional
+        CSV to read. Located as in :func:`load_sequences_dict` when omitted.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per two-field allele.
+
+    Raises
+    ------
+    ImportError
+        If pandas cannot be imported. mhcseqs does not list pandas itself;
+        it is installed as a dependency of mhcgnomes.
+    FileNotFoundError
+        If *path* is not given and no built CSV is found.
     """
     import pandas as pd
 
-    p = path or _find_csv("mhc-full-seqs.csv")
+    p = path or _find_csv(FULL_SEQS_CSV)
     return pd.read_csv(p)
 
 
@@ -317,6 +368,34 @@ def lookup(
 
     Optionally applies mutations (same format as ``decompose_domains()``).
 
+    Parameters
+    ----------
+    allele : str
+        Allele name. A row matches when its ``two_field_allele`` or
+        ``representative_allele`` equals the query exactly, ignoring case, or
+        after :func:`normalize_allele_name` (so ``"HLA-A*02:01"`` finds
+        ``"HomoSapiens-A*02:01"``). The first matching row is used.
+    mutations : sequence of str, optional
+        Point mutations such as ``"K66A"`` to apply to the looked-up sequence.
+    search_dir : str, optional
+        Directory searched first for ``mhc-full-seqs.csv``, before the current
+        directory, :func:`default_data_dir`, and the package's parent directory.
+
+    Returns
+    -------
+    AlleleRecord
+        Domain decomposition of the representative sequence, with the CSV's
+        species, source, and full sequence fields filled in.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the full-seqs CSV hasn't been built yet.
+    KeyError
+        If no matching allele is found.
+
+    Examples
+    --------
     >>> r = mhcseqs.lookup("HLA-A*02:01")           # doctest: +SKIP
     >>> r.groove1[:10]                               # doctest: +SKIP
     'GSHSMRYFFT'
@@ -324,10 +403,6 @@ def lookup(
     ...                    mutations=["K66A"])
     >>> m.groove1[65]                                # doctest: +SKIP
     'A'
-
-    Raises:
-        FileNotFoundError: If the full-seqs CSV hasn't been built yet.
-        KeyError: If no matching allele is found.
     """
     import csv as _csv
     from dataclasses import replace
@@ -346,7 +421,7 @@ def lookup(
                 return True
         return False
 
-    p = _find_csv("mhc-full-seqs.csv", search_dir=search_dir)
+    p = _find_csv(FULL_SEQS_CSV, search_dir=search_dir)
     hit: dict | None = None
     with open(p, "r", encoding="utf-8") as f:
         for row in _csv.DictReader(f):
@@ -421,8 +496,12 @@ __all__ = [
     "parse_class_i",
     "parse_class_ii_alpha",
     "parse_class_ii_beta",
+    "analyze_sequence",
+    "infer_structural_domains",
     "RawAllele",
     "AlleleRecord",
+    "SequenceFeatures",
+    "StructuralDomain",
     "NON_GROOVE_GENES",
     "parse_allele_name",
     "normalize_allele_name",

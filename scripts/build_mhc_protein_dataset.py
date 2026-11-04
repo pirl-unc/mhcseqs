@@ -29,14 +29,15 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from mhcseqs.datafiles import resolve_data_dir
 from mhcseqs.domain_grammar import SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH
 from mhcseqs.domain_parsing import AlleleRecord, decompose_domains
 from mhcseqs.mhc_protein_dataset import (
-    _cache_read_lock,
-    _publication_lock,
-    _publish_staged_directory_locked,
-    _recover_previous_directory,
-    _validate_file,
+    cache_read_lock,
+    publication_lock,
+    publish_staged_directory,
+    recover_previous_directory,
+    validate_asset_file,
 )
 from mhcseqs.version import __version__
 from scripts.enrich_sp_ground_truth import _classify_from_names
@@ -558,10 +559,10 @@ def _check_output_directory(directory: Path, filenames: set[str]) -> None:
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
-    cache_root = (args.data_dir or Path(os.environ.get("MHCSEQS_DATA", Path.home() / ".cache" / "mhcseqs"))).resolve()
+    cache_root = resolve_data_dir(args.data_dir).resolve()
     # Snapshot all inputs under the source installer's lock, then release it
     # before parsing. Recovery also permits rebuilding offline after a crash.
-    with _cache_read_lock(cache_root):
+    with cache_read_lock(cache_root):
         if not args.label_curation.is_file():
             raise FileNotFoundError(f"Missing pinned MHC label curation: {args.label_curation}")
         source_manifest = validate_artifact_bundle(cache_root)
@@ -580,10 +581,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     if destination == cache_root or cache_root in destination.parents:
         raise ValueError("Output directory must be outside the source bundle; source reinstallation replaces that entire tree")
     filenames = {output.name, manifest_output.name}
-    with _publication_lock(destination):
+    with publication_lock(destination):
         _check_output_directory(destination, filenames)
         _check_output_directory(destination.with_name(f".{destination.name}.previous"), filenames)
-        _recover_previous_directory(destination)
+        recover_previous_directory(destination)
 
     use_early_shortcuts = args.use_early_shortcuts
     print(f"Parsing {len(artifacts):,} source records with {args.workers} worker(s)...", flush=True)
@@ -611,13 +612,13 @@ def main(argv: Sequence[str] | None = None) -> None:
             version=version,
             use_early_shortcuts=use_early_shortcuts,
         )
-        _validate_file(staged_output, manifest["records"])
+        validate_asset_file(staged_output, manifest["records"])
         if json.loads(staged_manifest.read_text(encoding="utf-8")) != manifest:
             raise ValueError("Staged records manifest failed validation")
-        with _publication_lock(destination):
+        with publication_lock(destination):
             _check_output_directory(destination, filenames)
             _check_output_directory(destination.with_name(f".{destination.name}.previous"), filenames)
-            _publish_staged_directory_locked(staged, destination, force=True)
+            publish_staged_directory(staged, destination, force=True)
 
     print(f"Wrote {len(rows):,} MHC protein records to {output}")
     print(f"Wrote data manifest to {manifest_output}")
