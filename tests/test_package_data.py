@@ -13,7 +13,7 @@ every declared entry must exist, and every shipped data file must be declared.
 
 import csv
 import json
-import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -32,10 +32,6 @@ RUNTIME_DATA_PATHS = (SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH, _GENBA
 
 def _package_data_entries() -> set[str]:
     """Read the declared package-data filenames, or skip if unreadable here."""
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:  # pragma: no cover - exercised only on Python 3.10
-        tomllib = pytest.importorskip("tomli", reason="reading pyproject.toml needs tomllib (3.11+) or tomli")
     if not PYPROJECT.exists():
         pytest.skip("pyproject.toml is not available next to an installed package")
     with PYPROJECT.open("rb") as handle:

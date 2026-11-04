@@ -33,7 +33,7 @@ Before telling the user a change is "complete":
 
 ## Code Style
 
-- Python 3.10+ (`requires-python` in `pyproject.toml`; CI tests 3.10-3.12)
+- Python 3.11+ (`requires-python` in `pyproject.toml`; CI tests 3.11-3.14)
 - Lint: ruff (config in `pyproject.toml`)
 - Docstrings: numpy style
 - Bugfixes include a regression test where feasible

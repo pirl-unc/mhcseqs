@@ -520,7 +520,7 @@ def load_mhc_protein_dataframe(
     version: str | None = None,
     data_dir: str | Path | None = None,
 ):
-    """Load all records as a pandas DataFrame (pandas is an optional dependency)."""
+    """Load all records as a pandas DataFrame (needs ``pip install "mhcseqs[pandas]"``)."""
     import pandas as pd
 
     if path is not None:
