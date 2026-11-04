@@ -20,8 +20,8 @@ import sys
 from pathlib import Path
 
 from . import default_data_dir
+from .datafiles import FULL_SEQS_CSV, MERGE_REPORT, RAW_CSV, VALIDATION_REPORT, fasta_dir, inventory
 from .datafiles import clear as clear_data
-from .datafiles import fasta_dir, inventory
 from .download import SOURCES, download_all
 from .mhc_protein_dataset import (
     DATASET_NAME as MHC_PROTEIN_DATASET_NAME,
@@ -43,7 +43,7 @@ from .version import __version__
 def cmd_build(args):
     dd = Path(default_data_dir())
     out_dir: Path = args.output_dir or dd
-    data_dir: Path = args.data_dir or (dd / "fasta")
+    data_dir: Path = args.data_dir or fasta_dir(dd)
 
     print("=" * 60)
     print("Step 1/4: Downloading FASTA source files")
@@ -56,7 +56,7 @@ def cmd_build(args):
         (paths["ipd_mhc"], SOURCES["ipd_mhc"]["label"]),
     ]
 
-    raw_csv = out_dir / "mhc-seqs-raw.csv"
+    raw_csv = out_dir / RAW_CSV
     print("=" * 60)
     print("Step 2/4: Building raw sequence index")
     print("=" * 60)
@@ -65,8 +65,8 @@ def cmd_build(args):
     print(f"  -> {raw_csv}")
     print()
 
-    full_csv = out_dir / "mhc-full-seqs.csv"
-    report_path = out_dir / "mhc-merge-report.txt"
+    full_csv = out_dir / FULL_SEQS_CSV
+    report_path = out_dir / MERGE_REPORT
     print("=" * 60)
     print("Step 3/4: Selecting two-field representatives + groove extraction")
     print("=" * 60)
@@ -82,7 +82,7 @@ def cmd_build(args):
     warnings, val_stats = validate_build(raw_csv, full_csv)
     report = format_validation_report(warnings, val_stats)
     print(report)
-    validation_path = out_dir / "mhc-validation-report.txt"
+    validation_path = out_dir / VALIDATION_REPORT
     with open(validation_path, "w", encoding="utf-8") as f:
         f.write(report + "\n")
     print(f"  -> {validation_path}")
@@ -103,7 +103,7 @@ def cmd_lookup(args):
     # Find the CSVs — look in output dir, default data dir, and CWD
     search_dirs = [out_dir, dd, Path(".")]
     csv_files = {}
-    for name in ("mhc-seqs-raw.csv", "mhc-full-seqs.csv"):
+    for name in (RAW_CSV, FULL_SEQS_CSV):
         for d in search_dirs:
             p = d / name
             if p.exists():

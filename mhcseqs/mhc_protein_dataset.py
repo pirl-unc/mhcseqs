@@ -23,6 +23,8 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Iterator
 
+from .datafiles import resolve_data_dir
+
 DATASET_NAME = "mhc-proteins"
 _REGISTRY_FILE = "mhc_protein_datasets.json"
 _READ_SIZE = 1 << 20
@@ -83,15 +85,8 @@ def _version_spec(version: str | None) -> tuple[str, dict[str, object]]:
     return resolved, spec
 
 
-def _data_root(data_dir: str | Path | None) -> Path:
-    if data_dir is not None:
-        return Path(data_dir)
-    configured = os.environ.get("MHCSEQS_DATA")
-    return Path(configured) if configured else Path.home() / ".cache" / "mhcseqs"
-
-
 def _version_dir(version: str, data_dir: str | Path | None) -> Path:
-    return _data_root(data_dir) / "datasets" / DATASET_NAME / version
+    return resolve_data_dir(data_dir) / "datasets" / DATASET_NAME / version
 
 
 def mhc_protein_dataset_paths(
@@ -441,7 +436,7 @@ def install_mhc_protein_source_bundle(
 ) -> ProteinSourceBundlePaths:
     """Install every source artifact needed for offline data regeneration."""
     resolved, spec = _version_spec(version)
-    destination = _data_root(data_dir) / "source-bundles" / DATASET_NAME / resolved
+    destination = resolve_data_dir(data_dir) / "source-bundles" / DATASET_NAME / resolved
     curation_name = "sp_ground_truth_label_curation.csv"
     result = ProteinSourceBundlePaths(resolved, destination, destination / "uniprot", destination / curation_name)
     assets = spec["source_bundle"]

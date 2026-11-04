@@ -23,6 +23,7 @@ from .alleles import (
     parse_allele_name,
     parse_gene_class,
 )
+from .datafiles import MERGE_REPORT
 from .domain_grammar import MAMMAL_CATEGORIES, NON_MHC_ACCESSIONS
 from .domain_parsing import (
     NON_GROOVE_GENES,
@@ -1519,7 +1520,7 @@ def build_full_seqs(
 
     # Write merge report
     if report_path is None:
-        report_path = out_csv.parent / "mhc-merge-report.txt"
+        report_path = out_csv.parent / MERGE_REPORT
     _write_merge_report(report_path, stats, mature_aligned_entries, conflict_entries)
 
     return dict(stats)
