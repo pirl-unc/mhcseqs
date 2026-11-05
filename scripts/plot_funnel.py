@@ -13,8 +13,11 @@ import csv
 from collections import Counter
 from pathlib import Path
 
-RAW_CSV = Path.home() / ".cache" / "mhcseqs" / "mhc-seqs-raw.csv"
-FULL_CSV = Path.home() / ".cache" / "mhcseqs" / "mhc-full-seqs.csv"
+from mhcseqs.datafiles import FULL_SEQS_CSV, resolve_data_dir
+from mhcseqs.datafiles import RAW_CSV as RAW_CSV_NAME
+
+RAW_CSV = resolve_data_dir() / RAW_CSV_NAME
+FULL_CSV = resolve_data_dir() / FULL_SEQS_CSV
 PLOT_PATH = Path(__file__).resolve().parent.parent / "data" / "pipeline_funnel.svg"
 
 

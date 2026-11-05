@@ -24,7 +24,8 @@ cd mhcseqs
 ### CLI
 
 ```bash
-# Build all output CSVs (writes to ~/.cache/mhcseqs/)
+# Build all output CSVs (writes to ~/.cache/mhcseqs/; set MHCSEQS_DATA to use another
+# data directory for downloads, built CSVs and versioned datasets)
 mhcseqs build
 
 # Build to a specific directory instead
