@@ -282,8 +282,7 @@ def load_raw_dataframe(path: str | None = None):
     Raises
     ------
     ImportError
-        If pandas cannot be imported. mhcseqs does not list pandas itself;
-        it is installed as a dependency of mhcgnomes.
+        If pandas is not installed (``pip install "mhcseqs[pandas]"``).
     FileNotFoundError
         If *path* is not given and no built CSV is found.
     """
@@ -343,8 +342,7 @@ def load_sequences_dataframe(path: str | None = None):
     Raises
     ------
     ImportError
-        If pandas cannot be imported. mhcseqs does not list pandas itself;
-        it is installed as a dependency of mhcgnomes.
+        If pandas is not installed (``pip install "mhcseqs[pandas]"``).
     FileNotFoundError
         If *path* is not given and no built CSV is found.
     """
