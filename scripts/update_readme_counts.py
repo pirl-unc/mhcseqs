@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Update the data summary table in README.md from the actual curated data.
+"""Update the data summary table in docs/data.md from the actual curated data.
 
 Reads the completed build, which already contains IMGT/HLA, IPD-MHC and all
 curated supplemental sequences. The supplemental CSV is read only to report
 its species coverage; its rows must not be added to the merged build again.
+
+The table used to live in README.md; it moved to the documentation site when
+the README was trimmed to a front page. The script name is unchanged so that
+existing invocations keep working.
 
 Usage:
     python scripts/update_readme_counts.py
@@ -19,7 +23,7 @@ from pathlib import Path
 from mhcseqs.datafiles import FULL_SEQS_CSV, resolve_data_dir
 
 ROOT = Path(__file__).resolve().parent.parent
-README = ROOT / "README.md"
+DATA_DOC = ROOT / "docs" / "data.md"
 DIVERSE_CSV = ROOT / "mhcseqs" / "diverse_mhc_sequences.csv"
 
 CATEGORIES = [
@@ -119,8 +123,7 @@ def main():
 
     table = build_table(built)
 
-    # Read README
-    text = README.read_text(encoding="utf-8")
+    text = DATA_DOC.read_text(encoding="utf-8")
 
     # Replace the summary section
     header_line = (
@@ -130,22 +133,25 @@ def main():
     groove_pct, _, _ = load_groove_success_rate()
     summary_line = f"Covering {num_species}+ species. Groove parse success rate on IMGT/IPD-MHC\nentries: {groove_pct:.1f}%."
 
-    # Replace between "## Current data summary" and "## Structural decomposition"
+    # Replace everything between "## Current data summary" and the next H2.
     pattern = re.compile(
         r"(## Current data summary\n\n)"
         r".*?"
-        r"(\n\n## Structural decomposition)",
+        r"(\n\n## )",
         re.DOTALL,
     )
     replacement = f"\\1{header_line}\n\n{table}\n\n{summary_line}\\2"
-    new_text = pattern.sub(replacement, text)
+    new_text, n_replacements = pattern.subn(replacement, text, count=1)
+
+    if n_replacements == 0:
+        raise ValueError(f"No '## Current data summary' section followed by another '## ' heading in {DATA_DOC}")
 
     if new_text == text:
         print("No changes needed.")
         return
 
-    README.write_text(new_text, encoding="utf-8")
-    print(f"Updated README.md with {total:,} categorized entries across {num_species}+ species")
+    DATA_DOC.write_text(new_text, encoding="utf-8")
+    print(f"Updated {DATA_DOC} with {total:,} categorized entries across {num_species}+ species")
 
 
 if __name__ == "__main__":

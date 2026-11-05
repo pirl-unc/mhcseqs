@@ -1,0 +1,23 @@
+site_name: mhcseqs
+site_description: MHC sequence curation and binding groove extraction
+site_url: https://pirl-unc.github.io/mhcseqs/
+repo_url: https://github.com/pirl-unc/mhcseqs
+repo_name: pirl-unc/mhcseqs
+edit_uri: edit/main/docs/
+docs_dir: docs
+strict: true
+
+theme:
+  name: mkdocs
+
+nav:
+  - Home: index.md
+  - Command Line: cli.md
+  - Python API: python-api.md
+  - Structural Decomposition: parsing.md
+  - Datasets and Columns: data.md
+
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true

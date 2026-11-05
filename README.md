@@ -1,7 +1,20 @@
+[![CI](https://github.com/pirl-unc/mhcseqs/actions/workflows/ci.yml/badge.svg)](https://github.com/pirl-unc/mhcseqs/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/mhcseqs.svg?maxAge=1000)](https://pypi.org/project/mhcseqs/)
+[![Python versions](https://img.shields.io/pypi/pyversions/mhcseqs.svg)](https://pypi.org/project/mhcseqs/)
+[![Docs](https://img.shields.io/badge/docs-pirl--unc.github.io%2Fmhcseqs-blue)](https://pirl-unc.github.io/mhcseqs/)
+
 # mhcseqs
 
 Self-contained pipeline for downloading, curating, and extracting binding
-grooves from MHC (Major Histocompatibility Complex) protein sequences.
+grooves from MHC (Major Histocompatibility Complex) protein sequences. Given
+an allele name it returns the full protein sequence together with an explicit
+structural decomposition: signal peptide, groove domains, Ig-fold support
+domain, and tail.
+
+In the openvax stack it is the sequence layer beside
+[mhcgnomes](https://github.com/pirl-unc/mhcgnomes), which it uses for allele
+parsing, species provenance and gene classification. No alignment tools,
+BLAST, or structure databases are required.
 
 ## Install
 
@@ -9,354 +22,83 @@ grooves from MHC (Major Histocompatibility Complex) protein sequences.
 pip install mhcseqs
 ```
 
-For development:
+Requires Python 3.10 or later. The only runtime dependency is
+[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.41.0; pandas is
+optional and used only by the DataFrame loaders.
+
+## Quick start
+
+Build the database once (downloads IMGT/HLA and IPD-MHC sources into
+`~/.cache/mhcseqs/`), then look an allele up:
+
+```python
+import mhcseqs
+
+mhcseqs.build()  # only needed once; returns a BuildPaths dataclass
+
+r = mhcseqs.lookup("HLA-A*02:01")
+print(r.allele, r.species_category, r.mhc_class, r.chain)
+print("mature starts at", r.mature_start)
+print("groove1", r.groove1)
+print("architecture", r.domain_architecture)
+```
+
+```
+HomoSapiens-A*02:01 human I alpha
+mature starts at 24
+groove1 GSHSMRYFFTSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAPWIEQEGPEYWDGETRKVKAHSQTHRVDLGTLRGYYNQSEA
+architecture signal_peptide>g_alpha1>g_alpha2>c1_alpha3>tail_linker>transmembrane>cytoplasmic_tail
+```
+
+`lookup` also takes IEDB-style mutations
+(`mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])`), and
+`load_sequences_dataframe()` / `load_sequences_dict()` load the whole build at
+once. See the [Python API guide](https://pirl-unc.github.io/mhcseqs/python-api/).
+
+## Command line
+
+```bash
+mhcseqs build                    # download sources and build CSVs
+mhcseqs lookup "HLA-A*02:01"     # print one allele's record
+mhcseqs data list                # cached downloads and built CSVs
+mhcseqs data install mhc-proteins  # versioned UniProt record dataset
+```
+
+`mhcseqs <command> --help` lists every option; the
+[command-line guide](https://pirl-unc.github.io/mhcseqs/cli/) shows the output
+of each.
+
+## Documentation
+
+Full documentation: [pirl-unc.github.io/mhcseqs](https://pirl-unc.github.io/mhcseqs/).
+
+- [Command line](https://pirl-unc.github.io/mhcseqs/cli/): `build`, `lookup`, and the `data` subcommands
+- [Python API](https://pirl-unc.github.io/mhcseqs/python-api/): `AlleleRecord` fields, DataFrame loaders, allele and species utilities, module reference
+- [Structural decomposition](https://pirl-unc.github.io/mhcseqs/parsing/): the domain grammar, how the alignment-free parser scores a decomposition, groove status codes, literature basis
+- [Datasets and columns](https://pirl-unc.github.io/mhcseqs/data/): what a build contains, column meanings, and the versioned `mhc-proteins` record layer
+
+## Development
 
 ```bash
 git clone https://github.com/pirl-unc/mhcseqs.git
 cd mhcseqs
 ./develop.sh          # uv pip install -e ".[dev]"
 ./test.sh             # pytest
-./lint.sh             # ruff
+./lint.sh             # ruff check and ruff format --check
 ```
 
-## Quick start
-
-### CLI
+To work on the documentation site:
 
 ```bash
-# Build all output CSVs (writes to ~/.cache/mhcseqs/; set MHCSEQS_DATA to use another
-# data directory for downloads, built CSVs and versioned datasets)
-mhcseqs build
-
-# Build to a specific directory instead
-mhcseqs build --output-dir output/
-
-# Look up a specific allele
-mhcseqs lookup "HLA-A*02:01"
-
-# Inspect cached downloads and built CSVs (size, age, status)
-mhcseqs data list
-mhcseqs data list --details  # full paths and source URLs
-
-# Install the immutable full UniProt candidate dataset
-mhcseqs data install mhc-proteins
-
-# Re-download source FASTAs (IMGT/HLA + IPD-MHC publish from a rolling "Latest")
-mhcseqs data refresh
-mhcseqs build --force-download   # equivalently, rebuild with fresh sources
-
-# Delete cached files
-mhcseqs data clear               # source FASTAs
-mhcseqs data clear --built       # also remove built CSVs/reports
-mhcseqs data clear --built-only  # only built CSVs/reports
-
-# Check version
-mhcseqs --version
+pip install -e ".[docs]"
+mkdocs serve
+mkdocs build --strict
 ```
-
-### Python API
-
-```python
-import mhcseqs
-
-# Build the database (downloads to ~/.cache/mhcseqs/, only needed once)
-paths = mhcseqs.build()  # BuildPaths dataclass
-
-# Look up any allele → AlleleRecord with everything
-r = mhcseqs.lookup("HLA-A*02:01")
-r.sequence          # full protein (with signal peptide)
-r.mature_sequence   # signal peptide removed (computed property)
-r.mature_start      # signal peptide length (24 for HLA-A*02:01)
-r.groove1           # α1 domain
-r.groove2           # α2 domain
-r.ig_domain         # α3 Ig-fold
-r.tail              # TM + cytoplasmic
-r.domains           # typed domain spans
-r.domain_architecture
-r.domain_spans
-r.species_category  # "human"
-
-# Apply mutations (IEDB-style, e.g. "K66A")
-m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])
-```
-
-### Load as a DataFrame
-
-```python
-import mhcseqs
-
-# As a DataFrame (full sequence + groove decomposition + metadata)
-df = mhcseqs.load_sequences_dataframe()
-
-# Or as a list of dicts (no pandas dependency)
-rows = mhcseqs.load_sequences_dict()
-```
-
-## Full UniProt protein records
-
-The independently versioned `mhc-proteins` dataset preserves all 55,719
-current and historical records from the release-pinned UniProt Vertebrata MHC
-candidate query. It is a source-complete record layer, distinct from both the
-56,440 representative IMGT/IPD build summarized below and the smaller
-signal-peptide benchmark derived from it.
-
-Install the default data version (`uniprot-2026_03-r2`) with:
-
-```bash
-mhcseqs data install mhc-proteins
-mhcseqs data path mhc-proteins
-```
-
-Code releases and data releases are deliberately independent. Pin a data
-version in automated work:
-
-```bash
-mhcseqs data install mhc-proteins --version uniprot-2026_03-r2
-```
-
-From Python, records can be streamed without pandas or loaded eagerly. The
-requested data version is downloaded once, checksum-verified, and then reused
-from the local cache. Cache readers capture a verified compressed snapshot
-(about 10 MB), releasing the version lock before parsing or yielding rows:
-
-```python
-import mhcseqs
-
-rows = mhcseqs.iter_mhc_protein_records(version="uniprot-2026_03-r2")
-first = next(rows)
-
-all_rows = mhcseqs.load_mhc_protein_records(version="uniprot-2026_03-r2")
-df = mhcseqs.load_mhc_protein_dataframe(version="uniprot-2026_03-r2")
-```
-
-For read-only/shared deployments, preinstall the cache and retain its sibling
-`.<version>.lock` files. Reads need only read access to those files; creating
-an installation or recovering an interrupted swap still requires write access.
-Listing a missing version requires no writes and reports it as not installed.
-
-The columns are intentionally separated by provenance:
-
-- `source_*` plus organism, sequence, lineage, name, and gene columns are
-  UniProtKB, UniSave, or taxonomy-snapshot facts. An empty source annotation
-  means “not annotated,” never “biologically absent.”
-- `inferred_*` columns contain normalized MHC class, chain, type, gene, and
-  candidate-disposition decisions derived from source metadata and explicit
-  accession curation.
-- `parsed_*`, `mature_sequence`, `groove1`, `groove2`, `ig_domain`, `tail`,
-  boundary, span, score, and state columns are outputs from the mhcseqs
-  sequence parser. Partial parts can remain populated when `parse_ok` is false;
-  inspect `parse_status` before treating them as a complete decomposition.
-
-The broad source query deliberately retains contaminants and ambiguous hits so
-that the source population is reproducible. `inferred_disposition` is the MHC
-identity decision; `parse_ok` only reports whether the structural parser
-produced a usable decomposition and is not an independent identity label.
-Known non-MHC genes are excluded; insufficient or conflicting identity
-evidence stays `retain_unresolved`. The [r2 release notes](data/mhc_protein_dataset_uniprot_2026_03-r2.md)
-describe the corrected labels. Historical `r1` remains available unchanged.
-These full-dataset identity rules are separate from the stored SP benchmark's
-selection policy, so they do not silently change benchmark membership or prevent
-its offline enrichment.
-
-To reproduce the records artifact offline, install the source bundle too:
-
-```bash
-mhcseqs data install mhc-proteins --version uniprot-2026_03-r2 --with-sources
-python scripts/build_mhc_protein_dataset.py \
-  --data-dir ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r2 \
-  --label-curation ~/.cache/mhcseqs/source-bundles/mhc-proteins/uniprot-2026_03-r2/sp_ground_truth_label_curation.csv \
-  --revision 2
-```
-
-The builder publishes records and their manifest together. By default they go
-under `<source-root>-generated/mhc-proteins/<data-version>/`, a sibling tree
-outside the replaceable source bundle. Custom `--output` and `--manifest-output`
-paths must be distinct files in the same dedicated directory outside the source
-tree, containing no unrelated files. Source reinstallation therefore cannot
-delete generated outputs or their staging directory. Failed builds preserve the previous
-pair, and interrupted swaps are recovered on the next access. To reproduce a
-release exactly, use its generator and mhcgnomes versions recorded in the
-manifest as well as its pinned source bundle.
-
-The release manifest pins source queries, releases, byte counts, SHA-256
-digests, model hashes, schema, and output distributions. UniProt-derived data
-is redistributed under [CC BY 4.0](https://www.uniprot.org/help/license/) with
-attribution to the UniProt Consortium.
-
-## Current data summary
-
-All sources (IMGT/HLA, IPD-MHC, and curated UniProt/GenBank references)
-are merged into a single dataset. Representatives by species category and chain type:
-
-| Category | Class I | Class II | Other | Total |
-|---|---:|---:|---:|---:|
-| human | 18,040 | 8,196 | 25 | 26,261 |
-| nhp | 4,475 | 2,414 | 0 | 6,889 |
-| murine | 964 | 566 | 73 | 1,603 |
-| ungulate | 650 | 1,132 | 6 | 1,788 |
-| carnivore | 174 | 330 | 2 | 506 |
-| other_mammal | 2,312 | 1,265 | 248 | 3,825 |
-| bird | 5,974 | 3,337 | 163 | 9,474 |
-| fish | 1,264 | 3,594 | 72 | 4,930 |
-| other_vertebrate | 471 | 665 | 28 | 1,164 |
-| **total** | **34,324** | **21,499** | **617** | **56,440** |
-
-Covering 558+ species. Groove parse success rate on IMGT/IPD-MHC
-entries: 99.3%.
-
-## Structural decomposition
-
-The parser materializes an explicit domain grammar:
-
-| Chain | Grammar |
-|---|---|
-| Class I alpha | `signal_peptide? -> g_alpha1 -> g_alpha2 -> c1_alpha3 -> transmembrane? -> cytoplasmic_tail?` |
-| Class II alpha | `signal_peptide? -> g_alpha1 -> c1_alpha2 -> transmembrane? -> cytoplasmic_tail?` |
-| Class II beta | `signal_peptide? -> g_beta1 -> c1_beta2 -> transmembrane? -> cytoplasmic_tail?` |
-
-The exported contiguous sequence fields are:
-
-| Column | Class I alpha | Class II alpha | Class II beta |
-|---|---|---|---|
-| `groove1` | α1 domain (~80-95 aa typical) | α1 domain (~75-95 aa typical) | — |
-| `groove2` | α2 domain (~80-100 aa typical) | — | β1 domain (~70-100 aa typical) |
-| `ig_domain` | α3 C-like support domain | α2 C-like support domain | β2 C-like support domain |
-| `tail` | linker + TM + cytoplasmic tail | linker + TM + cytoplasmic tail | linker + TM + cytoplasmic tail |
-
-`domain_architecture` and `domain_spans` expose the typed domain grammar
-directly, for example:
-
-- class I: `signal_peptide>g_alpha1>g_alpha2>c1_alpha3>tail_linker>transmembrane>cytoplasmic_tail`
-- class II beta: `signal_peptide>g_beta1>c1_beta2>tail_linker>transmembrane>cytoplasmic_tail`
-
-## How Parsing Works
-
-The parser is **alignment-free** and **holistic**. It does not rely on one
-absolute Cys position to define the mature start.
-
-For each sequence it:
-
-1. Enumerates all plausible Cys-Cys pairs in the Ig/C-like separation range.
-2. Scores each pair as a candidate G-domain or C-like anchor using fold-topology
-   evidence, especially the Trp41-like signal around `c1+14`.
-3. Enumerates candidate SP boundaries and whole domain parses, including partial
-   parses when only fragment evidence is available.
-4. Chooses the best full parse using factored multiplicative scoring:
-   three structural claims (SP grammar, domain architecture, completeness) each
-   produce a [0,1] factor.  Contradictory evidence in any factor gates the score
-   down multiplicatively, while missing evidence is a softer penalty.
-
-The strongest evidence types are:
-
-- SP cleavage grammar: hydrophobic h-region, short c-region, von Heijne `-3/-1`
-  compatibility, exclusion of impossible `-3/-1` property pairs, and mild `+1`
-  mature-sequence penalties.
-- Domain-fold grammar: canonical G-domain versus C-like disulfide topology,
-  including the IMGT-style `Cys11-Cys74` G-domain signature and the
-  `Cys23/Trp41/Cys104` C-like grammar.
-- Class-specific groove boundaries:
-  - class I α1/α2 junction motifs
-  - class I α2 -> α3 boundary motifs
-  - class II α1 -> α2 and β1 -> β2 boundary motifs
-- Soft priors on groove/support-domain lengths and TM support downstream.
-
-The parser handles:
-
-- full-length proteins with or without signal peptides
-- SP-stripped deposits (`mature_start = 0`)
-- common fragments:
-  - class I exon 2 only -> `alpha1_only`
-  - class I exon 3 only -> `alpha2_only`
-  - class II exon 2-like fragments -> `fragment_fallback`
-- low-evidence salvage:
-  - class I from α3 C-like support only -> `inferred_from_alpha3`
-  - class II beta from β1 groove pair only -> `beta1_only_fallback`
-- true groove absence / insufficient structural evidence -> `missing_groove`
-
-### Groove Status Values
-
-These are the important parser-facing statuses:
-
-| Status | Meaning |
-|---|---|
-| `ok` | Full decomposition from the main structural grammar |
-| `alpha1_only` | Class I fragment consistent with α1 / exon 2 only |
-| `alpha2_only` | Class I fragment consistent with α2 / exon 3 only |
-| `fragment_fallback` | Short fragment retained as the observable groove half |
-| `inferred_from_alpha3` | Class I salvage parse using a downstream α3 C-like anchor |
-| `beta1_only_fallback` | Class II beta salvage parse using only the β1 groove pair |
-| `missing_groove` | No recoverable groove architecture from the available evidence |
-| `non_classical` | Non-classical class-I lineage flagged post-parse |
-| `short` | Groove half too short to look functionally peptide-binding |
-
-Pipeline-only statuses can still appear in CSV outputs:
-
-| Status | Meaning |
-|---|---|
-| `not_applicable` | Row intentionally excluded from groove functionality, mainly B2M in build outputs |
-
-## Literature Basis
-
-The parser is built around conserved sequence grammar from the MHC literature:
-
-- MHC domain organization is more conserved than short local motifs across
-  vertebrates: [Primordial Linkage of β2-Microglobulin to the MHC](https://pmc.ncbi.nlm.nih.gov/articles/PMC3805034/)
-- IMGT domain numbering and the G-domain versus C-like disulfide grammar:
-  [PMC3913909](https://pmc.ncbi.nlm.nih.gov/articles/PMC3913909/)
-- Classical class-I domain layout and landmarks:
-  [PMC2434379](https://pmc.ncbi.nlm.nih.gov/articles/PMC2434379/)
-- Salmonid class-II alpha/beta cysteine topology and lineage-specific extra
-  cysteines: [PMC2386828](https://pmc.ncbi.nlm.nih.gov/articles/PMC2386828/)
-- Teleost class-II evolutionary divergence while retaining the same modular
-  architecture: [PMC4219347](https://pmc.ncbi.nlm.nih.gov/articles/PMC4219347/)
-
-Signal-peptide logic follows the standard SPase grammar:
-
-- von Heijne `-3/-1` cleavage rule:
-  [How signal sequences maintain cleavage specificity](https://pubmed.ncbi.nlm.nih.gov/6423828/)
-- flanking `-2/+1` effects:
-  [Flanking signal and mature peptide residues influence signal peptide cleavage](https://pmc.ncbi.nlm.nih.gov/articles/PMC2638155/)
-- strong penalty for `+1 Pro`:
-  [PubMed 1544500](https://pubmed.ncbi.nlm.nih.gov/1544500/)
-- h-region / c-region structural context:
-  [Structure of the human signal peptidase complex reveals the determinants for signal peptide cleavage](https://www.sciencedirect.com/science/article/pii/S1097276521006006)
-
-## Key columns
-
-| Column | Description |
-|---|---|
-| `two_field_allele` | Allele name at two-field resolution |
-| `gene` | MHC gene (e.g., A, DRB1, BF, UA) |
-| `mhc_class` | I or II |
-| `chain` | alpha, beta, or B2M |
-| `species` | Latin binomial from source |
-| `species_category` | One of 9 categories above |
-| `source` | `imgt`, `ipd_mhc`, or `uniprot` |
-| `source_id` | Database accession for provenance |
-| `groove_status` | See table above |
-| `is_functional` | True if groove parsed and not null/pseudogene |
-
-## Dependencies
-
-- **Python 3.10+**
-- **[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.41.0** — allele parsing, species provenance, NHP taxonomy, and species-directed gene classification
-
-mhcseqs emits full-binomial species aliases such as `HomoSapiens-A*02:01`
-and `MusMusculus-K*b`. Its input registry accepts 476 current, historical, and
-external-database prefix assignments—including all 137 designation tokens in
-the current 125-organism IPD-MHC taxonomy register—and records an evidence URL
-for every one. Colliding short codes require explicit species context. mhcseqs
-does not invent abbreviated species prefixes, and mechanically generated
-2+2/4+4/5+5 aliases are rejected unless that exact spelling has external
-evidence. See the [prefix audit](data/species_prefix_audit_20260831.md).
-The audit includes a versioned UniProtKB/UniSave provenance snapshot for all
-239 records behind the 21 historical pairs that previously lacked raw inputs.
-
-No alignment tools, BLAST, or structure databases are required.
 
 ## License
 
-The mhcseqs code is licensed under Apache 2.0. The independently distributed
-UniProt-derived `mhc-proteins` data is licensed under
+The mhcseqs code is licensed under
+[Apache 2.0](https://github.com/pirl-unc/mhcseqs/blob/main/LICENSE). The independently
+distributed UniProt-derived `mhc-proteins` data is licensed under
 [CC BY 4.0](https://www.uniprot.org/help/license/) with attribution to the
 UniProt Consortium.
