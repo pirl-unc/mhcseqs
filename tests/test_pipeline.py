@@ -1,5 +1,7 @@
 import csv
 
+import pytest
+
 from mhcseqs.domain_parsing import AlleleRecord
 from mhcseqs.pipeline import (
     FULL_FIELDS,
@@ -250,16 +252,21 @@ def test_b2m_has_source_id():
     assert human[0]["source_id"] == "P61769"
 
 
-def test_diverse_references_fall_back_to_curated_source_category():
-    rows = _load_diverse_mhc_references()
+@pytest.fixture(scope="module")
+def diverse_mhc_reference_rows():
+    return _load_diverse_mhc_references()
+
+
+def test_diverse_references_fall_back_to_curated_source_category(diverse_mhc_reference_rows):
+    rows = diverse_mhc_reference_rows
     bank_vole = next(r for r in rows if r["source_id"] == "A0AAW0H2V6")
     assert bank_vole["species"] == "Myodes glareolus"
     assert bank_vole["species_category"] == "other_mammal"
     assert all(r["species_category"] for r in rows)
 
 
-def test_load_diverse_references_signal_peptide_metadata_is_consistent():
-    rows = _load_diverse_mhc_references()
+def test_load_diverse_references_signal_peptide_metadata_is_consistent(diverse_mhc_reference_rows):
+    rows = diverse_mhc_reference_rows
     assert rows
     for row in rows:
         sp_len = int(row["signal_peptide_len"] or "0")

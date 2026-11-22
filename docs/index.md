@@ -18,9 +18,8 @@ No alignment tools, BLAST, or structure databases are required.
 pip install mhcseqs
 ```
 
-Requires Python 3.11 or later. The only required dependency is
-`mhcgnomes >= 3.41.0`. The DataFrame loaders also need pandas 3, which
-`pip install "mhcseqs[pandas]"` installs.
+Requires Python 3.11 or later. Runtime dependencies are `mhcgnomes >= 3.41.0`
+and `pandas >= 3, < 4`.
 
 ## Quick start
 
