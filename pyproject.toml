@@ -7,6 +7,7 @@ license = "Apache-2.0"
 requires-python = ">=3.11"
 dependencies = [
     "mhcgnomes>=3.41.0",
+    "pandas>=3,<4",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -23,11 +24,6 @@ classifiers = [
 dev = [
     "pytest>=7",
     "ruff>=0.4",
-]
-# The DataFrame loaders (load_raw_dataframe, load_sequences_dataframe,
-# load_mhc_protein_dataframe) import pandas when they are called.
-pandas = [
-    "pandas>=3,<4",
 ]
 docs = [
     "mkdocs>=1.6,<2",
@@ -71,8 +67,3 @@ select = ["E", "F", "W", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
-[tool.uv]
-dev-dependencies = [
-    "matplotlib>=3.10.8",
-]

@@ -99,12 +99,12 @@ Listing a missing version requires no writes and reports it as not installed.
 
 ### `mhcseqs.domain_parsing`
 
-Core groove extraction.
+Core groove extraction and domain decomposition.
 
-- `extract_groove(seq, mhc_class, ...)` — main dispatcher
-- `parse_class_i(seq, ...)` — class I alpha chain parser
-- `parse_class_ii_alpha(seq, ...)` — class II alpha chain parser
-- `parse_class_ii_beta(seq, ...)` — class II beta chain parser
+- `decompose_domains(seq, mhc_class, ...)` — main dispatcher (also exported under the legacy alias `extract_groove`)
+- `decompose_class_i(seq, ...)` — class I alpha chain parser (legacy alias `parse_class_i`)
+- `decompose_class_ii_alpha(seq, ...)` — class II alpha chain parser (legacy alias `parse_class_ii_alpha`)
+- `decompose_class_ii_beta(seq, ...)` — class II beta chain parser (legacy alias `parse_class_ii_beta`)
 - `find_cys_pairs(seq)` — locate Ig-fold Cys-Cys pairs
 - `AlleleRecord` — dataclass with all parsed fields
 
