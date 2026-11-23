@@ -29,7 +29,7 @@ from pathlib import Path
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 SEARCH_TERM = "Sarcophilus harrisii[Organism] AND SahaI[Title]"
 BATCH_SIZE = 50
-USER_AGENT = "mhcseqs/0.5 (https://github.com/openvax/mhcseqs)"
+USER_AGENT = "mhcseqs/2.6 (https://github.com/pirl-unc/mhcseqs)"
 
 
 def _urlopen(url: str) -> str:
