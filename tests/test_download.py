@@ -19,17 +19,19 @@ def test_download_fasta_skips_existing(tmp_path):
     fasta_file = tmp_path / "hla_prot.fasta"
     fasta_file.write_text(">test\nACDEFG\n")
 
-    with patch("mhcseqs.download.urllib.request.urlretrieve") as mock_retrieve:
+    with patch("mhcseqs.download.datacache.fetch_file") as mock_fetch:
         result = download_fasta("imgt_hla", tmp_path)
-        mock_retrieve.assert_not_called()
+        mock_fetch.assert_not_called()
         assert result == fasta_file
 
 
 def test_download_fasta_downloads_new(tmp_path):
-    def fake_retrieve(url, dest):
-        Path(dest).write_text(">test\nACDEFGH\n")
+    def fake_fetch(url, *, destination, **kwargs):
+        Path(destination).parent.mkdir(parents=True, exist_ok=True)
+        Path(destination).write_text(">test\nACDEFGH\n")
+        return str(destination)
 
-    with patch("mhcseqs.download.urllib.request.urlretrieve", side_effect=fake_retrieve):
+    with patch("mhcseqs.download.datacache.fetch_file", side_effect=fake_fetch):
         result = download_fasta("imgt_hla", tmp_path)
         assert result.exists()
         assert result.stat().st_size > 0
@@ -37,11 +39,10 @@ def test_download_fasta_downloads_new(tmp_path):
 
 
 def test_download_fasta_cleans_up_on_failure(tmp_path):
-    def fail_retrieve(url, dest):
-        Path(dest).write_text("partial")
+    def fail_fetch(url, *, destination, **kwargs):
         raise ConnectionError("network failure")
 
-    with patch("mhcseqs.download.urllib.request.urlretrieve", side_effect=fail_retrieve):
+    with patch("mhcseqs.download.datacache.fetch_file", side_effect=fail_fetch):
         try:
             download_fasta("imgt_hla", tmp_path)
         except ConnectionError:
@@ -58,11 +59,13 @@ def test_download_fasta_cleans_up_on_failure(tmp_path):
 def test_download_all_calls_each_source(tmp_path):
     call_log = []
 
-    def fake_retrieve(url, dest):
+    def fake_fetch(url, *, destination, **kwargs):
         call_log.append(url)
-        Path(dest).write_text(">test\nACDEFGH\n")
+        Path(destination).parent.mkdir(parents=True, exist_ok=True)
+        Path(destination).write_text(">test\nACDEFGH\n")
+        return str(destination)
 
-    with patch("mhcseqs.download.urllib.request.urlretrieve", side_effect=fake_retrieve):
+    with patch("mhcseqs.download.datacache.fetch_file", side_effect=fake_fetch):
         paths = download_all(tmp_path)
 
     assert "imgt_hla" in paths

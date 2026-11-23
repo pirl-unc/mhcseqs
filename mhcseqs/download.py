@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
-import urllib.request
+import sys
 from pathlib import Path
+
+import datacache
 
 # Official FASTA sources
 SOURCES = {
@@ -25,30 +25,27 @@ SOURCES = {
 
 
 def download_fasta(key: str, dest_dir: Path, *, force: bool = False) -> Path:
-    """Download a FASTA source file. Returns local path.
+    """Download a FASTA source file through datacache. Returns local path.
 
     A cached copy is reused unless *force* is set, in which case it is always
     re-downloaded (used by ``mhcseqs data refresh`` / ``build --force-download``).
     """
     info = SOURCES[key]
-    dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / info["filename"]
     if not force and dest.exists() and dest.stat().st_size > 0:
-        print(f"  {info['filename']} already downloaded ({dest.stat().st_size:,} bytes)")
+        print(f"  {info['filename']} already downloaded ({dest.stat().st_size:,} bytes)", file=sys.stderr)
         return dest
-    print(f"  Downloading {info['filename']} from {info['url']} ...")
-    fd, tmp_path = tempfile.mkstemp(dir=dest_dir, suffix=".tmp")
-    try:
-        os.close(fd)
-        urllib.request.urlretrieve(info["url"], tmp_path)
-        os.replace(tmp_path, dest)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-    print(f"  Saved {dest.stat().st_size:,} bytes")
+    print(f"  Downloading {info['filename']} from {info['url']} ...", file=sys.stderr)
+    datacache.fetch_file(
+        info["url"],
+        destination=dest,
+        force=force,
+        raw=True,
+        timeout=300,
+        show_progress=datacache.should_show_progress("auto"),
+        record_provenance=True,
+    )
+    print(f"  Saved {dest.stat().st_size:,} bytes", file=sys.stderr)
     return dest
 
 
