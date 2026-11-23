@@ -16,7 +16,6 @@ import json
 import os
 import shutil
 import tempfile
-import urllib.request
 from contextlib import contextmanager
 from dataclasses import dataclass
 from importlib.resources import files
@@ -151,9 +150,9 @@ def validate_asset_file(path: Path, metadata: dict[str, object]) -> None:
 
 
 def _download(url: str, destination: Path) -> None:
-    request = urllib.request.Request(url, headers={"User-Agent": "mhcseqs-data/1.0"})
-    with urllib.request.urlopen(request, timeout=300) as response, destination.open("wb") as handle:
-        shutil.copyfileobj(response, handle, length=_READ_SIZE)
+    from .download import download_url
+
+    download_url(url, destination, timeout=300, user_agent="mhcseqs-data/1.0")
 
 
 def _download_asset(base_url: str, metadata: dict[str, object], destination: Path) -> None:
