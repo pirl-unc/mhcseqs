@@ -88,13 +88,31 @@ def test_resolve_data_dir_uses_environment(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize("env_value", [None, ""])
 def test_resolve_data_dir_defaults_to_user_cache_without_creating_it(monkeypatch, tmp_path, env_value):
+    import datacache
+
     if env_value is None:
         monkeypatch.delenv(DATA_DIR_ENV_VAR, raising=False)
     else:
         monkeypatch.setenv(DATA_DIR_ENV_VAR, env_value)
+    monkeypatch.delenv("OPENVAX_DATA_CACHE", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
-    assert resolve_data_dir() == tmp_path / ".cache" / "mhcseqs"
+    monkeypatch.setattr(datacache.common, "_platform_cache_dir", lambda name: str(tmp_path / "platform" / name))
+
+    # Empty legacy -> uses shared OpenVax platform cache without creating it
+    assert resolve_data_dir() == tmp_path / "platform" / "openvax" / "mhcseqs"
+    assert not (tmp_path / "platform").exists()
     assert not (tmp_path / ".cache").exists()
+
+    # Populated legacy ~/.cache/mhcseqs stays put without re-downloading
+    legacy = tmp_path / ".cache" / "mhcseqs"
+    legacy.mkdir(parents=True)
+    (legacy / "mhc-full-seqs.csv").write_text("allele\n")
+    assert resolve_data_dir() == legacy
+
+    # OPENVAX_DATA_CACHE overrides platform and legacy
+    shared = tmp_path / "shared"
+    monkeypatch.setenv("OPENVAX_DATA_CACHE", str(shared))
+    assert resolve_data_dir() == shared / "mhcseqs"
 
 
 def test_built_csvs_and_versioned_datasets_share_one_data_dir(monkeypatch, tmp_path):

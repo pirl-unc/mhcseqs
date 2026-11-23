@@ -17,7 +17,6 @@ layer in ``__main__`` handles formatting.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,6 +24,7 @@ from .download import SOURCES
 
 # Environment variable that overrides the default data directory.
 DATA_DIR_ENV_VAR = "MHCSEQS_DATA"
+SHARED_CACHE_DIR_ENV_VAR = "OPENVAX_DATA_CACHE"
 
 # Built artifacts produced by the build pipeline, relative to the output dir.
 RAW_CSV = "mhc-seqs-raw.csv"
@@ -39,6 +39,23 @@ BUILT_FILES = (
 )
 
 
+def resolve_data_location(data_dir: str | Path | None = None):
+    """Resolve the mhcseqs data directory and why it was chosen, without creating it.
+
+    Precedence: explicit *data_dir* -> ``$MHCSEQS_DATA`` ->
+    ``$OPENVAX_DATA_CACHE/mhcseqs`` -> populated shared platform cache ->
+    populated legacy ``~/.cache/mhcseqs`` -> default shared platform cache.
+    """
+    import datacache
+
+    return datacache.resolve_cache_dir(
+        "mhcseqs",
+        DATA_DIR_ENV_VAR,
+        override=data_dir,
+        legacy=(Path.home() / ".cache" / "mhcseqs",),
+    )
+
+
 def resolve_data_dir(data_dir: str | Path | None = None) -> Path:
     """Return the mhcseqs data directory, without creating it.
 
@@ -51,15 +68,9 @@ def resolve_data_dir(data_dir: str | Path | None = None) -> Path:
     Returns
     -------
     Path
-        *data_dir* if given; otherwise the value of ``$MHCSEQS_DATA`` when it
-        is set to a non-empty string; otherwise ``~/.cache/mhcseqs``.
+        Resolved data directory path.
     """
-    if data_dir is not None:
-        return Path(data_dir)
-    configured = os.environ.get(DATA_DIR_ENV_VAR)
-    if configured:
-        return Path(configured)
-    return Path.home() / ".cache" / "mhcseqs"
+    return Path(resolve_data_location(data_dir).path)
 
 
 @dataclass

@@ -32,6 +32,7 @@ jobs:
 
     - name: Enforce release artifact count gates
       run: |
+        DATA_DIR="$(python -c 'from mhcseqs.datafiles import resolve_data_dir; print(resolve_data_dir())')"
         python scripts/check_release_artifacts.py \
-          ~/.cache/mhcseqs/mhc-seqs-raw.csv \
-          ~/.cache/mhcseqs/mhc-full-seqs.csv
+          "$DATA_DIR/mhc-seqs-raw.csv" \
+          "$DATA_DIR/mhc-full-seqs.csv"

@@ -150,9 +150,16 @@ def validate_asset_file(path: Path, metadata: dict[str, object]) -> None:
 
 
 def _download(url: str, destination: Path) -> None:
-    from .download import download_url
+    import datacache
 
-    download_url(url, destination, timeout=300, user_agent="mhcseqs-data/1.0")
+    datacache.fetch_file(
+        url,
+        destination=destination,
+        force=True,
+        raw=True,
+        timeout=300,
+        show_progress=datacache.should_show_progress("auto"),
+    )
 
 
 def _download_asset(base_url: str, metadata: dict[str, object], destination: Path) -> None:
