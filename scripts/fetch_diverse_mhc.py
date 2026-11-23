@@ -80,7 +80,7 @@ def fetch_group(label: str, tax_id: str, extra: str) -> list[dict]:
     try:
         req = urllib.request.Request(
             url,
-            headers={"User-Agent": "mhcseqs/0.5 (https://github.com/openvax/mhcseqs)"},
+            headers={"User-Agent": "mhcseqs/2.6 (https://github.com/pirl-unc/mhcseqs)"},
         )
         with urllib.request.urlopen(req, timeout=120) as resp:
             data = resp.read().decode("utf-8")

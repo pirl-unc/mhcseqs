@@ -1,70 +1,75 @@
+"""Tests for mhcseqs.download timeout, retry, User-Agent, and atomic writes (#107)."""
+
+from __future__ import annotations
+
+import io
+import urllib.error
 from pathlib import Path
-from unittest.mock import patch
 
-from mhcseqs.download import SOURCES, download_all, download_fasta
+import pytest
 
-
-def test_sources_structure():
-    assert "imgt_hla" in SOURCES
-    assert "ipd_mhc" in SOURCES
-    for key, info in SOURCES.items():
-        assert "url" in info
-        assert "filename" in info
-        assert "label" in info
-        assert info["url"].startswith("https://")
+from mhcseqs import download
 
 
-def test_download_fasta_skips_existing(tmp_path):
-    # Create a fake existing file
-    fasta_file = tmp_path / "hla_prot.fasta"
-    fasta_file.write_text(">test\nACDEFG\n")
+class _FakeResponse(io.BytesIO):
+    def __enter__(self):
+        return self
 
-    with patch("mhcseqs.download.urllib.request.urlretrieve") as mock_retrieve:
-        result = download_fasta("imgt_hla", tmp_path)
-        mock_retrieve.assert_not_called()
-        assert result == fasta_file
+    def __exit__(self, *args):
+        self.close()
+        return False
 
 
-def test_download_fasta_downloads_new(tmp_path):
-    def fake_retrieve(url, dest):
-        Path(dest).write_text(">test\nACDEFGH\n")
+def test_download_url_sets_timeout_user_agent_and_writes_atomically(tmp_path: Path, monkeypatch):
+    seen = {}
 
-    with patch("mhcseqs.download.urllib.request.urlretrieve", side_effect=fake_retrieve):
-        result = download_fasta("imgt_hla", tmp_path)
-        assert result.exists()
-        assert result.stat().st_size > 0
-        assert result.name == "hla_prot.fasta"
+    def fake_urlopen(request, timeout=None):
+        seen["url"] = request.full_url
+        seen["user_agent"] = request.get_header("User-agent")
+        seen["timeout"] = timeout
+        return _FakeResponse(b">seq1\nAAAA\n")
+
+    monkeypatch.setattr(download.urllib.request, "urlopen", fake_urlopen)
+    dest = tmp_path / "out.fasta"
+    result = download.download_url("https://example.org/a.fasta", dest, timeout=42)
+    assert result == dest
+    assert dest.read_bytes() == b">seq1\nAAAA\n"
+    assert seen["url"] == "https://example.org/a.fasta"
+    assert seen["timeout"] == 42
+    assert "pirl-unc/mhcseqs" in seen["user_agent"]
+    assert list(tmp_path.glob("*.tmp")) == []
 
 
-def test_download_fasta_cleans_up_on_failure(tmp_path):
-    def fail_retrieve(url, dest):
-        Path(dest).write_text("partial")
-        raise ConnectionError("network failure")
+def test_download_url_retries_transient_error_then_succeeds(tmp_path: Path, monkeypatch):
+    calls = 0
 
-    with patch("mhcseqs.download.urllib.request.urlretrieve", side_effect=fail_retrieve):
-        try:
-            download_fasta("imgt_hla", tmp_path)
-        except ConnectionError:
-            pass
+    def fake_urlopen(request, timeout=None):
+        nonlocal calls
+        calls += 1
+        if calls < 2:
+            raise urllib.error.URLError("transient network blip")
+        return _FakeResponse(b"ok")
 
-    # The destination file should NOT exist (atomic download)
-    dest = tmp_path / "hla_prot.fasta"
+    monkeypatch.setattr(download.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(download.time, "sleep", lambda _s: None)
+    dest = tmp_path / "retry.fasta"
+    download.download_url("https://example.org/b.fasta", dest, retries=3)
+    assert calls == 2
+    assert dest.read_bytes() == b"ok"
+
+
+def test_download_url_fails_fast_on_404_and_leaves_no_partial_file(tmp_path: Path, monkeypatch):
+    calls = 0
+
+    def fake_urlopen(request, timeout=None):
+        nonlocal calls
+        calls += 1
+        raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)
+
+    monkeypatch.setattr(download.urllib.request, "urlopen", fake_urlopen)
+    dest = tmp_path / "missing.fasta"
+    with pytest.raises(urllib.error.HTTPError):
+        download.download_url("https://example.org/404.fasta", dest, retries=3)
+    assert calls == 1
     assert not dest.exists()
-    # No temp files should remain
-    tmp_files = list(tmp_path.glob("*.tmp"))
-    assert len(tmp_files) == 0
-
-
-def test_download_all_calls_each_source(tmp_path):
-    call_log = []
-
-    def fake_retrieve(url, dest):
-        call_log.append(url)
-        Path(dest).write_text(">test\nACDEFGH\n")
-
-    with patch("mhcseqs.download.urllib.request.urlretrieve", side_effect=fake_retrieve):
-        paths = download_all(tmp_path)
-
-    assert "imgt_hla" in paths
-    assert "ipd_mhc" in paths
-    assert len(call_log) == 2
+    assert list(tmp_path.glob("*.tmp")) == []
