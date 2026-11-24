@@ -4214,6 +4214,14 @@ def _normalize_mutations(mutations: str | Sequence[object] | None) -> tuple[obje
     return tuple(mutations)
 
 
+def _apply_requested_mutations(result: AlleleRecord, mutations: str | Sequence[object]) -> AlleleRecord:
+    """Apply mutations after a successful parse, including fragment and salvage results."""
+    normalized = _normalize_mutations(mutations)
+    if normalized and result.ok:
+        return apply_mutations(result, normalized)
+    return result
+
+
 def _infer_class_i_mature_offset(result: AlleleRecord) -> int:
     """Infer leading mature residues missing from a partial Class I record.
 
@@ -5707,7 +5715,7 @@ def decompose_class_i(
         use_early_shortcuts=use_early_shortcuts,
     )
     if early_result is not None:
-        return early_result
+        return _apply_requested_mutations(early_result, mutations)
 
     candidates: list[AlleleRecord] = []
     selections = _collect_primary_parse_candidates(
@@ -5806,11 +5814,7 @@ def decompose_class_i(
             flags=missing_flags,
         ),
     )
-    result = _select_best_record_candidate(candidates)
-    normalized_mutations = _normalize_mutations(mutations)
-    if normalized_mutations and result.ok:
-        result = apply_mutations(result, normalized_mutations)
-    return result
+    return _apply_requested_mutations(_select_best_record_candidate(candidates), mutations)
 
 
 def trace_parse_class_i(
@@ -5911,7 +5915,7 @@ def decompose_class_ii_alpha(
         use_early_shortcuts=use_early_shortcuts,
     )
     if early_result is not None:
-        return early_result
+        return _apply_requested_mutations(early_result, mutations)
 
     candidates: list[AlleleRecord] = []
     selections = _collect_primary_parse_candidates(
@@ -5976,11 +5980,7 @@ def decompose_class_ii_alpha(
             flags=grammar.missing_no_anchor_flags,
         ),
     )
-    result = _select_best_record_candidate(candidates)
-    normalized_mutations = _normalize_mutations(mutations)
-    if normalized_mutations and result.ok:
-        result = apply_mutations(result, normalized_mutations)
-    return result
+    return _apply_requested_mutations(_select_best_record_candidate(candidates), mutations)
 
 
 # ---------------------------------------------------------------------------
@@ -6014,7 +6014,7 @@ def decompose_class_ii_beta(
         use_early_shortcuts=use_early_shortcuts,
     )
     if early_result is not None:
-        return early_result
+        return _apply_requested_mutations(early_result, mutations)
 
     candidates: list[AlleleRecord] = []
     beta_resolver, beta1_ann = _build_beta_secondary_resolver(cleaned, annotated, features)
@@ -6099,11 +6099,7 @@ def decompose_class_ii_beta(
             flags=missing_flags,
         ),
     )
-    result = _select_best_record_candidate(candidates)
-    normalized_mutations = _normalize_mutations(mutations)
-    if normalized_mutations and result.ok:
-        result = apply_mutations(result, normalized_mutations)
-    return result
+    return _apply_requested_mutations(_select_best_record_candidate(candidates), mutations)
 
 
 # ---------------------------------------------------------------------------
