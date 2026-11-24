@@ -141,24 +141,28 @@ def parse_allele_name(
 def canonical_species_prefix(species: Any) -> str:
     """Return the canonical parseable species prefix for an mhcgnomes ``Species``.
 
-    Prefers the full binomial CamelCase alias (e.g. ``HomoSapiens``,
-    ``FelisCatus``) whenever mhcgnomes resolves that alias unambiguously back
-    to the exact same species.  For genus-level taxa (``Bos sp.``, ``Sus sp.``,
-    ``Canis sp.``, ``Felis sp.``) and trinomial subspecies whose truncated
-    two-word alias does not round-trip in mhcgnomes, falls back to the
-    species' canonical ``mhc_prefix`` (e.g. ``BoLA``, ``SLA``, ``DLA``,
-    ``FLA``) so every emitted allele name round-trips through
-    :func:`parse_allele_name` and ``mhcgnomes.parse``.
+    For genus-level taxa (``"<Genus> sp."`` such as ``Bos sp.``, ``Sus sp.``,
+    ``Canis sp.``, ``Felis sp.``), always emits the species' canonical
+    ``mhc_prefix`` (``BoLA``, ``SLA``, ``DLA``, ``FLA``, etc.) so outputs are
+    deterministic and parseable across all mhcgnomes versions.
+
+    For binomial species, prefers the full binomial CamelCase alias (e.g.
+    ``HomoSapiens``, ``FelisCatus``) whenever mhcgnomes resolves that alias
+    unambiguously back to the exact same species, falling back to
+    ``species.mhc_prefix`` for trinomial subspecies whose truncated two-word
+    alias does not round-trip.
     """
     if species is None:
         return ""
-    species_name = getattr(species, "name", None)
+    species_name = getattr(species, "name", None) or ""
+    mhc_prefix = getattr(species, "mhc_prefix", None)
+    if species_name.endswith(" sp.") and mhc_prefix:
+        return str(mhc_prefix)
     species_alias = full_species_name_alias(species_name)
     if species_alias and species_name:
         roundtrip = mhcgnomes.Species.get(species_alias)
         if roundtrip is not None and roundtrip.name == species_name:
             return species_alias
-    mhc_prefix = getattr(species, "mhc_prefix", None)
     if mhc_prefix:
         return str(mhc_prefix)
     return species_alias
