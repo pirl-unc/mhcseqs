@@ -27,11 +27,18 @@ from pathlib import Path
 from mhcseqs.datafiles import FULL_SEQS_CSV, find_csv
 from mhcseqs.imgt import (
     _BLOSUM62,
+    _GALPHA_MATURE_POSITIONS,
+    _GBETA_MATURE_POSITIONS,
     GALPHA1_POSITIONS,
     GALPHA2_POSITIONS,
+    GALPHA_POSITIONS,
+    GBETA_POSITIONS,
     HLA_A0201_GALPHA1,
     HLA_A0201_GALPHA2,
+    HLA_DRA0101_GALPHA,
+    HLA_DRB1_0101_GBETA,
     _galpha2_cys_anchor_bonus,
+    _gbeta_cys_anchor_bonus,
     imgt_to_mature_class_i,
 )
 
@@ -142,6 +149,77 @@ def make_position_gap_penalties(domain: str) -> tuple[list[float], list[float]]:
             go_ins[idx] = -8.0
             go_del[idx] = -10.0
         go_ins[59] = -7.0  # Exact IMGT 61A/61B helix kink site
+        return go_del, go_ins
+
+    if domain == "G-ALPHA":
+        # 82-col IMGT G-ALPHA backbone (HLA-DRA*01:01 mature 1-82):
+        #   0..1   -> 1.2, 1.1
+        #   2..16  -> 1..15 (IMGT 7 = idx 8)
+        #   17..36 -> 20..39 (IMGT 16-19 gap before idx 17; IMGT 40-41 gap after idx 36)
+        #   37..51 -> 42..56 (W47 = idx 42; IMGT 54 = idx 49; IMGT 57-60 gap after idx 51)
+        #   52..81 -> 61..90 (N86 = idx 77)
+        n_cols = len(HLA_DRA0101_GALPHA)  # 82
+        go_del = [-14.0] * n_cols
+        go_ins = [-14.0] * n_cols
+
+        # A-strand 7A insertion site (DQA1)
+        go_ins[8] = -7.5
+        go_ins[7] = -9.0
+        go_ins[9] = -9.0
+
+        # AB-turn (IMGT 14-21, idx 15..18)
+        for idx in range(15, 19):
+            go_del[idx] = -8.5
+            go_ins[idx] = -8.0
+
+        # CD-turn (IMGT 38-42, idx 35..37; IMGT 40-41 gap after idx 36)
+        for idx in range(35, 38):
+            go_del[idx] = -8.5
+            go_ins[idx] = -8.0
+        go_ins[36] = -6.5
+
+        # N-helix hinge (IMGT 51-56, idx 46..51; IMGT 54A after idx 49)
+        for idx in range(46, 52):
+            go_del[idx] = -9.5
+            go_ins[idx] = -8.5
+        go_ins[49] = -6.5
+
+        # Mild C-terminal linker flexibility (IMGT 89-90)
+        for idx in (80, 81):
+            go_del[idx] = -9.5
+            go_ins[idx] = -10.0
+        return go_del, go_ins
+
+    if domain == "G-BETA":
+        # 89-col IMGT G-BETA backbone (HLA-DRB1*01:01 mature 5-93):
+        #   0..38  -> 1..39 (C11 = idx 10, N15 = idx 14)
+        #   39..58 -> 42..61 (IMGT 40-41 gap after idx 38; W59 = idx 56)
+        #   59..60 -> 61A, 61B
+        #   61..71 -> 62..72
+        #   72     -> 72A
+        #   73..88 -> 73..88 (C74 = idx 74)
+        n_cols = len(HLA_DRB1_0101_GBETA)  # 89
+        go_del = [-14.0] * n_cols
+        go_ins = [-14.0] * n_cols
+
+        # AB-turn (IMGT 13-21, idx 12..20 — captures DPB1's -2aa deletion cleanly)
+        for idx in range(12, 21):
+            go_del[idx] = -8.5
+            go_ins[idx] = -8.0
+
+        # CD-turn (IMGT 38-43, idx 37..40; IMGT 40-41 gap after idx 38)
+        for idx in range(37, 41):
+            go_del[idx] = -8.5
+            go_ins[idx] = -7.5
+        go_ins[38] = -6.0
+
+        # Helix kink (IMGT 58-65, idx 55..64, around 61A/61B at idx 59..60)
+        for idx in range(55, 65):
+            go_ins[idx] = -8.5
+            go_del[idx] = -10.0
+        for idx in (59, 60, 61):
+            go_del[idx] = -8.5
+        go_ins[60] = -7.0
         return go_del, go_ins
 
     raise ValueError(f"Unsupported domain: {domain!r}")
@@ -367,13 +445,29 @@ def train_domain_profile(
     beta: float = 5.0,
     iterations: int = 2,
 ) -> dict:
-    ref_seq = HLA_A0201_GALPHA1 if domain == "G-ALPHA1" else HLA_A0201_GALPHA2
-    imgt_positions = list(GALPHA1_POSITIONS if domain == "G-ALPHA1" else GALPHA2_POSITIONS)
-    mature_positions = [imgt_to_mature_class_i(domain, p) for p in imgt_positions]
+    if domain == "G-ALPHA1":
+        ref_seq = HLA_A0201_GALPHA1
+        imgt_positions = list(GALPHA1_POSITIONS)
+        mature_positions = [imgt_to_mature_class_i(domain, p) for p in imgt_positions]
+    elif domain == "G-ALPHA2":
+        ref_seq = HLA_A0201_GALPHA2
+        imgt_positions = list(GALPHA2_POSITIONS)
+        mature_positions = [imgt_to_mature_class_i(domain, p) for p in imgt_positions]
+    elif domain == "G-ALPHA":
+        ref_seq = HLA_DRA0101_GALPHA
+        imgt_positions = list(GALPHA_POSITIONS)
+        mature_positions = list(_GALPHA_MATURE_POSITIONS)
+    elif domain == "G-BETA":
+        ref_seq = HLA_DRB1_0101_GBETA
+        imgt_positions = list(GBETA_POSITIONS)
+        mature_positions = list(_GBETA_MATURE_POSITIONS)
+    else:
+        raise ValueError(f"Unsupported domain: {domain!r}")
+
     go_del, go_ins = make_position_gap_penalties(domain)
     n_cols = len(ref_seq)
 
-    # Seed pass 0 with BLOSUM62 around HLA-A*02:01
+    # Seed pass 0 with BLOSUM62 around canonical human reference
     pssm = [{b: float(_BLOSUM62[ref_seq[i]][b]) for b in AA20} for i in range(n_cols)]
 
     for _ in range(iterations):
@@ -384,7 +478,12 @@ def train_domain_profile(
                 continue
             weight = 10.0 / len(seqs)  # Equal total weight per vertebrate clade
             for seq in seqs:
-                bonus = _galpha2_cys_anchor_bonus(seq) if domain == "G-ALPHA2" else None
+                if domain == "G-ALPHA2":
+                    bonus = _galpha2_cys_anchor_bonus(seq)
+                elif domain == "G-BETA":
+                    bonus = _gbeta_cys_anchor_bonus(seq)
+                else:
+                    bonus = None
                 _, ar, aq = _profile_gotoh(pssm, go_del, go_ins, seq, anchor_bonus=bonus)
                 ref_i = 0
                 for rch, qch in zip(ar, aq):
@@ -428,36 +527,11 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--full-csv", type=Path, default=None, help="Path to built mhc-full-seqs.csv")
-    parser.add_argument("--release", type=str, default="", help="Release tag of the input CSV (e.g. v2.9.0)")
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path(__file__).resolve().parent.parent / "mhcseqs" / "imgt_class_i_profile.json",
-        help="Output profile JSON path",
-    )
-    parser.add_argument("--per-clade", type=int, default=20, help="Max representative sequences per clade")
-    args = parser.parse_args()
-
-    full_csv = args.full_csv or find_csv(FULL_SEQS_CSV)
-    source_sha256 = _sha256_file(full_csv)
-    curated_source_groups = load_curated_source_groups()
-
-    with open(full_csv, "r", encoding="utf-8") as f:
-        rows = [
-            r
-            for r in csv.DictReader(f)
-            if r["mhc_class"] == "I"
-            and r["chain"] == "alpha"
-            and r["groove_status"] == "ok"
-            and 85 <= len(r["groove1"]) <= 95
-            and 88 <= len(r["groove2"]) <= 96
-            and "X" not in r["groove1"]
-            and "X" not in r["groove2"]
-        ]
-
+def _sample_clades(
+    rows: list[dict],
+    curated_source_groups: dict[str, str],
+    per_clade: int,
+) -> tuple[dict[str, list[dict]], dict[str, int], dict[str, list[str]], int]:
     by_clade: dict[str, list[dict]] = defaultdict(list)
     skipped = 0
     for r in rows:
@@ -467,53 +541,135 @@ def main() -> None:
             continue
         by_clade[clade].append(r)
 
-    clade_g1: dict[str, list[str]] = defaultdict(list)
-    clade_g2: dict[str, list[str]] = defaultdict(list)
-    clade_counts: dict[str, int] = {}
-    representative_ids: dict[str, list[str]] = {}
-
+    picked_by_clade: dict[str, list[dict]] = {}
+    counts: dict[str, int] = {}
+    rep_ids: dict[str, list[str]] = {}
     for clade, crows in sorted(by_clade.items()):
-        # Deterministically select diverse species/genes across each clade
         crows.sort(key=lambda r: (r["species"], r["gene"], r["two_field_allele"], r.get("source_id", "")))
-        step = max(1, len(crows) // args.per_clade)
-        picked = crows[::step][: args.per_clade]
-        for r in picked:
-            clade_g1[clade].append(r["groove1"])
-            clade_g2[clade].append(r["groove2"])
-        clade_counts[clade] = len(picked)
-        representative_ids[clade] = [(r.get("source_id") or r["two_field_allele"]).strip() for r in picked]
+        step = max(1, len(crows) // per_clade)
+        picked = crows[::step][:per_clade]
+        picked_by_clade[clade] = picked
+        counts[clade] = len(picked)
+        rep_ids[clade] = [(r.get("source_id") or r["two_field_allele"]).strip() for r in picked]
         print(f"  clade {clade:16s}: {len(crows):6d} eligible -> {len(picked):2d} representatives")
     if skipped:
         print(f"  skipped (unverified clade): {skipped}")
+    return picked_by_clade, counts, rep_ids, skipped
 
-    profile = {
-        "version": "1",
-        "alphabet": AA20,
-        "gap_ext": GAP_EXT,
-        "end_gap": END_GAP,
-        "training_source": {
-            "filename": full_csv.name,
-            "release": args.release,
-            "sha256": source_sha256,
-            "per_clade": args.per_clade,
-        },
-        "clade_representatives": clade_counts,
-        "representative_ids": representative_ids,
-        "domains": {
-            "G-ALPHA1": train_domain_profile("G-ALPHA1", clade_g1),
-            "G-ALPHA2": train_domain_profile("G-ALPHA2", clade_g2),
-        },
-    }
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with open(args.output, "w", encoding="utf-8") as f:
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mhc-class", choices=("I", "II"), default="I", help="MHC class profile to build (I or II)")
+    parser.add_argument("--full-csv", type=Path, default=None, help="Path to built mhc-full-seqs.csv")
+    parser.add_argument("--release", type=str, default="", help="Release tag of the input CSV (e.g. v2.9.0)")
+    parser.add_argument("--output", type=Path, default=None, help="Output profile JSON path")
+    parser.add_argument("--per-clade", type=int, default=20, help="Max representative sequences per clade")
+    args = parser.parse_args()
+
+    default_out = (
+        Path(__file__).resolve().parent.parent / "mhcseqs" / ("imgt_class_i_profile.json" if args.mhc_class == "I" else "imgt_class_ii_profile.json")
+    )
+    output_path = args.output or default_out
+    full_csv = args.full_csv or find_csv(FULL_SEQS_CSV)
+    source_sha256 = _sha256_file(full_csv)
+    curated_source_groups = load_curated_source_groups()
+
+    with open(full_csv, "r", encoding="utf-8") as f:
+        all_rows = list(csv.DictReader(f))
+
+    if args.mhc_class == "I":
+        rows = [
+            r
+            for r in all_rows
+            if r["mhc_class"] == "I"
+            and r["chain"] == "alpha"
+            and r["groove_status"] == "ok"
+            and 85 <= len(r["groove1"]) <= 95
+            and 88 <= len(r["groove2"]) <= 96
+            and "X" not in r["groove1"]
+            and "X" not in r["groove2"]
+        ]
+        picked_by_clade, clade_counts, representative_ids, _ = _sample_clades(rows, curated_source_groups, args.per_clade)
+        clade_g1 = {c: [r["groove1"] for r in rs] for c, rs in picked_by_clade.items()}
+        clade_g2 = {c: [r["groove2"] for r in rs] for c, rs in picked_by_clade.items()}
+        profile = {
+            "version": "1",
+            "alphabet": AA20,
+            "gap_ext": GAP_EXT,
+            "end_gap": END_GAP,
+            "training_source": {
+                "filename": full_csv.name,
+                "release": args.release,
+                "sha256": source_sha256,
+                "per_clade": args.per_clade,
+            },
+            "clade_representatives": clade_counts,
+            "representative_ids": representative_ids,
+            "domains": {
+                "G-ALPHA1": train_domain_profile("G-ALPHA1", clade_g1),
+                "G-ALPHA2": train_domain_profile("G-ALPHA2", clade_g2),
+            },
+        }
+    else:
+        alpha_rows = [
+            r
+            for r in all_rows
+            if r["mhc_class"] == "II"
+            and r["chain"] == "alpha"
+            and r["groove_status"] == "ok"
+            and 76 <= len(r["groove1"]) <= 92
+            and "X" not in r["groove1"]
+        ]
+        beta_rows = [
+            r
+            for r in all_rows
+            if r["mhc_class"] == "II"
+            and r["chain"] == "beta"
+            and r["groove_status"] == "ok"
+            and 84 <= len(r["groove2"]) <= 98
+            and "X" not in r["groove2"]
+        ]
+        print("Sampling Class II G-ALPHA representatives:")
+        alpha_picked, alpha_counts, alpha_rep_ids, _ = _sample_clades(alpha_rows, curated_source_groups, args.per_clade)
+        print("Sampling Class II G-BETA representatives:")
+        beta_picked, beta_counts, beta_rep_ids, _ = _sample_clades(beta_rows, curated_source_groups, args.per_clade)
+
+        clade_ga = {c: [r["groove1"] for r in rs] for c, rs in alpha_picked.items()}
+        clade_gb = {c: [r["groove2"] for r in rs] for c, rs in beta_picked.items()}
+        profile = {
+            "version": "1",
+            "alphabet": AA20,
+            "gap_ext": GAP_EXT,
+            "end_gap": END_GAP,
+            "training_source": {
+                "filename": full_csv.name,
+                "release": args.release,
+                "sha256": source_sha256,
+                "per_clade": args.per_clade,
+            },
+            "clade_representatives": {
+                "G-ALPHA": alpha_counts,
+                "G-BETA": beta_counts,
+            },
+            "representative_ids": {
+                "G-ALPHA": alpha_rep_ids,
+                "G-BETA": beta_rep_ids,
+            },
+            "domains": {
+                "G-ALPHA": train_domain_profile("G-ALPHA", clade_ga),
+                "G-BETA": train_domain_profile("G-BETA", clade_gb),
+            },
+        }
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(profile, f, separators=(",", ":"))
         f.write("\n")
 
-    size_kb = args.output.stat().st_size / 1024
-    print(f"\nWrote {args.output} ({size_kb:.1f} KB)")
-    print("  G-ALPHA1 consensus:", profile["domains"]["G-ALPHA1"]["consensus"])
-    print("  G-ALPHA2 consensus:", profile["domains"]["G-ALPHA2"]["consensus"])
+    size_kb = output_path.stat().st_size / 1024
+    print(f"\nWrote {output_path} ({size_kb:.1f} KB)")
+    for dname, dval in profile["domains"].items():
+        print(f"  {dname:9s} consensus: {dval['consensus']}")
 
 
 if __name__ == "__main__":

@@ -8,20 +8,32 @@ from mhcseqs.imgt import (
     FIXED_FRAME_ALPHABET,
     GALPHA1_POSITIONS,
     GALPHA2_POSITIONS,
+    GALPHA_POSITIONS,
+    GBETA_POSITIONS,
     HELIX_INSERTIONS,
     HLA_A0201_GALPHA1,
     HLA_A0201_GALPHA2,
+    HLA_DRA0101_GALPHA,
+    HLA_DRB1_0101_GBETA,
     IMGT_CLASS_I_GROOVE_SLOTS,
+    IMGT_CLASS_II_GROOVE_SLOTS,
     IMGT_GALPHA1_SLOTS,
     IMGT_GALPHA2_SLOTS,
+    IMGT_GALPHA_SLOTS,
+    IMGT_GBETA_SLOTS,
+    IMGT_PAN_CLASS_GROOVE_SLOTS,
+    IMGT_PAN_HALF1_SLOTS,
+    IMGT_PAN_HALF2_SLOTS,
     AlignedResidue,
     DomainAlignment,
     GrooveAlignment,
     _load_class_i_profile,
+    _load_class_ii_profile,
     align_domain_to_imgt,
     align_groove_to_imgt,
     imgt_to_mature,
     imgt_to_mature_class_i,
+    map_class_ii_groove_positions,
     map_groove_positions,
     mature_to_imgt,
     mature_to_imgt_class_i,
@@ -756,3 +768,152 @@ def test_center_out_insertion_slot_filling():
     assert ab_slots[0] != "-" and ab_slots[2] != "-"
     assert len(mafa.alpha1.residues) == 91
     assert "".join(r.aa for r in mafa.alpha1.residues) == _MAFA_F0201_G1
+
+
+# ---------------------------------------------------------------------------
+# Class II (G-ALPHA / G-BETA) and Pan-Class IMGT G-DOMAIN alignment
+# ---------------------------------------------------------------------------
+
+_HLA_DRA0101_GROOVE = "IKEEHVIIQAEFYLNPDQSGEFMFDFDGDEIFHVDMAKKETVWRLEEFGRFASFEAQGALANIAVDKANLEIMTKRSNYTPIT"
+_HLA_DQA1_0101_GROOVE = "EDIVADHVASCGVNLYQFYGPSGQYTHEFDGDEEFYVDLERKETAWRWPEFSKFGGFDPQGALRNMAVAKHNLNIMIKRYNSTAAT"
+_HLA_DPA1_0103_GROOVE = "IKADHVSTYAAFVQTHRPTGEFMFEFDEDEMFYVDLDKKETVWHLEEFGQAFSFEAQGGLANIAILNNNLNTLIQRSNHTQAT"
+_HLA_DRB1_0101_GROOVE = "GDTRPRFLWQLKFECHFFNGTERVRLLERCIYNQEESVRFDSDVGEYRAVTELGRPDAEYWNSQKDLLEQRRAAVDTYCRHNYGVGESFTVQR"
+_HLA_DQB1_0201_GROOVE = "RDSPEDFVYQFKGMCYFTNGTERVRLVSRSIYNREEIVRFDSDVGEFRAVTLLGLPAAEYWNSQKDILERKRAAVDRVCRHNYQLELRTTLQR"
+_HLA_DPB1_0101_GROOVE = "RATPENYVYQGRQECYAFNGTQRFLERYIYNREEYARFDSDVGEFRAVTELGRPAAEYWNSQKDILEEKRAVPDRVCRHNYELDEAVTLQR"
+
+
+def test_class_ii_profile_loaded_with_verified_clades():
+    import csv
+    from pathlib import Path
+
+    profile = _load_class_ii_profile()
+    assert profile["version"] == "1"
+    assert profile["training_source"]["release"] == "v2.9.0"
+    assert len(profile["training_source"]["sha256"]) == 64
+    assert profile["domains"]["G-ALPHA"]["length"] == len(GALPHA_POSITIONS) == 82
+    assert profile["domains"]["G-BETA"]["length"] == len(GBETA_POSITIONS) == 89
+
+    diverse_csv = Path(__file__).resolve().parent.parent / "mhcseqs" / "diverse_mhc_sequences.csv"
+    with open(diverse_csv, "r", encoding="utf-8") as f:
+        acc_to_group = {r["uniprot_accession"].strip(): r["source_group"].strip() for r in csv.DictReader(f)}
+
+    for dom_key in ("G-ALPHA", "G-BETA"):
+        rep_ids = profile["representative_ids"][dom_key]
+        counts = profile["clade_representatives"][dom_key]
+        assert set(rep_ids) == set(counts)
+        for acc in rep_ids["reptile"]:
+            assert acc_to_group.get(acc, "").startswith("reptile_")
+        for acc in rep_ids["shark_ray"]:
+            assert acc_to_group.get(acc) == "shark_ray"
+        for acc in rep_ids["amphibian"]:
+            assert acc_to_group.get(acc) == "amphibian"
+
+
+def test_class_ii_galpha_and_gbeta_alignments_and_lossless_roundtrip():
+    assert len(IMGT_GALPHA_SLOTS) == 87
+    assert len(IMGT_GBETA_SLOTS) == 98
+    assert len(IMGT_CLASS_II_GROOVE_SLOTS) == 185
+    assert len(IMGT_PAN_HALF1_SLOTS) == 100
+    assert len(IMGT_PAN_HALF2_SLOTS) == 102
+    assert len(IMGT_PAN_CLASS_GROOVE_SLOTS) == 202
+
+    # Canonical reference strings align with identity == 1.0 and zero indels/overhangs
+    ref_a = align_domain_to_imgt(HLA_DRA0101_GALPHA, "G-ALPHA")
+    ref_b = align_domain_to_imgt(HLA_DRB1_0101_GBETA, "G-BETA")
+    assert ref_a.identity == 1.0 and not ref_a.has_indels and not ref_a.c_term_overhang
+    assert ref_b.identity == 1.0 and not ref_b.has_indels and not ref_b.n_term_overhang
+
+    dr = map_class_ii_groove_positions(_HLA_DRA0101_GROOVE, _HLA_DRB1_0101_GROOVE)
+    assert dr.resolved_mhc_class == "II"
+    assert dr.g_alpha is not None and dr.g_beta is not None
+    assert len(dr.fixed_seq) == 185
+    assert len(dr.pan_class_fixed_seq) == 202
+    assert set(dr.fixed_seq) <= set(FIXED_FRAME_ALPHABET)
+    assert set(dr.pan_class_fixed_seq) <= set(FIXED_FRAME_ALPHABET)
+    assert "X" not in dr.fixed_seq
+    assert "X" not in dr.pan_class_fixed_seq
+    # Canonical DRA / DRB1 conserved landmarks
+    assert dr.residue_at_imgt("G-ALPHA", "47") == "W"
+    assert dr.residue_at_imgt("G-ALPHA", "86") == "N"
+    assert dr.residue_at_imgt("G-BETA", "11") == "C"
+    assert dr.residue_at_imgt("G-BETA", "59") == "W"
+    assert dr.residue_at_imgt("G-BETA", "61A") == "Q"
+    assert dr.residue_at_imgt("G-BETA", "61B") == "K"
+    assert dr.residue_at_imgt("G-BETA", "74") == "C"
+    # Terminal overhangs (T83 on DRA, GDTR on DRB1) round-trip losslessly in residues and a3m_seq
+    assert dr.g_alpha.c_term_overhang == "T"
+    assert dr.g_beta.n_term_overhang == "GDTR"
+    assert "".join(r.aa for r in dr.g_alpha.residues) == _HLA_DRA0101_GROOVE
+    assert "".join(r.aa for r in dr.g_beta.residues) == _HLA_DRB1_0101_GROOVE
+    assert "".join(c.upper() for c in dr.g_alpha.a3m_seq if c.isalpha()) == _HLA_DRA0101_GROOVE
+    assert "".join(c.upper() for c in dr.g_beta.a3m_seq if c.isalpha()) == _HLA_DRB1_0101_GROOVE
+
+    # DQA1*01:01 has canonical A-strand 7A insertion and preserves W47 / N86
+    dq = map_class_ii_groove_positions(_HLA_DQA1_0101_GROOVE, _HLA_DQB1_0201_GROOVE)
+    assert dq.residue_at_imgt("G-ALPHA", "47") == "W"
+    assert dq.residue_at_imgt("G-ALPHA", "86") == "N"
+    assert dq.residue_at_imgt("G-BETA", "11") == "C"
+    assert dq.residue_at_imgt("G-BETA", "59") == "W"
+    assert dq.residue_at_imgt("G-BETA", "74") == "C"
+    assert "".join(r.aa for r in dq.g_alpha.residues) == _HLA_DQA1_0101_GROOVE
+    assert "".join(r.aa for r in dq.g_beta.residues) == _HLA_DQB1_0201_GROOVE
+
+    # DPB1*01:01 has canonical 2-aa AB-turn deletion while keeping C11, W59, 61A, 61B, C74 locked
+    dp = map_class_ii_groove_positions(_HLA_DPA1_0103_GROOVE, _HLA_DPB1_0101_GROOVE)
+    assert dp.g_beta is not None
+    assert len(dp.g_beta.deletions) == 2
+    assert dp.residue_at_imgt("G-ALPHA", "47") == "W"
+    assert dp.residue_at_imgt("G-ALPHA", "86") == "N"
+    assert dp.residue_at_imgt("G-BETA", "11") == "C"
+    assert dp.residue_at_imgt("G-BETA", "59") == "W"
+    assert dp.residue_at_imgt("G-BETA", "74") == "C"
+    assert "".join(r.aa for r in dp.g_beta.residues) == _HLA_DPB1_0101_GROOVE
+
+
+def test_pan_class_fixed_frame_homologous_geometry_across_class_i_and_ii():
+    c1 = map_groove_positions(HLA_A0201_GALPHA1, HLA_A0201_GALPHA2 + "D")
+    dr = map_class_ii_groove_positions(_HLA_DRA0101_GROOVE, _HLA_DRB1_0101_GROOVE)
+    dq = map_class_ii_groove_positions(_HLA_DQA1_0101_GROOVE, _HLA_DQB1_0201_GROOVE)
+    dp = map_class_ii_groove_positions(_HLA_DPA1_0103_GROOVE, _HLA_DPB1_0101_GROOVE)
+
+    # All four molecules live in the exact same 202-slot 3D-homologous coordinate system
+    for aln in (c1, dr, dq, dp):
+        assert len(aln.pan_class_fixed_seq) == 202
+        assert aln.pan_class_fixed_slots == IMGT_PAN_CLASS_GROOVE_SLOTS
+        # Conserved N-glycosylation at HALF1:86, Cys11/W59/Cys74 at HALF2:11/59/74
+        assert aln.extract_pan_class_slots([("HALF1", "86"), ("HALF2", "11"), ("HALF2", "59"), ("HALF2", "74")]) == "NCWC"
+
+    # Class-defining structural differences appear cleanly as '-' (structural gap), NEVER 'X':
+    # Class II open N-helix wall (HALF1 57-60) is '----' while Class I has 'PEYW'
+    assert c1.extract_pan_class_slots([("HALF1", "57"), ("HALF1", "58"), ("HALF1", "59"), ("HALF1", "60")]) == "PEYW"
+    assert dr.extract_pan_class_slots([("HALF1", "57"), ("HALF1", "58"), ("HALF1", "59"), ("HALF1", "60")]) == "----"
+    # Class II G-BETA 61B occupies the same slot reserved for Class I non-mammal helix-kink insertions
+    assert c1.extract_pan_class_slots([("HALF2", "61A"), ("HALF2", "61B")]) == "A-"
+    assert dr.extract_pan_class_slots([("HALF2", "61A"), ("HALF2", "61B")]) == "QK"
+    # Class II G-BETA shorter C-end (HALF2 89-92) is '----' while Class I has 'LQRT'
+    assert c1.extract_pan_class_slots([("HALF2", "89"), ("HALF2", "90"), ("HALF2", "91"), ("HALF2", "92")]) == "LQRT"
+    assert dr.extract_pan_class_slots([("HALF2", "89"), ("HALF2", "90"), ("HALF2", "91"), ("HALF2", "92")]) == "----"
+
+    # Single-chain Class II record via align_groove_to_imgt auto-detects mhc_class="II" and marks missing partner as 'X'
+    alpha_only = align_groove_to_imgt({"mhc_class": "II", "groove1": _HLA_DRA0101_GROOVE, "groove2": ""})
+    assert alpha_only.resolved_mhc_class == "II"
+    assert len(alpha_only.fixed_seq) == 185
+    assert alpha_only.fixed_seq[87:] == "X" * 98
+    assert alpha_only.pan_class_fixed_seq[100:] == "X" * 102
+    assert alpha_only.a3m_seq[-89:] == "-" * 89
+
+    beta_only = align_groove_to_imgt({"mhc_class": "II", "groove1": "", "groove2": _HLA_DRB1_0101_GROOVE})
+    assert beta_only.resolved_mhc_class == "II"
+    assert len(beta_only.fixed_seq) == 185
+    assert beta_only.fixed_seq[:87] == "X" * 87
+    assert beta_only.pan_class_fixed_seq[:100] == "X" * 100
+    assert beta_only.a3m_seq[:82] == "-" * 82
+
+
+def test_class_ii_cache_matches_uncached_dp():
+    for seq, dom in ((_HLA_DRA0101_GROOVE, "G-ALPHA"), (_HLA_DQA1_0101_GROOVE, "G-ALPHA"), (_HLA_DPB1_0101_GROOVE, "G-BETA")):
+        expected = align_domain_to_imgt(seq, dom, use_fast_path=False)
+        cached = align_domain_to_imgt(seq, dom, use_fast_path=True)
+        assert cached == expected
+        cached.pan_class_slot_to_aa.clear()
+        assert align_domain_to_imgt(seq, dom, use_fast_path=True) == expected

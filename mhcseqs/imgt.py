@@ -181,6 +181,49 @@ GALPHA2_POSITIONS: tuple[str, ...] = tuple(k for k, v in sorted(_GALPHA2_FWD.ite
 HLA_A0201_GALPHA1 = "GSHSMRYFFTSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAPWIEQEGPEYWDGETRKVKAHSQTHRVDLGTLRGYYNQSEA"
 HLA_A0201_GALPHA2 = "GSHTVQRMYGCDVGSDWRFLRGYHQYAYDGKDYIALKEDLRSWTAADMAAQTTKHKWEAAHVAEQLRAYLEGTCVEWLRRYLENGKETLQRT"
 
+# =============================================================================
+# Class II G-ALPHA [D1] (HLA-DRA*01:01) and G-BETA [D1] (HLA-DRB1*01:01) maps
+# =============================================================================
+#
+# Verified via 3D Kabsch superposition of PDB 1DLH (HLA-DRA*01:01 / HLA-DRB1*01:01),
+# 1JK8 (HLA-DQA1*03:01), and 3LQZ (HLA-DPB1*02:01) against 1HHK (HLA-A*02:01),
+# following Lefranc et al. (2005) Dev Comp Immunol 29:917-938.
+
+#: IMGT G-ALPHA positions that are structural gaps in canonical HLA-DRA*01:01.
+GALPHA_GAP_POSITIONS: frozenset[str] = frozenset({"16", "17", "18", "19", "40", "41", "57", "58", "59", "60"})
+
+#: Ordered occupied IMGT positions for G-ALPHA (HLA-DRA*01:01 reference, 82 aa).
+GALPHA_POSITIONS: tuple[str, ...] = (
+    ("1.2", "1.1")
+    + tuple(str(i) for i in range(1, 16))
+    + tuple(str(i) for i in range(20, 40))
+    + tuple(str(i) for i in range(42, 57))
+    + tuple(str(i) for i in range(61, 91))
+)
+
+#: Canonical HLA-DRA*01:01 reference sequence (UniProt P01903 mature 1-82, 82 aa).
+HLA_DRA0101_GALPHA = "IKEEHVIIQAEFYLNPDQSGEFMFDFDGDEIFHVDMAKKETVWRLEEFGRFASFEAQGALANIAVDKANLEIMTKRSNYTPI"
+_GALPHA_SIZE = len(GALPHA_POSITIONS)  # 82
+_GALPHA_MATURE_POSITIONS: tuple[int, ...] = tuple(range(1, _GALPHA_SIZE + 1))
+
+#: IMGT G-BETA positions that are structural gaps in canonical HLA-DRB1*01:01.
+GBETA_GAP_POSITIONS: frozenset[str] = frozenset({"40", "41"})
+
+#: Ordered occupied IMGT positions for G-BETA (HLA-DRB1*01:01 reference, 89 aa, mature 5-93).
+GBETA_POSITIONS: tuple[str, ...] = (
+    tuple(str(i) for i in range(1, 40))
+    + tuple(str(i) for i in range(42, 62))
+    + ("61A", "61B")
+    + tuple(str(i) for i in range(62, 73))
+    + ("72A",)
+    + tuple(str(i) for i in range(73, 89))
+)
+
+#: Canonical HLA-DRB1*01:01 reference sequence (UniProt P04229 mature 5-93, 89 aa).
+HLA_DRB1_0101_GBETA = "PRFLWQLKFECHFFNGTERVRLLERCIYNQEESVRFDSDVGEYRAVTELGRPDAEYWNSQKDLLEQRRAAVDTYCRHNYGVGESFTVQR"
+_GBETA_SIZE = len(GBETA_POSITIONS)  # 89
+_GBETA_MATURE_POSITIONS: tuple[int, ...] = tuple(range(5, 5 + _GBETA_SIZE))  # mature 5..93
+
 
 # =============================================================================
 # Public API
@@ -343,8 +386,13 @@ _GALPHA2_REF_C1_IDX = 10  # mature 101 = IMGT G-ALPHA2 11
 _GALPHA2_REF_C2_IDX = 73  # mature 164 = IMGT G-ALPHA2 74
 _GALPHA2_CYS_ANCHOR_BONUS = 6.0
 
-#: Shipped multi-clade Class I IMGT G-DOMAIN structural PSSM + loop gap profile.
+_GBETA_REF_C1_IDX = 10  # mature 15 = IMGT G-BETA 11
+_GBETA_REF_C2_IDX = 74  # mature 79 = IMGT G-BETA 74
+_GBETA_CYS_ANCHOR_BONUS = 6.0
+
+#: Shipped multi-clade Class I and Class II IMGT G-DOMAIN structural PSSM + loop gap profiles.
 IMGT_CLASS_I_PROFILE_PATH = Path(__file__).resolve().parent / "imgt_class_i_profile.json"
+IMGT_CLASS_II_PROFILE_PATH = Path(__file__).resolve().parent / "imgt_class_ii_profile.json"
 
 #: 22-token alphabet for fixed-index IMGT frame strings:
 #: 20 canonical amino acids + '-' (structural gap) + 'X' (missing/unknown).
@@ -381,6 +429,61 @@ IMGT_CLASS_I_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("G-ALPHA1", s) f
     ("G-ALPHA2", s) for s in IMGT_GALPHA2_SLOTS
 )
 
+#: Fixed-index IMGT G-ALPHA slot schema (87 slots, zero dead Class I-only columns):
+#: 82 canonical match columns + A-strand 7A (DQA1) + CD-turn 40-41 + N-helix hinge 54A-54B.
+IMGT_GALPHA_SLOTS: tuple[str, ...] = (
+    ("1.2", "1.1")
+    + tuple(str(i) for i in range(1, 8))
+    + ("7A",)
+    + tuple(str(i) for i in range(8, 16))
+    + tuple(str(i) for i in range(20, 40))
+    + ("40", "41")
+    + tuple(str(i) for i in range(42, 55))
+    + ("54A", "54B")
+    + ("55", "56")
+    + tuple(str(i) for i in range(61, 91))
+)
+
+#: Fixed-index IMGT G-BETA slot schema (98 slots, zero dead columns):
+#: 89 canonical match columns + AB-turn 13A-13C + CD-turn 40/40A-40C/41 + helix-kink 61C.
+IMGT_GBETA_SLOTS: tuple[str, ...] = (
+    tuple(str(i) for i in range(1, 14))
+    + ("13A", "13B", "13C")
+    + tuple(str(i) for i in range(14, 40))
+    + ("40", "40A", "40B", "40C", "41")
+    + tuple(str(i) for i in range(42, 62))
+    + ("61A", "61B", "61C")
+    + tuple(str(i) for i in range(62, 73))
+    + ("72A",)
+    + tuple(str(i) for i in range(73, 89))
+)
+
+#: Combined Class II fixed-index IMGT groove frame (185 slots: 87 G-ALPHA + 98 G-BETA).
+IMGT_CLASS_II_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("G-ALPHA", s) for s in IMGT_GALPHA_SLOTS) + tuple(
+    ("G-BETA", s) for s in IMGT_GBETA_SLOTS
+)
+
+#: Shared 3D-homologous Pan-Class Half 1 slot schema (100 slots, shared by G-ALPHA1 and G-ALPHA).
+IMGT_PAN_HALF1_SLOTS: tuple[str, ...] = (
+    ("1.2", "1.1")
+    + tuple(str(i) for i in range(1, 8))
+    + ("7A",)
+    + tuple(str(i) for i in range(8, 20))
+    + ("19A", "19B", "19C")
+    + tuple(str(i) for i in range(20, 55))
+    + ("54A", "54B", "54C")
+    + tuple(str(i) for i in range(55, 91))
+    + ("92A",)
+)
+
+#: Shared 3D-homologous Pan-Class Half 2 slot schema (102 slots, shared by G-ALPHA2 and G-BETA).
+IMGT_PAN_HALF2_SLOTS: tuple[str, ...] = IMGT_GALPHA2_SLOTS
+
+#: Unified Pan-Class fixed-index IMGT groove frame (202 slots: 100 HALF1 + 102 HALF2).
+IMGT_PAN_CLASS_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("HALF1", s) for s in IMGT_PAN_HALF1_SLOTS) + tuple(
+    ("HALF2", s) for s in IMGT_PAN_HALF2_SLOTS
+)
+
 # Hotspot bucket definitions: (anchor_imgt_positions, target_slots, flanking_backbone_pair, fill_mode)
 # fill_mode: "center_out" (1->mid, 2->flanks, 3->all) or "cd_turn" (1->40, 2->40+41, 3->40+40B+41, ...)
 # or "left" (1->61B, 2->61B+61C)
@@ -393,14 +496,23 @@ _GALPHA2_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str],
     (frozenset({"37", "38", "39", "42", "43", "44"}), ("40", "40A", "40B", "40C", "41"), ("39", "42"), "cd_turn"),
     (frozenset({"58", "59", "60", "61", "61A", "62", "63", "64", "65", "66"}), ("61B", "61C"), ("61A", "62"), "left"),
 )
+_GALPHA_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
+    (frozenset({"5", "6", "7", "8", "9", "10", "11"}), ("7A",), ("7", "8"), "left"),
+    (frozenset({"37", "38", "39", "42", "43"}), ("40", "41"), ("39", "42"), "left"),
+    (frozenset({"50", "51", "52", "53", "54", "55", "56"}), ("54A", "54B"), ("54", "55"), "left"),
+)
+_GBETA_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
+    (frozenset(str(i) for i in range(11, 22)), ("13A", "13B", "13C"), ("13", "14"), "center_out"),
+    (frozenset({"37", "38", "39", "42", "43", "44"}), ("40", "40A", "40B", "40C", "41"), ("39", "42"), "cd_turn"),
+    (frozenset({"58", "59", "60", "61", "61A", "61B", "62", "63", "64", "65"}), ("61C",), ("61B", "62"), "left"),
+)
 
 
-@lru_cache(maxsize=1)
-def _load_class_i_profile() -> dict[str, Any]:
-    """Load the shipped multi-clade Class I IMGT structural PSSM + loop gap profile."""
-    if not IMGT_CLASS_I_PROFILE_PATH.exists():
+def _load_profile_file(path: Path) -> dict[str, Any]:
+    """Load one shipped multi-clade IMGT structural PSSM + loop gap profile JSON."""
+    if not path.exists():
         return {}
-    with open(IMGT_CLASS_I_PROFILE_PATH, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as f:
         raw = json.load(f)
     alphabet = raw.get("alphabet", "ARNDCQEGHILKMFPSTWYV")
     domains: dict[str, dict[str, Any]] = {}
@@ -423,6 +535,18 @@ def _load_class_i_profile() -> dict[str, Any]:
         "representative_ids": raw.get("representative_ids", {}),
         "domains": domains,
     }
+
+
+@lru_cache(maxsize=1)
+def _load_class_i_profile() -> dict[str, Any]:
+    """Load the shipped multi-clade Class I IMGT structural PSSM + loop gap profile."""
+    return _load_profile_file(IMGT_CLASS_I_PROFILE_PATH)
+
+
+@lru_cache(maxsize=1)
+def _load_class_ii_profile() -> dict[str, Any]:
+    """Load the shipped multi-clade Class II IMGT structural PSSM + loop gap profile."""
+    return _load_profile_file(IMGT_CLASS_II_PROFILE_PATH)
 
 
 def _fill_hotspot_slots(seq: str, slots: tuple[str, ...], mode: str) -> tuple[dict[str, str], bool]:
@@ -544,6 +668,9 @@ class DomainAlignment:
     fixed_slots: tuple[str, ...] = ()
     fixed_slot_to_aa: dict[str, str] = field(default_factory=dict)
     overflow_insertions: tuple[GrooveInsertion, ...] = ()
+    pan_class_fixed_seq: str = ""
+    pan_class_fixed_slots: tuple[str, ...] = ()
+    pan_class_slot_to_aa: dict[str, str] = field(default_factory=dict)
 
     @property
     def has_insertions(self) -> bool:
@@ -575,16 +702,50 @@ class DomainAlignment:
 
 @dataclass(frozen=True)
 class GrooveAlignment:
-    """Combined Class I G-ALPHA1 / G-ALPHA2 alignment onto IMGT G-DOMAIN coordinates.
+    """Combined Class I (G-ALPHA1/G-ALPHA2) or Class II (G-ALPHA/G-BETA) IMGT alignment.
 
-    Provides all three sequence granularities from a single profile alignment:
+    Provides all sequence granularities from a single exact profile alignment:
       - Variable-length lossless: ``residues`` (:class:`AlignedResidue` tokens) and ``a3m_seq``
-      - Full-groove fixed-index IMGT frame (198 slots, 22-token alphabet with ``'-'`` vs ``'X'``): ``fixed_seq``
-      - Compact pocket / hotspot extraction: :meth:`extract_positions` and :meth:`extract_imgt_slots`
+      - Class-specific fixed-index IMGT frame (zero dead columns): ``fixed_seq``
+        (198 slots for Class I, 185 slots for Class II, 22-token alphabet with ``'-'`` vs ``'X'``)
+      - Pan-class shared 3D-homologous IMGT frame: ``pan_class_fixed_seq``
+        (202 slots over ``IMGT_PAN_CLASS_GROOVE_SLOTS``, shared by Class I and Class II)
+      - Compact pocket / hotspot extraction: :meth:`extract_positions`,
+        :meth:`extract_imgt_slots`, and :meth:`extract_pan_class_slots`
     """
 
     alpha1: Optional[DomainAlignment] = None
     alpha2: Optional[DomainAlignment] = None
+    mhc_class: Optional[str] = None
+
+    @property
+    def resolved_mhc_class(self) -> str:
+        """Return ``"I"`` or ``"II"`` inferred from explicit ``mhc_class`` or aligned domains."""
+        if self.mhc_class in ("I", "II"):
+            return self.mhc_class
+        if (self.alpha1 is not None and self.alpha1.domain == "G-ALPHA") or (self.alpha2 is not None and self.alpha2.domain == "G-BETA"):
+            return "II"
+        return "I"
+
+    @property
+    def half1(self) -> Optional[DomainAlignment]:
+        """First groove half (``G-ALPHA1`` for Class I, ``G-ALPHA`` for Class II)."""
+        return self.alpha1
+
+    @property
+    def half2(self) -> Optional[DomainAlignment]:
+        """Second groove half (``G-ALPHA2`` for Class I, ``G-BETA`` for Class II)."""
+        return self.alpha2
+
+    @property
+    def g_alpha(self) -> Optional[DomainAlignment]:
+        """Class II ``G-ALPHA`` half (or ``None`` for Class I)."""
+        return self.alpha1 if self.resolved_mhc_class == "II" else None
+
+    @property
+    def g_beta(self) -> Optional[DomainAlignment]:
+        """Class II ``G-BETA`` half (or ``None`` for Class I)."""
+        return self.alpha2 if self.resolved_mhc_class == "II" else None
 
     @property
     def insertions(self) -> tuple[GrooveInsertion, ...]:
@@ -635,7 +796,7 @@ class GrooveAlignment:
 
     @property
     def residues(self) -> tuple[AlignedResidue, ...]:
-        """Lossless variable-length per-residue tokens across G-ALPHA1 and G-ALPHA2."""
+        """Lossless variable-length per-residue tokens across both groove halves."""
         parts: list[AlignedResidue] = []
         if self.alpha1 is not None:
             parts.extend(self.alpha1.residues)
@@ -653,20 +814,38 @@ class GrooveAlignment:
         ``n_term_missing``, and ``c_term_missing`` distinguish internal
         deletions from terminal truncations. An absent domain is all gaps.
         """
-        s1 = self.alpha1.a3m_seq if self.alpha1 is not None else ("-" * _GALPHA1_SIZE)
-        s2 = self.alpha2.a3m_seq if self.alpha2 is not None else ("-" * _GALPHA2_SIZE)
+        is_c2 = self.resolved_mhc_class == "II"
+        len1 = _GALPHA_SIZE if is_c2 else _GALPHA1_SIZE
+        len2 = _GBETA_SIZE if is_c2 else _GALPHA2_SIZE
+        s1 = self.alpha1.a3m_seq if self.alpha1 is not None else ("-" * len1)
+        s2 = self.alpha2.a3m_seq if self.alpha2 is not None else ("-" * len2)
         return s1 + s2
 
     @property
     def fixed_slots(self) -> tuple[tuple[str, str], ...]:
         """Ordered ``(domain, imgt_slot)`` coordinates corresponding to :attr:`fixed_seq`."""
-        return IMGT_CLASS_I_GROOVE_SLOTS
+        return IMGT_CLASS_II_GROOVE_SLOTS if self.resolved_mhc_class == "II" else IMGT_CLASS_I_GROOVE_SLOTS
 
     @property
     def fixed_seq(self) -> str:
-        """Fixed-index IMGT G-DOMAIN string (198 chars, 22-token alphabet with '-' gap vs 'X' missing)."""
-        s1 = self.alpha1.fixed_seq if self.alpha1 is not None else ("X" * len(IMGT_GALPHA1_SLOTS))
-        s2 = self.alpha2.fixed_seq if self.alpha2 is not None else ("X" * len(IMGT_GALPHA2_SLOTS))
+        """Class-specific fixed-index IMGT string (198 chars for Class I, 185 for Class II)."""
+        is_c2 = self.resolved_mhc_class == "II"
+        n1 = len(IMGT_GALPHA_SLOTS) if is_c2 else len(IMGT_GALPHA1_SLOTS)
+        n2 = len(IMGT_GBETA_SLOTS) if is_c2 else len(IMGT_GALPHA2_SLOTS)
+        s1 = self.alpha1.fixed_seq if self.alpha1 is not None else ("X" * n1)
+        s2 = self.alpha2.fixed_seq if self.alpha2 is not None else ("X" * n2)
+        return s1 + s2
+
+    @property
+    def pan_class_fixed_slots(self) -> tuple[tuple[str, str], ...]:
+        """Ordered ``(half, imgt_slot)`` coordinates for :attr:`pan_class_fixed_seq` (202 slots)."""
+        return IMGT_PAN_CLASS_GROOVE_SLOTS
+
+    @property
+    def pan_class_fixed_seq(self) -> str:
+        """Shared 3D-homologous pan-class IMGT string (202 chars, 22-token alphabet with '-' vs 'X')."""
+        s1 = self.alpha1.pan_class_fixed_seq if self.alpha1 is not None else ("X" * len(IMGT_PAN_HALF1_SLOTS))
+        s2 = self.alpha2.pan_class_fixed_seq if self.alpha2 is not None else ("X" * len(IMGT_PAN_HALF2_SLOTS))
         return s1 + s2
 
     @property
@@ -683,18 +862,26 @@ class GrooveAlignment:
         merged: dict[tuple[str, str], str] = {}
         if self.alpha1 is not None:
             for pos, aa in self.alpha1.imgt_to_aa.items():
-                merged[("G-ALPHA1", pos)] = aa
+                merged[(self.alpha1.domain, pos)] = aa
         if self.alpha2 is not None:
             for pos, aa in self.alpha2.imgt_to_aa.items():
-                merged[("G-ALPHA2", pos)] = aa
+                merged[(self.alpha2.domain, pos)] = aa
         return merged
 
     def residue_at(self, mature_pos: int) -> Optional[str]:
         """Return the aligned amino acid at canonical 1-indexed *mature_pos*.
 
-        Returns ``"-"`` for an internal deletion, or ``None`` if the position
-        is outside the aligned domain (e.g. N/C-terminal truncation or missing domain).
+        For Class I, positions 1–90 query ``G-ALPHA1`` and >90 query ``G-ALPHA2``.
+        For Class II (where alpha and beta are separate chains with independent
+        mature numbering), use :meth:`residue_at_imgt` or query ``.g_alpha`` /
+        ``.g_beta`` directly when both chains are present.
         """
+        if self.resolved_mhc_class == "II":
+            if self.alpha1 is not None and self.alpha2 is None:
+                return self.alpha1.mature_to_aa.get(mature_pos)
+            if self.alpha2 is not None and self.alpha1 is None:
+                return self.alpha2.mature_to_aa.get(mature_pos)
+            return self.alpha1.mature_to_aa.get(mature_pos) if self.alpha1 is not None else None
         if mature_pos <= _GALPHA1_SIZE:
             return self.alpha1.mature_to_aa.get(mature_pos) if self.alpha1 is not None else None
         return self.alpha2.mature_to_aa.get(mature_pos) if self.alpha2 is not None else None
@@ -702,15 +889,32 @@ class GrooveAlignment:
     def residue_at_imgt(self, domain: str, imgt_pos: str) -> Optional[str]:
         """Return the aligned amino acid at IMGT ``(domain, imgt_pos)``.
 
-        Supports both canonical backbone positions (e.g. ``("G-ALPHA1", "51")``,
-        ``("G-ALPHA2", "61A")``) and fixed hotspot insertion slots (e.g.
-        ``("G-ALPHA1", "54A")``, ``("G-ALPHA2", "61B")``, ``("G-ALPHA2", "40")``).
+        Supports Class I (``G-ALPHA1``, ``G-ALPHA2``), Class II (``G-ALPHA``,
+        ``G-BETA``), and pan-class half names (``HALF1``, ``HALF2``).
         Returns ``"-"`` for structural gaps / unoccupied insertion slots, or
         ``None`` when the position is missing / truncated.
         """
-        norm = _normalize_class_i_domain(domain)
-        dom = self.alpha1 if norm == "G-ALPHA1" else self.alpha2
-        if dom is None:
+        token = str(domain or "").strip().upper().replace("_", "-")
+        if token in ("HALF1", "H1"):
+            dom = self.alpha1
+            if dom is None:
+                return None
+            ch = dom.pan_class_slot_to_aa.get(imgt_pos)
+            if ch is not None:
+                return None if ch == "X" else ch
+            return dom.imgt_to_aa.get(imgt_pos)
+        if token in ("HALF2", "H2"):
+            dom = self.alpha2
+            if dom is None:
+                return None
+            ch = dom.pan_class_slot_to_aa.get(imgt_pos)
+            if ch is not None:
+                return None if ch == "X" else ch
+            return dom.imgt_to_aa.get(imgt_pos)
+
+        norm = _normalize_groove_domain(domain)
+        dom = self.alpha1 if norm in ("G-ALPHA1", "G-ALPHA") else self.alpha2
+        if dom is None or dom.domain != norm:
             return None
         if imgt_pos in dom.imgt_to_aa:
             return dom.imgt_to_aa[imgt_pos]
@@ -749,22 +953,34 @@ class GrooveAlignment:
         missing: str = "X",
         deleted: str = "-",
     ) -> str:
-        """Extract a fixed-position sequence at arbitrary ``(domain, imgt_slot)`` coordinates.
+        """Extract a fixed-position sequence at arbitrary ``(domain_or_half, imgt_slot)`` coordinates.
 
-        Accepts both canonical backbone positions and fixed hotspot insertion
-        slots (e.g. ``("G-ALPHA1", "54A")``, ``("G-ALPHA2", "61B")``), keeping
-        structural gaps (``deleted='-'``) distinct from missing/truncated
-        positions (``missing='X'``).
+        Accepts Class I (``G-ALPHA1``/``G-ALPHA2``), Class II (``G-ALPHA``/``G-BETA``),
+        and pan-class (``HALF1``/``HALF2``) slot coordinates, keeping structural
+        gaps (``deleted='-'``) distinct from missing/truncated positions
+        (``missing='X'``).
         """
         chars: list[str] = []
         for domain, slot in slots:
-            norm = _normalize_class_i_domain(domain)
-            dom = self.alpha1 if norm == "G-ALPHA1" else self.alpha2
+            token = str(domain or "").strip().upper().replace("_", "-")
+            if token in ("HALF1", "H1"):
+                dom = self.alpha1
+                slot_lookup = dom.pan_class_slot_to_aa if dom is not None else {}
+            elif token in ("HALF2", "H2"):
+                dom = self.alpha2
+                slot_lookup = dom.pan_class_slot_to_aa if dom is not None else {}
+            else:
+                norm = _normalize_groove_domain(domain)
+                dom = self.alpha1 if norm in ("G-ALPHA1", "G-ALPHA") else self.alpha2
+                if dom is not None and dom.domain != norm:
+                    dom = None
+                slot_lookup = dom.fixed_slot_to_aa if dom is not None else {}
+
             if dom is None:
                 chars.append(missing)
                 continue
-            if slot in dom.fixed_slot_to_aa:
-                ch = dom.fixed_slot_to_aa[slot]
+            if slot in slot_lookup:
+                ch = slot_lookup[slot]
                 if ch == "-":
                     chars.append(deleted)
                 elif ch == "X":
@@ -778,10 +994,21 @@ class GrooveAlignment:
                 chars.append(missing)
         return "".join(chars)
 
+    def extract_pan_class_slots(
+        self,
+        slots: Sequence[tuple[str, str]],
+        *,
+        missing: str = "X",
+        deleted: str = "-",
+    ) -> str:
+        """Extract a fixed-position sequence from the shared 202-slot pan-class IMGT frame."""
+        return self.extract_imgt_slots(slots, missing=missing, deleted=deleted)
+
     def summary(self) -> str:
         """Return a concise diagnostic summary of indels and truncations."""
         parts: list[str] = []
-        for label, dom in (("alpha1", self.alpha1), ("alpha2", self.alpha2)):
+        labels = ("alpha", "beta") if self.resolved_mhc_class == "II" else ("alpha1", "alpha2")
+        for label, dom in ((labels[0], self.alpha1), (labels[1], self.alpha2)):
             if dom is None:
                 continue
             notes: list[str] = []
@@ -799,42 +1026,75 @@ class GrooveAlignment:
         return "; ".join(parts) if parts else "canonical"
 
 
-def _normalize_class_i_domain(domain: str) -> str:
+def _normalize_groove_domain(domain: str) -> str:
     token = str(domain or "").strip().upper().replace("_", "-")
-    if token in ("G-ALPHA1", "ALPHA1", "GROOVE1", "A1"):
+    if token in ("G-ALPHA1", "ALPHA1", "GROOVE1", "A1", "I-ALPHA1", "CLASS-I-ALPHA1"):
         return "G-ALPHA1"
-    if token in ("G-ALPHA2", "ALPHA2", "GROOVE2", "A2"):
+    if token in ("G-ALPHA2", "ALPHA2", "GROOVE2", "A2", "I-ALPHA2", "CLASS-I-ALPHA2"):
         return "G-ALPHA2"
-    raise ValueError(f"Unsupported Class I groove domain: {domain!r} (expected 'G-ALPHA1' or 'G-ALPHA2')")
+    if token in ("G-ALPHA", "ALPHA", "II-ALPHA", "CLASS-II-ALPHA", "C2A"):
+        return "G-ALPHA"
+    if token in ("G-BETA", "BETA", "BETA1", "II-BETA", "CLASS-II-BETA", "C2B"):
+        return "G-BETA"
+    raise ValueError(f"Unsupported IMGT groove domain: {domain!r} (expected 'G-ALPHA1', 'G-ALPHA2', 'G-ALPHA', or 'G-BETA')")
 
 
-def _galpha2_cys_anchor_bonus(qry: str) -> Optional[dict[tuple[int, int], float]]:
-    """Return a gentle alignment bonus for the conserved G-ALPHA2 Cys11–Cys74 pair."""
+def _normalize_class_i_domain(domain: str) -> str:
+    norm = _normalize_groove_domain(domain)
+    if norm not in ("G-ALPHA1", "G-ALPHA2"):
+        raise ValueError(f"Unsupported Class I groove domain: {domain!r} (expected 'G-ALPHA1' or 'G-ALPHA2')")
+    return norm
+
+
+def _disulfide_cys_anchor_bonus(
+    qry: str,
+    ref_c1_idx: int,
+    ref_c2_idx: int,
+    bonus: float,
+) -> Optional[dict[tuple[int, int], float]]:
+    """Return a gentle alignment bonus for the conserved Cys11–Cys74 disulfide pair."""
     cys = [idx for idx, aa in enumerate(qry) if aa == "C"]
     if len(cys) < 2:
         return None
+    target_sep = ref_c2_idx - ref_c1_idx
     best_pair: Optional[tuple[int, int]] = None
     best_dist = 10**9
     for i, c1 in enumerate(cys):
         for c2 in cys[i + 1 :]:
             sep = c2 - c1
             if 50 <= sep <= 76:
-                dist = abs(sep - 63) * 2 + abs(c1 - _GALPHA2_REF_C1_IDX)
+                dist = abs(sep - target_sep) * 2 + abs(c1 - ref_c1_idx)
                 if dist < best_dist:
                     best_dist = dist
                     best_pair = (c1, c2)
     if best_pair is None:
         return None
     return {
-        (_GALPHA2_REF_C1_IDX, best_pair[0]): _GALPHA2_CYS_ANCHOR_BONUS,
-        (_GALPHA2_REF_C2_IDX, best_pair[1]): _GALPHA2_CYS_ANCHOR_BONUS,
+        (ref_c1_idx, best_pair[0]): bonus,
+        (ref_c2_idx, best_pair[1]): bonus,
     }
 
 
-def _align_class_i_domain(ref: str, qry: str, domain: str) -> tuple[float, str, str]:
-    """Run exact semi-global alignment for one Class I groove domain."""
-    anchor_bonus = _galpha2_cys_anchor_bonus(qry) if domain == "G-ALPHA2" else None
-    profile = _load_class_i_profile()
+def _galpha2_cys_anchor_bonus(qry: str) -> Optional[dict[tuple[int, int], float]]:
+    """Return a gentle alignment bonus for the conserved G-ALPHA2 Cys11–Cys74 pair."""
+    return _disulfide_cys_anchor_bonus(qry, _GALPHA2_REF_C1_IDX, _GALPHA2_REF_C2_IDX, _GALPHA2_CYS_ANCHOR_BONUS)
+
+
+def _gbeta_cys_anchor_bonus(qry: str) -> Optional[dict[tuple[int, int], float]]:
+    """Return a gentle alignment bonus for the conserved G-BETA Cys11–Cys74 pair."""
+    return _disulfide_cys_anchor_bonus(qry, _GBETA_REF_C1_IDX, _GBETA_REF_C2_IDX, _GBETA_CYS_ANCHOR_BONUS)
+
+
+def _align_groove_domain(ref: str, qry: str, domain: str) -> tuple[float, str, str]:
+    """Run exact semi-global alignment for one Class I or Class II groove domain."""
+    if domain == "G-ALPHA2":
+        anchor_bonus = _galpha2_cys_anchor_bonus(qry)
+    elif domain == "G-BETA":
+        anchor_bonus = _gbeta_cys_anchor_bonus(qry)
+    else:
+        anchor_bonus = None
+
+    profile = _load_class_i_profile() if domain in ("G-ALPHA1", "G-ALPHA2") else _load_class_ii_profile()
     dom_profile = profile.get("domains", {}).get(domain) if profile else None
     if dom_profile is not None:
         return _profile_gotoh(
@@ -851,7 +1111,8 @@ def _align_class_i_domain(ref: str, qry: str, domain: str) -> tuple[float, str, 
 
 
 # Cache only immutable score and traceback strings. Public coordinate maps are fresh per call.
-_cached_class_i_alignment = lru_cache(maxsize=4096)(_align_class_i_domain)
+_cached_groove_alignment = lru_cache(maxsize=4096)(_align_groove_domain)
+_cached_class_i_alignment = _cached_groove_alignment
 
 
 def _profile_gotoh(
@@ -1089,13 +1350,21 @@ def _build_fixed_frame(
     imgt_to_aa: dict[str, str],
     insertions: Sequence[GrooveInsertion],
 ) -> tuple[str, tuple[str, ...], dict[str, str], tuple[GrooveInsertion, ...]]:
-    """Project an aligned domain onto the fixed-index IMGT frame with '-' vs 'X'."""
+    """Project an aligned domain onto its class-specific fixed-index IMGT frame with '-' vs 'X'."""
     if domain == "G-ALPHA1":
         slots = IMGT_GALPHA1_SLOTS
         hotspots = _GALPHA1_HOTSPOTS
-    else:
+    elif domain == "G-ALPHA2":
         slots = IMGT_GALPHA2_SLOTS
         hotspots = _GALPHA2_HOTSPOTS
+    elif domain == "G-ALPHA":
+        slots = IMGT_GALPHA_SLOTS
+        hotspots = _GALPHA_HOTSPOTS
+    elif domain == "G-BETA":
+        slots = IMGT_GBETA_SLOTS
+        hotspots = _GBETA_HOTSPOTS
+    else:
+        raise ValueError(f"Unsupported IMGT groove domain: {domain!r}")
 
     slot_map: dict[str, str] = {}
     for slot in slots:
@@ -1145,20 +1414,89 @@ def _build_fixed_frame(
     return fixed_seq, slots, slot_map, tuple(overflow)
 
 
+# Flanking canonical backbone positions used to distinguish structural gaps ('-')
+# from missing/truncated ends ('X') for pan-class slots absent from a class's native frame.
+_PAN_CLASS_EXTRA_SLOT_FLANKS: dict[str, dict[str, tuple[str, ...]]] = {
+    "G-ALPHA1": {
+        "1.2": ("1",),
+        "1.1": ("1",),
+        "7A": ("7", "8"),
+        "92A": ("90",),
+    },
+    "G-ALPHA": {
+        "16": ("15", "20"),
+        "17": ("15", "20"),
+        "18": ("15", "20"),
+        "19": ("15", "20"),
+        "19A": ("15", "20"),
+        "19B": ("15", "20"),
+        "19C": ("15", "20"),
+        "54C": ("54", "55"),
+        "57": ("56", "61"),
+        "58": ("56", "61"),
+        "59": ("56", "61"),
+        "60": ("56", "61"),
+        "92A": ("90",),
+    },
+    "G-ALPHA2": {},
+    "G-BETA": {
+        "89": ("88",),
+        "90": ("88",),
+        "91": ("88",),
+        "92": ("88",),
+    },
+}
+
+
+def _build_pan_class_frame(
+    domain: str,
+    fixed_slot_to_aa: dict[str, str],
+    imgt_to_aa: dict[str, str],
+) -> tuple[str, tuple[str, ...], dict[str, str]]:
+    """Project a Class I or Class II domain alignment onto the shared 3D pan-class IMGT frame."""
+    slots = IMGT_PAN_HALF1_SLOTS if domain in ("G-ALPHA1", "G-ALPHA") else IMGT_PAN_HALF2_SLOTS
+    flanks_map = _PAN_CLASS_EXTRA_SLOT_FLANKS[domain]
+    pan_map: dict[str, str] = {}
+    for slot in slots:
+        if slot in fixed_slot_to_aa:
+            pan_map[slot] = fixed_slot_to_aa[slot]
+        else:
+            flanks = flanks_map.get(slot, ())
+            if flanks and all(f in imgt_to_aa for f in flanks):
+                pan_map[slot] = "-"
+            else:
+                pan_map[slot] = "X"
+    pan_seq = "".join(pan_map[s] for s in slots)
+    return pan_seq, slots, pan_map
+
+
+def _domain_reference_spec(norm_domain: str) -> tuple[str, tuple[str, ...], tuple[int, ...]]:
+    """Return ``(ref_seq, imgt_positions, mature_positions)`` for a normalized groove domain."""
+    if norm_domain == "G-ALPHA1":
+        return HLA_A0201_GALPHA1, GALPHA1_POSITIONS, tuple(range(1, _GALPHA1_SIZE + 1))
+    if norm_domain == "G-ALPHA2":
+        return HLA_A0201_GALPHA2, GALPHA2_POSITIONS, tuple(_GALPHA2_FWD[pos] for pos in GALPHA2_POSITIONS)
+    if norm_domain == "G-ALPHA":
+        return HLA_DRA0101_GALPHA, GALPHA_POSITIONS, _GALPHA_MATURE_POSITIONS
+    if norm_domain == "G-BETA":
+        return HLA_DRB1_0101_GBETA, GBETA_POSITIONS, _GBETA_MATURE_POSITIONS
+    raise ValueError(f"Unsupported IMGT groove domain: {norm_domain!r}")
+
+
 def align_domain_to_imgt(
     seq: str,
     domain: str = "G-ALPHA1",
     *,
     use_fast_path: bool = True,
 ) -> DomainAlignment:
-    """Align a Class I groove half (G-ALPHA1 or G-ALPHA2) to canonical IMGT coordinates.
+    """Align a Class I or Class II groove half to canonical IMGT G-DOMAIN coordinates.
 
-    Aligns against the shipped multi-clade Class I structural PSSM with
-    position-specific gap-open penalties lowered at the 6 conserved IMGT
-    G-DOMAIN loop hotspots (falling back to BLOSUM62 against HLA-A*02:01 if
-    the profile file is unavailable).
+    Supports all four vertebrate MHC groove domains via separate per-domain
+    multi-clade structural PSSM + loop gap-penalty profiles:
+      - Class I: ``"G-ALPHA1"`` (α1, 90 cols) and ``"G-ALPHA2"`` (α2, 92 cols)
+      - Class II: ``"G-ALPHA"`` (α1, 82 cols) and ``"G-BETA"`` (β1, 89 cols)
 
-    Emits all three sequence granularities from a single exact alignment:
+    Emits all sequence granularities from a single exact alignment:
       - Per-position coordinate maps (``mature_to_aa``, ``imgt_to_aa``) and
         structured ``insertions`` / ``deletions`` (distinct from terminal
         truncations and overhangs).
@@ -1167,17 +1505,20 @@ def align_domain_to_imgt(
         (uppercase ``A-Z`` match including observed ``'X'``, lowercase ``a-z``
         internal insertion or terminal overhang, ``'-'`` for both internal
         deletions and missing match columns).
-      - Fixed-index IMGT frame: ``fixed_seq`` (96 chars for G-ALPHA1, 102
-        chars for G-ALPHA2, 22-token alphabet with ``'-'`` vs ``'X'``) plus
-        ``overflow_insertions``.
+      - Class-specific fixed-index IMGT frame: ``fixed_seq`` (96 chars for
+        G-ALPHA1, 102 for G-ALPHA2, 87 for G-ALPHA, 98 for G-BETA; 22-token
+        alphabet with ``'-'`` vs ``'X'``) plus ``overflow_insertions``.
+      - Shared 3D-homologous pan-class frame: ``pan_class_fixed_seq`` (100
+        chars for Half 1, 102 chars for Half 2).
 
     Parameters
     ----------
     seq : str
-        Amino acid sequence of the groove half (``groove1`` or ``groove2``).
+        Amino acid sequence of the groove half.
     domain : str, optional
-        ``"G-ALPHA1"`` (default) or ``"G-ALPHA2"`` (aliases ``"alpha1"`` /
-        ``"alpha2"`` / ``"groove1"`` / ``"groove2"`` accepted).
+        ``"G-ALPHA1"``, ``"G-ALPHA2"``, ``"G-ALPHA"``, or ``"G-BETA"``
+        (aliases ``"alpha1"``, ``"alpha2"``, ``"class_ii_alpha"``,
+        ``"class_ii_beta"``, ``"beta1"``, etc. accepted).
     use_fast_path : bool, optional
         When True (default), reuse cached exact score/traceback results for
         repeated domain sequences. Set to False to recompute the exact same
@@ -1187,21 +1528,16 @@ def align_domain_to_imgt(
     -------
     DomainAlignment
         Per-position mappings, structured indels, lossless variable-length
-        ``residues`` / ``a3m_seq``, and fixed-index ``fixed_seq``.
+        ``residues`` / ``a3m_seq``, class-specific ``fixed_seq``, and shared
+        ``pan_class_fixed_seq``.
     """
-    norm_domain = _normalize_class_i_domain(domain)
-    if norm_domain == "G-ALPHA1":
-        ref_seq = HLA_A0201_GALPHA1
-        imgt_positions = GALPHA1_POSITIONS
-        mature_positions = tuple(range(1, _GALPHA1_SIZE + 1))
-    else:
-        ref_seq = HLA_A0201_GALPHA2
-        imgt_positions = GALPHA2_POSITIONS
-        mature_positions = tuple(_GALPHA2_FWD[pos] for pos in GALPHA2_POSITIONS)
+    norm_domain = _normalize_groove_domain(domain)
+    ref_seq, imgt_positions, mature_positions = _domain_reference_spec(norm_domain)
 
     qry = "".join(ch for ch in str(seq or "").strip().upper() if ch.isalpha())
     if not qry:
         fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, {}, ())
+        pan_seq, pan_slots, pan_map = _build_pan_class_frame(norm_domain, slot_map, {})
         return DomainAlignment(
             domain=norm_domain,
             query_seq="",
@@ -1220,9 +1556,12 @@ def align_domain_to_imgt(
             fixed_slots=fixed_slots,
             fixed_slot_to_aa=slot_map,
             overflow_insertions=overflow,
+            pan_class_fixed_seq=pan_seq,
+            pan_class_fixed_slots=pan_slots,
+            pan_class_slot_to_aa=pan_map,
         )
 
-    align = _cached_class_i_alignment if use_fast_path else _align_class_i_domain
+    align = _cached_groove_alignment if use_fast_path else _align_groove_domain
     score, aligned_ref, aligned_qry = align(ref_seq, qry, norm_domain)
 
     # Identify the span of columns containing aligned (non-gap in both) pairs
@@ -1230,6 +1569,7 @@ def align_domain_to_imgt(
     paired_cols = [idx for idx, (r, q) in enumerate(zip(aligned_ref, aligned_qry)) if r != "-" and q != "-"]
     if not paired_cols:
         fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, {}, ())
+        pan_seq, pan_slots, pan_map = _build_pan_class_frame(norm_domain, slot_map, {})
         overhang_residues = tuple(
             AlignedResidue(
                 aa=ch,
@@ -1264,6 +1604,9 @@ def align_domain_to_imgt(
             fixed_slots=fixed_slots,
             fixed_slot_to_aa=slot_map,
             overflow_insertions=overflow,
+            pan_class_fixed_seq=pan_seq,
+            pan_class_fixed_slots=pan_slots,
+            pan_class_slot_to_aa=pan_map,
         )
 
     first_paired = paired_cols[0]
@@ -1441,6 +1784,7 @@ def align_domain_to_imgt(
             )
 
     fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, imgt_to_aa, insertions)
+    pan_seq, pan_slots, pan_map = _build_pan_class_frame(norm_domain, slot_map, imgt_to_aa)
     identity = identical_pairs / aligned_pairs if aligned_pairs else 0.0
     return DomainAlignment(
         domain=norm_domain,
@@ -1467,6 +1811,9 @@ def align_domain_to_imgt(
         fixed_slots=fixed_slots,
         fixed_slot_to_aa=slot_map,
         overflow_insertions=overflow,
+        pan_class_fixed_seq=pan_seq,
+        pan_class_fixed_slots=pan_slots,
+        pan_class_slot_to_aa=pan_map,
     )
 
 
@@ -1474,44 +1821,69 @@ def map_groove_positions(
     groove1: str = "",
     groove2: str = "",
     *,
+    mhc_class: str = "I",
     use_fast_path: bool = True,
 ) -> GrooveAlignment:
-    """Align Class I ``groove1`` (α1) and ``groove2`` (α2) onto IMGT G-DOMAIN coordinates.
+    """Align Class I ``(groove1, groove2)`` or Class II ``(alpha_groove, beta_groove)`` onto IMGT coordinates.
 
     Returns a :class:`GrooveAlignment` with per-position mature and IMGT
-    residue mappings plus structured internal ``insertions`` and ``deletions``.
+    residue mappings, structured indels, lossless ``residues`` / ``a3m_seq``,
+    class-specific ``fixed_seq`` (198 for Class I, 185 for Class II), and
+    unified 202-slot ``pan_class_fixed_seq``.
     """
-    a1 = align_domain_to_imgt(groove1, domain="G-ALPHA1", use_fast_path=use_fast_path) if groove1 else None
-    a2 = align_domain_to_imgt(groove2, domain="G-ALPHA2", use_fast_path=use_fast_path) if groove2 else None
-    return GrooveAlignment(alpha1=a1, alpha2=a2)
+    cls = str(mhc_class or "I").strip().upper()
+    if cls == "II":
+        d1, d2 = "G-ALPHA", "G-BETA"
+    elif cls == "I":
+        d1, d2 = "G-ALPHA1", "G-ALPHA2"
+    else:
+        raise ValueError(f"Unsupported mhc_class: {mhc_class!r} (expected 'I' or 'II')")
+    a1 = align_domain_to_imgt(groove1, domain=d1, use_fast_path=use_fast_path) if groove1 else None
+    a2 = align_domain_to_imgt(groove2, domain=d2, use_fast_path=use_fast_path) if groove2 else None
+    return GrooveAlignment(alpha1=a1, alpha2=a2, mhc_class=cls)
+
+
+def map_class_ii_groove_positions(
+    alpha_groove: str = "",
+    beta_groove: str = "",
+    *,
+    use_fast_path: bool = True,
+) -> GrooveAlignment:
+    """Align a Class II α/β groove pair (or single chain) onto IMGT G-ALPHA / G-BETA coordinates."""
+    return map_groove_positions(alpha_groove, beta_groove, mhc_class="II", use_fast_path=use_fast_path)
 
 
 def align_groove_to_imgt(
     record_or_groove1: Any,
     groove2: Optional[str] = None,
     *,
+    mhc_class: Optional[str] = None,
     use_fast_path: bool = True,
 ) -> GrooveAlignment:
-    """Align a Class I allele record or ``(groove1, groove2)`` pair to IMGT G-DOMAIN coordinates.
+    """Align a Class I or Class II allele record or ``(groove1, groove2)`` pair to IMGT G-DOMAIN coordinates.
 
     Accepts:
       - an :class:`~mhcseqs.domain_parsing.AlleleRecord` (or any object with
-        ``.groove1`` / ``.groove2`` attributes),
-      - a mapping / CSV row dict with ``"groove1"`` and ``"groove2"`` keys, or
-      - explicit ``(groove1, groove2)`` strings.
+        ``.groove1`` / ``.groove2`` and optional ``.mhc_class`` attributes),
+      - a mapping / CSV row dict with ``"groove1"`` and ``"groove2"`` keys
+        (auto-detecting ``mhc_class="II"`` when present), or
+      - explicit ``(groove1, groove2)`` strings (pass ``mhc_class="II"`` for
+        Class II α/β heterodimer pairs).
     """
     if isinstance(record_or_groove1, Mapping):
         g1 = str(record_or_groove1.get("groove1") or "")
         g2 = str(record_or_groove1.get("groove2") or "")
-        return map_groove_positions(g1, g2, use_fast_path=use_fast_path)
+        cls = mhc_class or str(record_or_groove1.get("mhc_class") or "I")
+        return map_groove_positions(g1, g2, mhc_class=cls, use_fast_path=use_fast_path)
 
     if hasattr(record_or_groove1, "groove1") or hasattr(record_or_groove1, "groove2"):
         g1 = str(getattr(record_or_groove1, "groove1", "") or "")
         g2 = str(getattr(record_or_groove1, "groove2", "") or "")
-        return map_groove_positions(g1, g2, use_fast_path=use_fast_path)
+        cls = mhc_class or str(getattr(record_or_groove1, "mhc_class", "") or "I")
+        return map_groove_positions(g1, g2, mhc_class=cls, use_fast_path=use_fast_path)
 
     if isinstance(record_or_groove1, str):
-        return map_groove_positions(record_or_groove1, groove2 or "", use_fast_path=use_fast_path)
+        return map_groove_positions(record_or_groove1, groove2 or "", mhc_class=mhc_class or "I", use_fast_path=use_fast_path)
 
     raise TypeError(
         "align_groove_to_imgt expects an AlleleRecord, mapping with groove1/groove2 keys, or (groove1, groove2) strings; "
