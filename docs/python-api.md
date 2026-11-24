@@ -110,9 +110,12 @@ Core groove extraction and domain decomposition.
 
 ### `mhcseqs.imgt`
 
-IMGT G-DOMAIN numbering and reference-anchored Class I groove alignment.
+IMGT G-DOMAIN numbering and multi-clade structural profile Class I groove alignment.
 
-- `align_groove_to_imgt(record_or_groove1, groove2=None)` — align an `AlleleRecord`, row dict, or `(groove1, groove2)` pair to canonical IMGT G-DOMAIN coordinates, returning a `GrooveAlignment` with structured `insertions` (`GrooveInsertion`), `deletions` (`GrooveDeletion`), and truncation metadata
+- `align_groove_to_imgt(record_or_groove1, groove2=None)` — align an `AlleleRecord`, row dict, or `(groove1, groove2)` pair against the shipped multi-clade Class I PSSM + loop gap-penalty profile, returning a `GrooveAlignment` with all three sequence granularities from one exact alignment:
+  - variable-length lossless `residues` (`AlignedResidue` tokens, including N/C-terminal overhangs) and `a3m_seq` (uppercase `A-Z` canonical match including observed `'X'`, lowercase `a-z` internal insertion or N/C-terminal overhang, `'-'` for any unoccupied match column). Each domain records internal deletions in `deletions` and terminal truncations in `n_term_missing` and `c_term_missing`.
+  - full-groove fixed-index `fixed_seq` (198 slots over `IMGT_CLASS_I_GROOVE_SLOTS`, 22-token `FIXED_FRAME_ALPHABET` separating `'-'` structural gap from `'X'` missing/truncated, plus `overflow_insertions`)
+  - compact pocket + hotspot extraction via `extract_positions(...)` and `extract_imgt_slots(...)`
 - `align_domain_to_imgt(seq, domain="G-ALPHA1")` — align a single Class I groove half (`G-ALPHA1` or `G-ALPHA2`) to IMGT coordinates (`DomainAlignment`)
 - `map_groove_positions(groove1, groove2)` — align `(groove1, groove2)` strings onto canonical IMGT coordinates
 - `mature_to_imgt(mature_pos, mhc_class="I", chain="")` / `imgt_to_mature(domain, imgt_pos)` — canonical fixed-reference coordinate converters

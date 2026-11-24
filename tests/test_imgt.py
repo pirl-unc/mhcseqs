@@ -5,13 +5,19 @@ import pytest
 from mhcseqs.domain_parsing import decompose_class_i
 from mhcseqs.imgt import (
     CONSERVED_CYS_POSITIONS,
+    FIXED_FRAME_ALPHABET,
     GALPHA1_POSITIONS,
     GALPHA2_POSITIONS,
     HELIX_INSERTIONS,
     HLA_A0201_GALPHA1,
     HLA_A0201_GALPHA2,
+    IMGT_CLASS_I_GROOVE_SLOTS,
+    IMGT_GALPHA1_SLOTS,
+    IMGT_GALPHA2_SLOTS,
+    AlignedResidue,
     DomainAlignment,
     GrooveAlignment,
+    _load_class_i_profile,
     align_domain_to_imgt,
     align_groove_to_imgt,
     imgt_to_mature,
@@ -380,18 +386,22 @@ def test_align_canonical_hla_a0201_groove():
     [
         (HLA_A0201_GALPHA1, "G-ALPHA1"),
         (HLA_A0201_GALPHA2 + "D", "G-ALPHA2"),
-        # Mafa-I*01:62 in the v2.9.0 release has compensating indels in a 90-aa groove.
+        # SusSp-5*02:01 in v2.9.0: exact DP finds an internal del@50 + K ins@51.
+        ("GPHSLSYLFTSVSRPGRGEPRFIAVGCVDDTPLVRFDSDAPKLRKEPRAWKIKQEGPEYWDEETRISKDNAQTLRGKLNTLRGYYNQSEA", "G-ALPHA1"),
+        # Mafa-I*01:62 in v2.9.0: compensating indels in a 90-aa groove.
         ("GSHSLRYFGTTVSRPGRGEPRFIAVGYVDDTQFVRFDSDAESPRMEPRAPWMEQEGPEYWEEETRIAKARAQTDLGTLRTALRYYNQSEG", "G-ALPHA1"),
-        # HLA-C*07:819Q (IPD-IMGT/HLA HLA25172), 93-aa groove with an internal insertion.
+        # HLA-C*07:819Q (IPD-IMGT/HLA HLA25172): 93-aa groove with an internal insertion.
         ("GSHTLQRMYGCDLGPDGRLLRGYDQSAYDGKDYIALNEDLRSWTAADTAAQITQRKLEAARAAEQLRAYLEGTCVEWLRRYLEGTCVEWLRRY", "G-ALPHA2"),
     ],
 )
 def test_align_fast_path_matches_full_dp(seq, domain):
     expected = align_domain_to_imgt(seq, domain, use_fast_path=False)
-    first = align_domain_to_imgt(seq, domain)
+    first = align_domain_to_imgt(seq, domain, use_fast_path=True)
     assert first == expected
+    # Cached score/traceback must return fresh mutable coordinate dicts per call.
     first.imgt_to_aa.clear()
-    assert align_domain_to_imgt(seq, domain) == expected
+    first.fixed_slot_to_aa.clear()
+    assert align_domain_to_imgt(seq, domain, use_fast_path=True) == expected
 
 
 def test_align_partial_exon2_89aa_distinguishes_truncation_from_deletion():
@@ -483,3 +493,266 @@ def test_align_groove_to_imgt_accepts_dict_record_and_strings():
 
     with pytest.raises(TypeError):
         align_groove_to_imgt(12345)
+
+
+# ---------------------------------------------------------------------------
+# Multi-clade structural PSSM profile, fixed-index frame, a3m_seq, and residues
+# ---------------------------------------------------------------------------
+
+
+def test_multiclade_profile_loaded_with_loop_hotspots():
+    profile = _load_class_i_profile()
+    assert profile["version"] == "1"
+    g1 = profile["domains"]["G-ALPHA1"]
+    g2 = profile["domains"]["G-ALPHA2"]
+    assert g1["length"] == 90
+    assert g2["length"] == 92
+    # Rigid strand/helix gap penalties must exceed loop hotspot penalties
+    assert g1["gap_open_ins"][50] > g1["gap_open_ins"][25]  # -7.0 > -14.0 (less negative)
+    assert g1["gap_open_ins"][53] > g1["gap_open_ins"][65]
+    assert g1["gap_open_del"][40] > g1["gap_open_del"][25]
+    assert g2["gap_open_ins"][38] > g2["gap_open_ins"][25]
+    assert g2["gap_open_ins"][59] > g2["gap_open_ins"][75]
+
+
+def test_fixed_frame_schema_and_hla_a0201_gap_vs_missing():
+    assert len(IMGT_GALPHA1_SLOTS) == 96
+    assert len(IMGT_GALPHA2_SLOTS) == 102
+    assert len(IMGT_CLASS_I_GROOVE_SLOTS) == 198
+
+    aln = map_groove_positions(HLA_A0201_GALPHA1, HLA_A0201_GALPHA2 + "D")
+    assert len(aln.fixed_seq) == 198
+    assert set(aln.fixed_seq) <= set(FIXED_FRAME_ALPHABET)
+    # Canonical HLA-A*02:01 has '-' (structural gap), NOT 'X', in unoccupied insertion slots
+    assert aln.extract_imgt_slots([("G-ALPHA1", "54A"), ("G-ALPHA1", "54B"), ("G-ALPHA1", "54C")]) == "---"
+    assert aln.extract_imgt_slots([("G-ALPHA1", "19A"), ("G-ALPHA1", "19B"), ("G-ALPHA1", "19C")]) == "---"
+    assert aln.extract_imgt_slots([("G-ALPHA2", "40"), ("G-ALPHA2", "41"), ("G-ALPHA2", "61B")]) == "---"
+    assert "X" not in aln.fixed_seq
+    assert not aln.has_overflow_insertions
+
+
+def test_fixed_frame_ptal_and_trvu_populate_54abc_without_shifting_backbone():
+    ptal = map_groove_positions(_PTAL_N0101_G1, _PTAL_N0101_G2)
+    trvu = map_groove_positions(_TRVU_UB0101_G1, _TRVU_UB0101_G2)
+    hla = map_groove_positions(HLA_A0201_GALPHA1, HLA_A0201_GALPHA2)
+
+    assert len(ptal.fixed_seq) == len(trvu.fixed_seq) == len(hla.fixed_seq) == 198
+    assert ptal.extract_imgt_slots([("G-ALPHA1", "54A"), ("G-ALPHA1", "54B"), ("G-ALPHA1", "54C")]) == "MDL"
+    assert trvu.extract_imgt_slots([("G-ALPHA1", "54A"), ("G-ALPHA1", "54B"), ("G-ALPHA1", "54C")]) == "VGE"
+    assert hla.extract_imgt_slots([("G-ALPHA1", "54A"), ("G-ALPHA1", "54B"), ("G-ALPHA1", "54C")]) == "---"
+    assert not ptal.has_overflow_insertions
+    assert not trvu.has_overflow_insertions
+
+    # Downstream canonical indices in fixed_seq stay perfectly homologous across all three species
+    idx_y59 = IMGT_CLASS_I_GROOVE_SLOTS.index(("G-ALPHA1", "59"))
+    idx_w60 = IMGT_CLASS_I_GROOVE_SLOTS.index(("G-ALPHA1", "60"))
+    idx_c101 = IMGT_CLASS_I_GROOVE_SLOTS.index(("G-ALPHA2", "11"))
+    idx_c164 = IMGT_CLASS_I_GROOVE_SLOTS.index(("G-ALPHA2", "74"))
+    for a in (hla, ptal, trvu):
+        assert a.fixed_seq[idx_y59] == "Y"
+        assert a.fixed_seq[idx_w60] == "W"
+        assert a.fixed_seq[idx_c101] == "C"
+        assert a.fixed_seq[idx_c164] == "C"
+
+
+def test_fixed_frame_separates_gap_from_unknown_on_truncations_and_single_domain():
+    # 89-aa partial exon-2: missing pos 1 is 'X', while unoccupied 54A-54C is '-'
+    partial = map_groove_positions(_HLA_A01103_89AA_G1, _HLA_A01103_G2)
+    assert partial.fixed_seq[0] == "X"
+    assert partial.fixed_seq[1] == "S"
+    assert partial.extract_imgt_slots([("G-ALPHA1", "1"), ("G-ALPHA1", "2"), ("G-ALPHA1", "54A")]) == "XS-"
+
+    # Alpha1-only fragment: entire unsequenced G-ALPHA2 half is 'X' * 102 in fixed_seq, '-' * 92 in a3m_seq
+    a1_only = map_groove_positions(HLA_A0201_GALPHA1, "")
+    assert len(a1_only.fixed_seq) == 198
+    assert a1_only.fixed_seq[96:] == "X" * 102
+    assert a1_only.a3m_seq[90:] == "-" * 92
+
+    # Avian internal deletion renders as '-' (structural gap), distinct from C-term truncation 'X'
+    anpl = map_groove_positions(_ANPL_UAA01_G1, _ANPL_UAA01_G2)
+    assert "-" in anpl.alpha1.fixed_seq
+    assert anpl.alpha1.fixed_slot_to_aa["90"] == "X"  # C-term missing pos 90
+
+
+@pytest.mark.parametrize(
+    ("groove1", "groove2"),
+    [
+        ("", ""),
+        ("", HLA_A0201_GALPHA2 + "D"),
+        (_HLA_A01103_89AA_G1, ""),
+        (_GAGA_BF1_G1, _PTAL_N0101_G2),
+    ],
+)
+def test_a3m_gaps_preserve_match_columns_and_query_sequence(groove1, groove2):
+    a3m = map_groove_positions(groove1, groove2).a3m_seq
+    assert all(ch == "-" or (ch.isascii() and ch.isalpha()) for ch in a3m)
+    assert sum(ch == "-" or ch.isupper() for ch in a3m) == len(GALPHA1_POSITIONS) + len(GALPHA2_POSITIONS)
+    assert a3m.replace("-", "").upper() == groove1 + groove2
+
+
+def test_empty_domain_a3m_preserves_all_missing_columns():
+    alignment = align_domain_to_imgt("", "G-ALPHA1")
+    assert alignment.a3m_seq == "-" * len(GALPHA1_POSITIONS)
+    assert alignment.n_term_missing == len(GALPHA1_POSITIONS)
+    assert alignment.deletions == ()
+
+
+def test_a3m_seq_and_residues_are_lossless_variable_length():
+    # Ptal-N*01:01 alpha1: 93 actual residues, 3 lowercase 'mdl' in a3m_seq
+    ptal = map_groove_positions(_PTAL_N0101_G1, _PTAL_N0101_G2)
+    assert ptal.alpha1 is not None
+    assert len(ptal.alpha1.residues) == 93
+    assert all(isinstance(r, AlignedResidue) for r in ptal.alpha1.residues)
+    assert "".join(r.aa for r in ptal.alpha1.residues) == _PTAL_N0101_G1
+    ins_tokens = [r for r in ptal.alpha1.residues if r.is_insertion]
+    assert [(r.aa, r.imgt_pos, r.insertion_rank, r.structural_element) for r in ins_tokens] == [
+        ("M", "51.1", 1, "HELIX"),
+        ("D", "51.2", 2, "HELIX"),
+        ("L", "51.3", 3, "HELIX"),
+    ]
+    assert "PRAPWmdlVEQQ" in ptal.alpha1.a3m_seq
+    # Round-trip recovery from a3m_seq (keep letters, uppercase) == exact query groove
+    recovered = "".join(ch.upper() for ch in ptal.alpha1.a3m_seq if ch.isalpha())
+    assert recovered == _PTAL_N0101_G1
+
+    # 89-aa partial exon-2: 89 actual residues in alpha1, leading '-' in a3m_seq
+    partial = map_groove_positions(_HLA_A01103_89AA_G1, _HLA_A01103_G2)
+    assert len(partial.alpha1.residues) == 89
+    assert partial.alpha1.a3m_seq.startswith("-SHSMRYF")
+    assert "".join(ch.upper() for ch in partial.alpha1.a3m_seq if ch.isalpha()) == _HLA_A01103_89AA_G1
+
+    # Gaga-BF1: 88 actual residues in alpha1, '--' for CD-turn deletion in a3m_seq, '-' for C-term truncation
+    gaga = map_groove_positions(_GAGA_BF1_G1, _GAGA_BF1_G2)
+    assert len(gaga.alpha1.residues) == 88
+    assert "".join(r.aa for r in gaga.alpha1.residues) == _GAGA_BF1_G1
+    assert "--" in gaga.alpha1.a3m_seq
+    assert gaga.alpha1.a3m_seq.endswith("-")
+    assert "".join(ch.upper() for ch in gaga.alpha1.a3m_seq if ch.isalpha()) == _GAGA_BF1_G1
+
+
+def test_terminal_overhangs_and_observed_x_roundtrip_losslessly():
+    # C-terminal overhang (standard 93-aa HLA-A*02:01 G-ALPHA2 groove ending in D)
+    seq2 = HLA_A0201_GALPHA2 + "D"
+    a2 = align_domain_to_imgt(seq2, "G-ALPHA2")
+    assert a2.c_term_overhang == "D"
+    assert len(a2.residues) == len(seq2)
+    assert "".join(r.aa for r in a2.residues) == seq2
+    assert a2.residues[-1] == AlignedResidue(
+        aa="D",
+        domain="G-ALPHA2",
+        query_index=92,
+        mature_pos=None,
+        imgt_pos="92.1",
+        is_insertion=True,
+        insertion_rank=1,
+        structural_element="C-OVERHANG",
+    )
+    assert a2.a3m_seq == HLA_A0201_GALPHA2 + "d"
+    assert "".join(ch.upper() for ch in a2.a3m_seq if ch.isalpha()) == seq2
+
+    # N-terminal overhang (rainbow trout Onmy-UBA alpha1)
+    a1_onmy = align_domain_to_imgt(_ONMY_UBA_G1, "G-ALPHA1")
+    assert len(a1_onmy.n_term_overhang) >= 6
+    assert "".join(r.aa for r in a1_onmy.residues) == _ONMY_UBA_G1
+    assert "".join(ch.upper() for ch in a1_onmy.a3m_seq if ch.isalpha()) == _ONMY_UBA_G1
+    assert a1_onmy.residues[0].imgt_pos == "0.1"
+    assert a1_onmy.residues[0].mature_pos is None
+    assert a1_onmy.residues[0].structural_element == "N-OVERHANG"
+    assert a1_onmy.a3m_seq.startswith(a1_onmy.n_term_overhang.lower())
+
+    # Observed unknown residue 'X' vs terminal truncation '-' must stay distinct in a3m_seq
+    obs_x = align_domain_to_imgt("X" + HLA_A0201_GALPHA1[1:], "G-ALPHA1")
+    trunc = align_domain_to_imgt(HLA_A0201_GALPHA1[1:], "G-ALPHA1")
+    assert obs_x.a3m_seq != trunc.a3m_seq
+    assert obs_x.a3m_seq.startswith("XSHSMRYF")
+    assert trunc.a3m_seq.startswith("-SHSMRYF")
+    assert "".join(ch.upper() for ch in obs_x.a3m_seq if ch.isalpha()) == "X" + HLA_A0201_GALPHA1[1:]
+    assert "".join(ch.upper() for ch in trunc.a3m_seq if ch.isalpha()) == HLA_A0201_GALPHA1[1:]
+    assert "".join(r.aa for r in obs_x.residues) == "X" + HLA_A0201_GALPHA1[1:]
+    assert "".join(r.aa for r in trunc.residues) == HLA_A0201_GALPHA1[1:]
+
+
+def test_domain_alignment_v29_positional_constructor_preserved():
+    # Positional 18-argument constructor from v2.9.0 must bind n_term_missing..identity identically.
+    dom = DomainAlignment(
+        "G-ALPHA1",
+        "SHS",
+        "GSHS",
+        "GSHS",
+        "-SHS",
+        {2: "S", 3: "H", 4: "S"},
+        {"2": "S", "3": "H", "4": "S"},
+        {2: 0, 3: 1, 4: 2},
+        {0: 2, 1: 3, 2: 4},
+        {0: "2", 1: "3", 2: "4"},
+        (),
+        (),
+        1,
+        2,
+        "A",
+        "D",
+        42.5,
+        0.95,
+    )
+    assert dom.n_term_missing == 1
+    assert dom.c_term_missing == 2
+    assert dom.n_term_overhang == "A"
+    assert dom.c_term_overhang == "D"
+    assert dom.score == 42.5
+    assert dom.identity == 0.95
+    assert dom.residues == ()
+    assert GrooveAlignment(alpha1=dom).residues == ()
+
+
+def test_multiclade_profile_verified_clades_and_training_metadata():
+    import csv
+    from pathlib import Path
+
+    profile = _load_class_i_profile()
+    src = profile["training_source"]
+    assert src["release"] == "v2.9.0"
+    assert len(src["sha256"]) == 64
+    rep_ids = profile["representative_ids"]
+    counts = profile["clade_representatives"]
+    assert set(rep_ids) == set(counts)
+    for clade, ids in rep_ids.items():
+        assert len(ids) == counts[clade]
+
+    diverse_csv = Path(__file__).resolve().parent.parent / "mhcseqs" / "diverse_mhc_sequences.csv"
+    with open(diverse_csv, "r", encoding="utf-8") as f:
+        acc_to_group = {r["uniprot_accession"].strip(): r["source_group"].strip() for r in csv.DictReader(f)}
+
+    # Reptile clade must contain only curated reptile sequences (no misclassified amphibians/newts)
+    for acc in rep_ids["reptile"]:
+        assert acc_to_group.get(acc, "").startswith("reptile_"), f"Unexpected non-reptile in reptile clade: {acc}"
+    # Shark/ray clade must contain only curated shark_ray sequences (no paddlefish/bony fish)
+    for acc in rep_ids["shark_ray"]:
+        assert acc_to_group.get(acc) == "shark_ray", f"Unexpected non-shark_ray in shark_ray clade: {acc}"
+    # Amphibian clade must contain only curated amphibian sequences
+    for acc in rep_ids["amphibian"]:
+        assert acc_to_group.get(acc) == "amphibian", f"Unexpected non-amphibian in amphibian clade: {acc}"
+
+    # Explicitly check regression cases from #127: smooth newt A0A6M9U035 and paddlefish E0X5L7
+    assert "A0A6M9U035" not in rep_ids["reptile"]
+    assert "E0X5L7" not in rep_ids["shark_ray"]
+
+
+def test_fixed_frame_tracks_overflow_insertions_losslessly():
+    # Synthesize a +5 aa insertion after W51 (exceeding the 3-slot 54A-54C budget)
+    long_ins_g1 = HLA_A0201_GALPHA1[:51] + "MDLVK" + HLA_A0201_GALPHA1[51:]
+    aln = map_groove_positions(long_ins_g1, HLA_A0201_GALPHA2)
+    assert aln.has_overflow_insertions
+    assert len(aln.fixed_seq) == 198
+    assert len(aln.alpha1.residues) == 95
+    assert "".join(r.aa for r in aln.alpha1.residues) == long_ins_g1
+    assert "mdlvk" in aln.alpha1.a3m_seq
+
+
+def test_center_out_insertion_slot_filling():
+    # 2-aa insertion in AB-turn (Mafa-F*02:01) fills flanking 19A & 19C with center gap 19B='-'
+    mafa = map_groove_positions(_MAFA_F0201_G1, _MAFA_F0201_G2)
+    ab_slots = mafa.extract_imgt_slots([("G-ALPHA1", "19A"), ("G-ALPHA1", "19B"), ("G-ALPHA1", "19C")])
+    assert ab_slots[1] == "-"
+    assert ab_slots[0] != "-" and ab_slots[2] != "-"
+    assert len(mafa.alpha1.residues) == 91
+    assert "".join(r.aa for r in mafa.alpha1.residues) == _MAFA_F0201_G1
