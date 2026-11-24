@@ -1,3 +1,5 @@
+import pytest
+
 from mhcseqs.domain_parsing import (
     decompose_class_ii_alpha,
     decompose_class_ii_beta,
@@ -141,6 +143,22 @@ def test_decompose_class_ii_beta_fragment():
     assert result.ok
     assert result.status == "fragment_fallback"
     assert result.groove2 == fragment.upper()
+
+
+@pytest.mark.parametrize(
+    ("parser", "chain", "fragment"),
+    [
+        (decompose_class_ii_alpha, "alpha", HLA_DRA0101_MATURE[:85]),
+        (decompose_class_ii_beta, "beta", HLA_DRB10101_FULL[29:109]),
+    ],
+)
+def test_direct_class_ii_fragment_applies_requested_mutation(parser, chain, fragment):
+    mutation = f"{fragment[0]}1A"
+    direct = parser(fragment, mutations=mutation)
+    generic = decompose_domains(fragment, mhc_class="II", chain=chain, mutations=mutation)
+    assert direct.status == "fragment_fallback"
+    assert direct.mutations == generic.mutations == (mutation,)
+    assert direct.groove_seq == direct.mature_sequence == generic.groove_seq == "A" + fragment[1:]
 
 
 def test_decompose_domains_class_ii_alpha():
