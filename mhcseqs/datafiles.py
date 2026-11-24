@@ -91,6 +91,87 @@ def fasta_dir(data_dir: Path) -> Path:
     return data_dir / "fasta"
 
 
+def find_csv(
+    name: str,
+    search_dir: str | Path | None = None,
+    *,
+    data_dir: str | Path | None = None,
+) -> Path:
+    """Locate a built CSV file using the unified search order.
+
+    Search order:
+    1. *search_dir* (when explicitly provided)
+    2. Current working directory (``Path(".")``)
+    3. Resolved data directory (*data_dir* if given, else :func:`resolve_data_dir`)
+    4. Package parent directory
+
+    Raises
+    ------
+    FileNotFoundError
+        If *name* does not exist in any candidate directory.
+    """
+    candidates: list[Path] = []
+    if search_dir is not None:
+        candidates.append(Path(search_dir) / name)
+    resolved_data = Path(data_dir) if data_dir is not None else resolve_data_dir()
+    candidates.extend(
+        [
+            Path(".") / name,
+            resolved_data / name,
+            Path(__file__).resolve().parent.parent / name,
+        ]
+    )
+    seen: set[Path] = set()
+    for p in candidates:
+        resolved = p.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if p.exists():
+            return p
+    raise FileNotFoundError(f"{name} not found. Run mhcseqs.build() or 'mhcseqs build' first.")
+
+
+ALLELE_LOOKUP_FIELDS = (
+    "two_field_allele",
+    "representative_allele",
+    "allele_normalized",
+    "allele_raw",
+)
+
+
+def build_query_candidates(query: str) -> set[str]:
+    """Return casefolded candidate strings for matching an allele query against CSV rows."""
+    from .alleles import canonical_allele_name, parse_allele_name
+
+    token = query.strip()
+    if not token:
+        return set()
+    candidates = {token.casefold()}
+    parsed = parse_allele_name(token)
+    if parsed is not None:
+        candidates.add(canonical_allele_name(parsed).casefold())
+        candidates.add(canonical_allele_name(parsed, allele_fields=2).casefold())
+    return candidates
+
+
+def match_allele_row(
+    row: dict[str, str],
+    query: str,
+    *,
+    query_candidates: set[str] | None = None,
+) -> bool:
+    """Return whether a raw or full-seqs CSV row matches *query*."""
+    candidates = query_candidates if query_candidates is not None else build_query_candidates(query)
+    if not candidates:
+        return False
+    for field in ALLELE_LOOKUP_FIELDS:
+        val = (row.get(field) or "").strip()
+        if val and val.casefold() in candidates:
+            return True
+    return False
+
+
 def _stat(path: Path, key: str, kind: str, url: str = "") -> DataFile:
     if path.exists():
         st = path.stat()

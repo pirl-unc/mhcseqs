@@ -5,11 +5,14 @@ Fetches UniProt entries for well-characterized MHC proteins and compares
 their curated signal peptide lengths against our Cys-pair-based inference.
 """
 
+import argparse
 import csv
 import json
 import sys
 import urllib.request
 from pathlib import Path
+
+from mhcseqs.datafiles import RAW_CSV, resolve_data_dir
 
 # Representative UniProt accessions for major HLA genes
 # These are the canonical/reviewed Swiss-Prot entries
@@ -66,10 +69,18 @@ def fetch_uniprot_sp(accession: str) -> dict:
     return result
 
 
-def main():
-    raw_csv = Path("mhc-seqs-raw.csv")
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Validate signal peptide inference against UniProt annotations.")
+    parser.add_argument(
+        "--raw-csv",
+        type=Path,
+        default=None,
+        help="Path to mhc-seqs-raw.csv (default: resolved mhcseqs data dir)",
+    )
+    args = parser.parse_args(argv)
+    raw_csv = args.raw_csv if args.raw_csv is not None else (resolve_data_dir() / RAW_CSV)
     if not raw_csv.exists():
-        print("Run 'python build.py' first to generate mhc-seqs-raw.csv", file=sys.stderr)
+        print(f"Built CSV not found at {raw_csv}. Run 'mhcseqs build' first.", file=sys.stderr)
         sys.exit(1)
 
     # Load our inferred signal peptide data

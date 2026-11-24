@@ -125,7 +125,7 @@ Species normalization.
 - `normalize_mhc_species(raw)` — coarse category
 - `get_latin_name(raw)` — canonical Latin name
 - `get_canonical_prefix(raw)` — MHC naming prefix
-- `LATIN_NAMES`, `CANONICAL_MHC_PREFIXES` — lookup dicts
+- `LATIN_NAMES` — lookup dict
 
 ### `mhcseqs.pipeline`
 

@@ -36,71 +36,20 @@ mhcseqs build --force-download
 
 ```bash
 mhcseqs lookup "HLA-A*02:01"
+mhcseqs lookup "HLA-A*02:01" --format fasta
+mhcseqs lookup "HLA-A*02:01" --format json --all --output a0201.json
 ```
 
-```
---- mhc-full-seqs.csv ---
-  two_field_allele: HomoSapiens-A*02:01
-  representative_allele: HomoSapiens-A*02:01:01:100
-  protein_seq_selection: nested_longest
-  gene: A
-  mhc_class: I
-  chain: alpha
-  species: Homo sapiens
-  species_category: human
-  species_prefix: HomoSapiens
-  source: imgt
-  source_id: HLA24674
-  seq_len: 365
-  sequence: MAVMAPRTLVLLLSGALALTQTWAGSHSMRYFFTSVSRPGRGEPRFIAVG... (365 aa)
-  mature_start: 24
-  mature_sequence: GSHSMRYFFTSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAP... (341 aa)
-  groove1: GSHSMRYFFTSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAPWIEQEGPEYWDGETRKVKAHSQTHRVDLGTLRGYYNQSEA
-  groove2: GSHTVQRMYGCDVGSDWRFLRGYHQYAYDGKDYIALKEDLRSWTAADMAAQTTKHKWEAAHVAEQLRAYLEGTCVEWLRRYLENGKETLQRTD
-  groove1_len: 90
-  groove2_len: 93
-  ig_domain: APKTHMTHHAVSDHEATLRCWALSFYPAEITLTWQRDGEDQTQDTELVETRPAGDGTFQKWAAVVVPSGQEQRYTCHVQHEGLPKPLTLRWEPSS
-  ig_domain_len: 95
-  tail: QPTIPIVGIIAGLVLFGAVITGAVVAAVMWRRKSSDRKGGSYSQAASSDSAQGSDVSLTACKV
-  tail_len: 63
-  domain_architecture: signal_peptide>g_alpha1>g_alpha2>c1_alpha3>tail_linker>transmembrane>cytoplasmic_tail
-  domain_spans: signal_peptide:1-24;g_alpha1:25-114;g_alpha2:115-207;c1_alpha3:208-302;tail_linker:303-307;transmembrane:308-331;cytoplasmic_tail:332-365
-  groove_status: ok
-  groove_flags:
-  anchor_type: alpha2_cys
-  is_null: False
-  is_questionable: False
-  is_pseudogene: False
-  is_functional: True
+Supported `--format` values are `text` (default), `csv`, `tsv`, `json`, and
+`fasta`. Every format emits full protein and mature sequences (no truncation).
+Pass `--all` to emit every matching row instead of only the first match per
+CSV, and `--output PATH` (`-o`) to write output to a file. Missing matches
+report an error on `stderr` and exit with status 1.
 
---- mhc-seqs-raw.csv ---
-  allele_raw: A*02:01:01:01
-  allele_normalized: HomoSapiens-A*02:01:01:01
-  two_field_allele: HomoSapiens-A*02:01
-  gene: A
-  mhc_class: I
-  chain: alpha
-  species: Homo sapiens
-  species_category: human
-  species_prefix: HomoSapiens
-  source: imgt
-  source_id: HLA00005
-  seq_len: 365
-  sequence: MAVMAPRTLVLLLSGALALTQTWAGSHSMRYFFTSVSRPGRGEPRFIAVG... (365 aa)
-  has_signal_peptide: True
-  signal_peptide_len: 24
-  signal_peptide_seq: MAVMAPRTLVLLLSGALALTQTWA
-  is_null: False
-  is_questionable: False
-  is_pseudogene: False
-```
-
-The first block is the representative row from `mhc-full-seqs.csv`; the
-second is the first matching source row from `mhc-seqs-raw.csv`. The
-`groove_seq` line is omitted above for width; the command prints it
-between `groove2` and `groove1_len`. Non-human alleles work the same way:
-`mhcseqs lookup "Mamu-A1*001:01"`. Use `--output-dir` when the CSVs are not in
-`~/.cache/mhcseqs`.
+`mhcseqs lookup` uses the same CSV search order as `mhcseqs.lookup()`:
+`--output-dir` (when given), then the current working directory, then the
+resolved `mhcseqs` data directory. Non-human alleles work the same way:
+`mhcseqs lookup "Mamu-A1*001:01"`.
 
 ## Inspect and manage cached data
 
