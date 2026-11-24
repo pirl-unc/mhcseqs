@@ -159,27 +159,34 @@ def build_query_candidates(query: str) -> set[str]:
             candidates.add(canonical_allele_name(obj).casefold())
             candidates.add(str(obj.to_string()).casefold())
 
-        # Bridge genus-level prefixes (e.g. FLA -> Felis sp.) and member species
-        # (e.g. Felis catus) using mhcgnomes' species hierarchy so lookup("FLA-E*003:01")
-        # finds FelisCatus-E*003:01 and lookup("Bota-1*007:01") finds BosSp-1*007:01.
+        # Bridge genus-level prefixes (e.g. FLA -> Felis sp., BoLA -> Bos sp.)
+        # and member species (e.g. Felis catus, Bos taurus) using mhcgnomes'
+        # species hierarchy so lookup("FLA-E*003:01") finds FelisCatus-E*003:01
+        # and lookup("Bota-1*007:01") finds BoLA-1*007:01 (as well as legacy
+        # BosSp-1*007:01 rows).
         species = getattr(parsed, "species", None)
         if species is not None and species.name:
-            related_names: set[str] = set()
+            related_prefixes: set[str] = set()
             if species.name.endswith(" sp.") and species.mhc_prefix:
                 for sp_obj in mhcgnomes.species.find_matching_species_objects(species.mhc_prefix):
                     if sp_obj.name:
-                        related_names.add(sp_obj.name)
+                        alias = full_species_name_alias(sp_obj.name)
+                        if alias:
+                            related_prefixes.add(alias)
+                    if sp_obj.mhc_prefix:
+                        related_prefixes.add(sp_obj.mhc_prefix)
             parent = getattr(species, "parent", None)
             if parent is not None and getattr(parent, "name", None) and parent.name.endswith(" sp."):
-                related_names.add(parent.name)
-            for rel_name in related_names:
-                rel_alias = full_species_name_alias(rel_name)
-                if not rel_alias:
-                    continue
+                if parent.mhc_prefix:
+                    related_prefixes.add(parent.mhc_prefix)
+                parent_alias = full_species_name_alias(parent.name)
+                if parent_alias:
+                    related_prefixes.add(parent_alias)
+            for rel_prefix in related_prefixes:
                 for obj in (parsed, restricted):
                     body = str(obj.to_string(include_species=False))
                     if body:
-                        candidates.add(f"{rel_alias}-{body}".casefold())
+                        candidates.add(f"{rel_prefix}-{body}".casefold())
     return candidates
 
 

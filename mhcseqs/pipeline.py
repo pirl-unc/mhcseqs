@@ -17,6 +17,7 @@ import mhcgnomes
 from .alleles import (
     allele_suffix_flags,
     canonical_allele_name,
+    canonical_species_prefix,
     infer_mhc_class,
     normalize_allele_name,
     normalize_mhc_class,
@@ -270,7 +271,7 @@ def resolve_header_allele(header: str) -> ResolvedHeaderAllele:
     mhc_class = normalize_mhc_class(getattr(parsed, "mhc_class", None))
     if not mhc_class:
         mhc_class = infer_mhc_class(normalized, species=species or None) or ""
-    species_prefix = full_species_name_alias(species)
+    species_prefix = canonical_species_prefix(species_obj) if species_obj is not None else full_species_name_alias(species)
     flags = allele_suffix_flags(parsed)
     return ResolvedHeaderAllele(
         parsed=parsed,
@@ -568,17 +569,17 @@ def _load_curated_uniprot_allele_map() -> Dict[str, dict]:
 
 
 def _resolve_uniprot_species_prefix(organism: str) -> str:
-    """Resolve canonical full-binomial ``species_prefix`` for a UniProt organism string.
+    """Resolve canonical parseable ``species_prefix`` for a UniProt organism string.
 
     Uses ``mhcgnomes.Species.get`` on the extracted Latin binomial when
-    available so synonyms/subspecies map to mhcgnomes' canonical species name,
-    falling back to :func:`full_species_name_alias` for taxa not yet in
-    mhcgnomes.
+    available so synonyms/subspecies map to mhcgnomes' canonical species
+    prefix, falling back to :func:`full_species_name_alias` for taxa not yet
+    in mhcgnomes.
     """
     latin = extract_latin_binomial(organism)
     sp_obj = mhcgnomes.Species.get(latin) if latin else None
     if sp_obj is not None and sp_obj.name:
-        return full_species_name_alias(sp_obj.name)
+        return canonical_species_prefix(sp_obj)
     return full_species_name_alias(latin or organism)
 
 

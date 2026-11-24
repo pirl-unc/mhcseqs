@@ -292,6 +292,32 @@ def test_lookup_resolves_curated_non_human_and_genus_aliases(tmp_path, monkeypat
                 "source_id": "P01901",
                 "sequence": _A0201_SEQ,
             },
+            {
+                "two_field_allele": "BoLA-1*007:01",
+                "representative_allele": "BoLA-1*007:01:01:01",
+                "gene": "1",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Bos sp.",
+                "species_category": "ungulate",
+                "species_prefix": "BoLA",
+                "source": "ipd_mhc",
+                "source_id": "BoLA00001",
+                "sequence": _A0201_SEQ,
+            },
+            {
+                "two_field_allele": "SLA-1*01:01",
+                "representative_allele": "SLA-1*01:01",
+                "gene": "1",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Sus sp.",
+                "species_category": "ungulate",
+                "species_prefix": "SLA",
+                "source": "ipd_mhc",
+                "source_id": "SLA00001",
+                "sequence": _A0201_SEQ,
+            },
         ],
     )
     monkeypatch.chdir(tmp_path)
@@ -306,6 +332,10 @@ def test_lookup_resolves_curated_non_human_and_genus_aliases(tmp_path, monkeypat
         ("SahaI*27", "SarcophilusHarrisii-I*27"),
         ("Saha-I*27", "SarcophilusHarrisii-I*27"),
         ("H2-Kb", "H2-K*b"),
+        ("BoLA-1*007:01", "BoLA-1*007:01"),
+        ("Bota-1*007:01", "BoLA-1*007:01"),
+        ("SLA-1*01:01", "SLA-1*01:01"),
+        ("Susc-1*01:01", "SLA-1*01:01"),
     ):
         rec = mhcseqs.lookup(query)
         assert rec.allele == expected, f"query {query!r} resolved to {rec.allele!r}, expected {expected!r}"

@@ -138,12 +138,40 @@ def parse_allele_name(
     return parsed
 
 
+def canonical_species_prefix(species: Any) -> str:
+    """Return the canonical parseable species prefix for an mhcgnomes ``Species``.
+
+    Prefers the full binomial CamelCase alias (e.g. ``HomoSapiens``,
+    ``FelisCatus``) whenever mhcgnomes resolves that alias unambiguously back
+    to the exact same species.  For genus-level taxa (``Bos sp.``, ``Sus sp.``,
+    ``Canis sp.``, ``Felis sp.``) and trinomial subspecies whose truncated
+    two-word alias does not round-trip in mhcgnomes, falls back to the
+    species' canonical ``mhc_prefix`` (e.g. ``BoLA``, ``SLA``, ``DLA``,
+    ``FLA``) so every emitted allele name round-trips through
+    :func:`parse_allele_name` and ``mhcgnomes.parse``.
+    """
+    if species is None:
+        return ""
+    species_name = getattr(species, "name", None)
+    species_alias = full_species_name_alias(species_name)
+    if species_alias and species_name:
+        roundtrip = mhcgnomes.Species.get(species_alias)
+        if roundtrip is not None and roundtrip.name == species_name:
+            return species_alias
+    mhc_prefix = getattr(species, "mhc_prefix", None)
+    if mhc_prefix:
+        return str(mhc_prefix)
+    return species_alias
+
+
 def canonical_allele_name(parsed: Any, allele_fields: Optional[int] = None) -> str:
     """Render an mhcgnomes parse result as an mhcseqs canonical allele name.
 
     The species is written as its full binomial alias (for example
-    ``HomoSapiens`` rather than ``HLA``) so that names from different
-    species do not collide on a shared short prefix.
+    ``HomoSapiens`` rather than ``HLA``) when that alias round-trips
+    unambiguously through mhcgnomes, and falls back to mhcgnomes' canonical
+    species prefix (for example ``SLA``, ``BoLA``, ``DLA``, ``FLA``) for
+    genus-level ``"<Genus> sp."`` entries and subspecies.
 
     Parameters
     ----------
@@ -157,22 +185,19 @@ def canonical_allele_name(parsed: Any, allele_fields: Optional[int] = None) -> s
     Returns
     -------
     str
-        ``"<FullSpeciesAlias>-<name without species>"`` when the species
-        has a full binomial alias
-        (:func:`mhcseqs.species.full_species_name_alias` is non-empty) and the
-        name without species is non-empty; otherwise mhcgnomes' own
+        ``"<CanonicalSpeciesPrefix>-<name without species>"`` when a parseable
+        prefix and non-empty body are available; otherwise mhcgnomes' own
         ``to_string()``.
     """
     if allele_fields is not None:
         target_fields = max(1, int(allele_fields))
         parsed = parsed.restrict_allele_fields(target_fields)
 
-    species_name = parsed.species.name if parsed.species is not None else None
-    species_alias = full_species_name_alias(species_name)
-    if species_alias:
+    species_prefix = canonical_species_prefix(getattr(parsed, "species", None))
+    if species_prefix:
         body = str(parsed.to_string(include_species=False))
         if body:
-            return f"{species_alias}-{body}"
+            return f"{species_prefix}-{body}"
     return str(parsed.to_string())
 
 
