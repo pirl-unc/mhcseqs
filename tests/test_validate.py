@@ -288,7 +288,7 @@ def test_validate_build_flags_unparseable_two_field_allele(tmp_path):
                 "mature_sequence": "",
             },
             {
-                "two_field_allele": "SusSp-1*01:01",
+                "two_field_allele": "NotASpecies-1*01:01",
                 "source": "ipd_mhc",
                 "source_id": "SLA00002",
                 "mhc_class": "I",
@@ -313,6 +313,6 @@ def test_validate_build_flags_unparseable_two_field_allele(tmp_path):
     )
     warnings, stats = validate_build(raw_csv, full_csv)
     assert stats["unparseable_two_field_alleles"] == 1
-    assert any("ALLELE_ROUNDTRIP(SusSp-1*01:01)" in w for w in warnings)
+    assert any("ALLELE_ROUNDTRIP(NotASpecies-1*01:01)" in w for w in warnings)
     assert not any("SLA-1*01:01" in w for w in warnings)
     assert not any("A0A125R585" in w for w in warnings)
