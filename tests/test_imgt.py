@@ -562,16 +562,39 @@ def test_fixed_frame_separates_gap_from_unknown_on_truncations_and_single_domain
     assert partial.fixed_seq[1] == "S"
     assert partial.extract_imgt_slots([("G-ALPHA1", "1"), ("G-ALPHA1", "2"), ("G-ALPHA1", "54A")]) == "XS-"
 
-    # Alpha1-only fragment: entire unsequenced G-ALPHA2 half is 'X' * 102 in fixed_seq, '~' * 92 in a3m_seq
+    # Alpha1-only fragment: entire unsequenced G-ALPHA2 half is 'X' * 102 in fixed_seq, '-' * 92 in a3m_seq
     a1_only = map_groove_positions(HLA_A0201_GALPHA1, "")
     assert len(a1_only.fixed_seq) == 198
     assert a1_only.fixed_seq[96:] == "X" * 102
-    assert a1_only.a3m_seq[90:] == "~" * 92
+    assert a1_only.a3m_seq[90:] == "-" * 92
 
     # Avian internal deletion renders as '-' (structural gap), distinct from C-term truncation 'X'
     anpl = map_groove_positions(_ANPL_UAA01_G1, _ANPL_UAA01_G2)
     assert "-" in anpl.alpha1.fixed_seq
     assert anpl.alpha1.fixed_slot_to_aa["90"] == "X"  # C-term missing pos 90
+
+
+@pytest.mark.parametrize(
+    ("groove1", "groove2"),
+    [
+        ("", ""),
+        ("", HLA_A0201_GALPHA2 + "D"),
+        (_HLA_A01103_89AA_G1, ""),
+        (_GAGA_BF1_G1, _PTAL_N0101_G2),
+    ],
+)
+def test_a3m_gaps_preserve_match_columns_and_query_sequence(groove1, groove2):
+    a3m = map_groove_positions(groove1, groove2).a3m_seq
+    assert all(ch == "-" or (ch.isascii() and ch.isalpha()) for ch in a3m)
+    assert sum(ch == "-" or ch.isupper() for ch in a3m) == len(GALPHA1_POSITIONS) + len(GALPHA2_POSITIONS)
+    assert a3m.replace("-", "").upper() == groove1 + groove2
+
+
+def test_empty_domain_a3m_preserves_all_missing_columns():
+    alignment = align_domain_to_imgt("", "G-ALPHA1")
+    assert alignment.a3m_seq == "-" * len(GALPHA1_POSITIONS)
+    assert alignment.n_term_missing == len(GALPHA1_POSITIONS)
+    assert alignment.deletions == ()
 
 
 def test_a3m_seq_and_residues_are_lossless_variable_length():
@@ -592,18 +615,18 @@ def test_a3m_seq_and_residues_are_lossless_variable_length():
     recovered = "".join(ch.upper() for ch in ptal.alpha1.a3m_seq if ch.isalpha())
     assert recovered == _PTAL_N0101_G1
 
-    # 89-aa partial exon-2: 89 actual residues in alpha1, leading '~' in a3m_seq
+    # 89-aa partial exon-2: 89 actual residues in alpha1, leading '-' in a3m_seq
     partial = map_groove_positions(_HLA_A01103_89AA_G1, _HLA_A01103_G2)
     assert len(partial.alpha1.residues) == 89
-    assert partial.alpha1.a3m_seq.startswith("~SHSMRYF")
+    assert partial.alpha1.a3m_seq.startswith("-SHSMRYF")
     assert "".join(ch.upper() for ch in partial.alpha1.a3m_seq if ch.isalpha()) == _HLA_A01103_89AA_G1
 
-    # Gaga-BF1: 88 actual residues in alpha1, '--' for CD-turn deletion in a3m_seq, '~' for C-term truncation
+    # Gaga-BF1: 88 actual residues in alpha1, '--' for CD-turn deletion in a3m_seq, '-' for C-term truncation
     gaga = map_groove_positions(_GAGA_BF1_G1, _GAGA_BF1_G2)
     assert len(gaga.alpha1.residues) == 88
     assert "".join(r.aa for r in gaga.alpha1.residues) == _GAGA_BF1_G1
     assert "--" in gaga.alpha1.a3m_seq
-    assert gaga.alpha1.a3m_seq.endswith("~")
+    assert gaga.alpha1.a3m_seq.endswith("-")
     assert "".join(ch.upper() for ch in gaga.alpha1.a3m_seq if ch.isalpha()) == _GAGA_BF1_G1
 
 
@@ -637,12 +660,12 @@ def test_terminal_overhangs_and_observed_x_roundtrip_losslessly():
     assert a1_onmy.residues[0].structural_element == "N-OVERHANG"
     assert a1_onmy.a3m_seq.startswith(a1_onmy.n_term_overhang.lower())
 
-    # Observed unknown residue 'X' vs terminal truncation '~' must stay distinct in a3m_seq
+    # Observed unknown residue 'X' vs terminal truncation '-' must stay distinct in a3m_seq
     obs_x = align_domain_to_imgt("X" + HLA_A0201_GALPHA1[1:], "G-ALPHA1")
     trunc = align_domain_to_imgt(HLA_A0201_GALPHA1[1:], "G-ALPHA1")
     assert obs_x.a3m_seq != trunc.a3m_seq
     assert obs_x.a3m_seq.startswith("XSHSMRYF")
-    assert trunc.a3m_seq.startswith("~SHSMRYF")
+    assert trunc.a3m_seq.startswith("-SHSMRYF")
     assert "".join(ch.upper() for ch in obs_x.a3m_seq if ch.isalpha()) == "X" + HLA_A0201_GALPHA1[1:]
     assert "".join(ch.upper() for ch in trunc.a3m_seq if ch.isalpha()) == HLA_A0201_GALPHA1[1:]
     assert "".join(r.aa for r in obs_x.residues) == "X" + HLA_A0201_GALPHA1[1:]

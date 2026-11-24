@@ -649,11 +649,12 @@ class GrooveAlignment:
 
         Uppercase ``A-Z`` = canonical match column (including observed ``'X'``),
         lowercase ``a-z`` = internal insertion or N/C-terminal overhang,
-        ``'-'`` = internal structural deletion, ``'~'`` = missing/truncated
-        match column (or absent domain).
+        ``'-'`` = unoccupied match column. Each domain's ``deletions``,
+        ``n_term_missing``, and ``c_term_missing`` distinguish internal
+        deletions from terminal truncations. An absent domain is all gaps.
         """
-        s1 = self.alpha1.a3m_seq if self.alpha1 is not None else ("~" * _GALPHA1_SIZE)
-        s2 = self.alpha2.a3m_seq if self.alpha2 is not None else ("~" * _GALPHA2_SIZE)
+        s1 = self.alpha1.a3m_seq if self.alpha1 is not None else ("-" * _GALPHA1_SIZE)
+        s2 = self.alpha2.a3m_seq if self.alpha2 is not None else ("-" * _GALPHA2_SIZE)
         return s1 + s2
 
     @property
@@ -1164,8 +1165,8 @@ def align_domain_to_imgt(
       - Lossless variable-length views: ``residues`` (:class:`AlignedResidue`
         tokens, including N- and C-terminal overhangs) and ``a3m_seq``
         (uppercase ``A-Z`` match including observed ``'X'``, lowercase ``a-z``
-        internal insertion or terminal overhang, ``'-'`` internal deletion,
-        ``'~'`` missing/truncated match column).
+        internal insertion or terminal overhang, ``'-'`` for both internal
+        deletions and missing match columns).
       - Fixed-index IMGT frame: ``fixed_seq`` (96 chars for G-ALPHA1, 102
         chars for G-ALPHA2, 22-token alphabet with ``'-'`` vs ``'X'``) plus
         ``overflow_insertions``.
@@ -1214,7 +1215,7 @@ def align_domain_to_imgt(
             query_index_to_imgt={},
             n_term_missing=len(ref_seq),
             residues=(),
-            a3m_seq="~" * len(ref_seq),
+            a3m_seq="-" * len(ref_seq),
             fixed_seq=fixed_seq,
             fixed_slots=fixed_slots,
             fixed_slot_to_aa=slot_map,
@@ -1258,7 +1259,7 @@ def align_domain_to_imgt(
             score=score,
             identity=0.0,
             residues=overhang_residues,
-            a3m_seq=qry.lower() + ("~" * len(ref_seq)),
+            a3m_seq=qry.lower() + ("-" * len(ref_seq)),
             fixed_seq=fixed_seq,
             fixed_slots=fixed_slots,
             fixed_slot_to_aa=slot_map,
@@ -1300,7 +1301,7 @@ def align_domain_to_imgt(
         if col < first_paired:
             if r != "-":
                 n_term_missing += 1
-                a3m_chars.append("~")
+                a3m_chars.append("-")
                 ref_idx += 1
             if q != "-":
                 n_overhang_rank += 1
@@ -1327,7 +1328,7 @@ def align_domain_to_imgt(
         if col > last_paired:
             if r != "-":
                 c_term_missing += 1
-                a3m_chars.append("~")
+                a3m_chars.append("-")
                 ref_idx += 1
             if q != "-":
                 c_overhang_rank += 1
