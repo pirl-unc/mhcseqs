@@ -296,3 +296,78 @@ def test_iedb_mutant(allele, seq, mutation_str, check_idx, expected_aa):
     else:
         g2_idx = check_idx - result.groove1_len
         assert result.groove2[g2_idx] == expected_aa
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for #121: single-string mutations, 89-aa partial exon-2,
+# and decompose_class_i mutations= parity
+# ---------------------------------------------------------------------------
+
+# Partial exon-2 HLA-A*02:01 (89-aa alpha1 starting at mature residue 2, missing leading G)
+HLA_A0201_PARTIAL_EXON2 = HLA_A0201_MATURE[1:]
+
+
+def test_single_string_mutation_does_not_iterate_characters():
+    """Passing mutations='K66A' (str) applies one mutation instead of iterating chars (#121)."""
+    wt = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    mut = apply_mutations(wt, "K66A")
+    assert mut.groove1[65] == "A"
+    assert mut.mutations == ("K66A",)
+    assert mut.mature_sequence[65] == "A"
+
+    mut_dom = decompose_domains(HLA_A0201_MATURE, mhc_class="I", allele="HLA-A*02:01", mutations="K66A")
+    assert mut_dom.groove1[65] == "A"
+    assert mut_dom.mutations == ("K66A",)
+
+    # Empty string is a no-op; bytes raises TypeError
+    assert apply_mutations(wt, "").groove_seq == wt.groove_seq
+    with pytest.raises(TypeError, match="not bytes"):
+        apply_mutations(wt, b"K66A")
+
+
+def test_decompose_class_i_mutations_parity():
+    """decompose_class_i accepts mutations= matching decompose_domains (#121)."""
+    mut1 = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01", mutations="K66A")
+    mut2 = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01", mutations=["K66A", "D77S"])
+    assert mut1.ok and mut1.groove1[65] == "A" and mut1.mutations == ("K66A",)
+    assert mut2.ok and mut2.groove1[65] == "A" and mut2.groove1[76] == "S"
+    assert mut2.mutations == ("K66A", "D77S")
+
+
+def test_partial_exon2_89aa_mature_numbering_not_shifted():
+    """89-aa partial exon-2 grooves starting at mature pos 2 index canonical mature pos (#121)."""
+    wt = decompose_class_i(HLA_A0201_PARTIAL_EXON2, allele="HLA-A*02:01")
+    assert wt.ok
+    assert wt.mature_start == 0
+    assert wt.groove1_len == 89
+    assert wt.groove1.startswith("SHSMRYF")
+    assert wt.groove1[64] == "K"  # mature pos 66 is at 0-based index 64
+
+    # Both alpha1 and alpha2 mutations use canonical mature numbering
+    mut = apply_mutations(wt, ["K66A", "D77S", "Y116A"])
+    assert mut.groove1[64] == "A"
+    assert mut.groove1[75] == "S"
+    assert mut.groove2[25] == "A"
+    assert mut.mutations == ("K66A", "D77S", "Y116A")
+
+    # Single string via decompose_class_i also works on 89-aa exon-2 sequences
+    mut_ci = decompose_class_i(HLA_A0201_PARTIAL_EXON2, allele="HLA-A*02:01", mutations="K66A")
+    assert mut_ci.groove1[64] == "A"
+
+    # Mutating missing position 1 raises an informative out-of-range error
+    with pytest.raises(ValueError, match="mature positions 2-"):
+        apply_mutations(wt, "G1A")
+
+
+def test_full_length_with_sp_and_internal_deletion_not_offset():
+    """Sequences with a signal peptide and 89-aa groove1 (internal deletion) keep 1-based indexing."""
+    # Add 24-aa HLA-A*02:01 SP and delete one internal residue at pos 43 (Q) -> 89-aa groove1
+    sp = "MAVMAPRTLVLLLSGALALTQTWA"
+    internal_del_mature = HLA_A0201_MATURE[:42] + HLA_A0201_MATURE[43:]
+    wt = decompose_class_i(sp + internal_del_mature, allele="test")
+    assert wt.ok
+    assert wt.mature_start == 24
+    assert wt.groove1_len == 89
+    # Position 1 is still G (no N-terminal truncation), so G1A must target index 0
+    mut = apply_mutations(wt, "G1A")
+    assert mut.groove1[0] == "A"

@@ -4196,12 +4196,65 @@ def _parse_mutation(mut: object) -> tuple[int, str, str]:
     raise TypeError(f"Unsupported mutation type: {type(mut).__name__}")
 
 
-def apply_mutations(result: AlleleRecord, mutations: Sequence[object]) -> AlleleRecord:
-    """Apply mutations to a AlleleRecord, returning a new result with mutated sequences.
+def _normalize_mutations(mutations: str | Sequence[object] | None) -> tuple[object, ...]:
+    """Normalize a mutation specification input into a tuple of individual specs.
+
+    Accepts ``None``, a single mutation string (e.g. ``"K66A"``), or any
+    sequence of mutation specs. Rejects raw ``bytes``/``bytearray`` with a
+    clear ``TypeError`` and avoids iterating a single string character by
+    character.
+    """
+    if mutations is None:
+        return ()
+    if isinstance(mutations, (bytes, bytearray)):
+        raise TypeError("mutations must be a string or sequence of mutation specs, not bytes")
+    if isinstance(mutations, str):
+        stripped = mutations.strip()
+        return (stripped,) if stripped else ()
+    return tuple(mutations)
+
+
+def _infer_class_i_mature_offset(result: AlleleRecord) -> int:
+    """Infer leading mature residues missing from a partial Class I record.
+
+    Many IMGT/HLA and IPD-MHC partial exon-2 entries begin at mature residue 2
+    (e.g. 89-aa ``SHSMRYF...`` missing the leading ``G`` at mature position 1),
+    with ``mature_start == 0``. When the record has no signal peptide and
+    starts cleanly inside G-ALPHA1 (or G-ALPHA2 for α2-only fragments), return
+    the 0-based mature offset (e.g. ``1`` when starting at mature position 2)
+    so 1-indexed mature mutations index the right residue.
+    """
+    if result.mhc_class != "I" or result.mature_start > 0:
+        return 0
+
+    from .imgt import align_domain_to_imgt
+
+    if result.groove1:
+        aln = align_domain_to_imgt(result.groove1, domain="G-ALPHA1")
+        if aln.n_term_missing > 0 and not aln.n_term_overhang and aln.identity >= 0.25:
+            return aln.n_term_missing
+        return 0
+
+    if result.groove2:
+        aln = align_domain_to_imgt(result.groove2, domain="G-ALPHA2")
+        start_pos = aln.canonical_start_mature_pos
+        if start_pos is not None and not aln.n_term_overhang and aln.identity >= 0.25:
+            return start_pos - 1
+    return 0
+
+
+def apply_mutations(result: AlleleRecord, mutations: str | Sequence[object] | None) -> AlleleRecord:
+    """Apply mutations to an AlleleRecord, returning a new result with mutated sequences.
 
     Mutations are specified in mature protein numbering (1-indexed).
-    Accepts any sequence of mutation specs: strings ("K66A"), tuples, or
-    mhcgnomes Mutation objects.
+    Accepts a single mutation string (``"K66A"``) or any sequence of mutation
+    specs: strings (``"K66A"``), tuples, or mhcgnomes ``Mutation`` objects.
+
+    For partial Class I records missing leading N-terminal mature residues
+    (such as 89-aa partial exon-2 alleles starting at mature residue 2,
+    ``SHSMRYF...``), mature coordinates are automatically offset using the
+    IMGT G-DOMAIN alignment so ``"K66A"`` still targets canonical mature
+    position 66.
 
     The original groove extraction must have succeeded (result.ok must be True).
     Mutations are applied to the mature sequence reconstructed from domain parts,
@@ -4213,7 +4266,8 @@ def apply_mutations(result: AlleleRecord, mutations: Sequence[object]) -> Allele
     if not result.ok:
         raise ValueError(f"Cannot apply mutations to failed result (status={result.status!r})")
 
-    parsed = [_parse_mutation(m) for m in mutations]
+    normalized = _normalize_mutations(mutations)
+    parsed = [_parse_mutation(m) for m in normalized]
     if not parsed:
         return result
 
@@ -4225,12 +4279,21 @@ def apply_mutations(result: AlleleRecord, mutations: Sequence[object]) -> Allele
     else:  # beta
         mature = result.groove2 + result.ig_domain + result.tail
 
+    mature_offset = _infer_class_i_mature_offset(result)
+
     # Apply mutations
     mature_list = list(mature)
     mutation_strs: list[str] = []
     for pos, orig, mutant in parsed:
-        idx = pos - 1  # convert to 0-indexed
+        idx = pos - 1 - mature_offset  # convert 1-indexed mature pos to 0-indexed slice index
         if idx < 0 or idx >= len(mature_list):
+            if mature_offset > 0:
+                first_pos = mature_offset + 1
+                last_pos = mature_offset + len(mature_list)
+                raise ValueError(
+                    f"Mutation position {pos} out of range for mature sequence covering "
+                    f"mature positions {first_pos}-{last_pos} (length {len(mature_list)})"
+                )
             raise ValueError(f"Mutation position {pos} out of range for mature sequence (length {len(mature_list)})")
         actual = mature_list[idx]
         if orig and actual != orig:
@@ -4261,8 +4324,13 @@ def apply_mutations(result: AlleleRecord, mutations: Sequence[object]) -> Allele
         ig = mutated[g2_len : g2_len + ig_len]
         t = mutated[g2_len + ig_len :]
 
+    updated_sequence = result.sequence
+    if result.sequence and result.sequence[result.mature_start :] == mature:
+        updated_sequence = result.sequence[: result.mature_start] + mutated
+
     return replace(
         result,
+        sequence=updated_sequence,
         groove_seq=g1 + g2,
         groove1=g1,
         groove2=g2,
@@ -5611,6 +5679,7 @@ def decompose_class_i(
     *,
     allele: str = "",
     gene: str = "",
+    mutations: str | Sequence[object] = (),
     features: Optional[SequenceFeatures] = None,
     use_early_shortcuts: bool = True,
 ) -> AlleleRecord:
@@ -5620,6 +5689,9 @@ def decompose_class_i(
     plausible groove Cys pairs and mature_start positions, then lets those
     full parses compete with fragment, salvage, and missing-groove
     explanations under one candidate selector.
+
+    Pass *mutations* (e.g. ``"K66A"`` or ``["K66A", "D77S"]``) to apply
+    1-indexed mature point mutations to the parsed wild-type record.
 
     Pass *features* from ``analyze_sequence()`` to skip redundant
     Cys-pair scanning and fold classification.
@@ -5734,7 +5806,11 @@ def decompose_class_i(
             flags=missing_flags,
         ),
     )
-    return _select_best_record_candidate(candidates)
+    result = _select_best_record_candidate(candidates)
+    normalized_mutations = _normalize_mutations(mutations)
+    if normalized_mutations and result.ok:
+        result = apply_mutations(result, normalized_mutations)
+    return result
 
 
 def trace_parse_class_i(
@@ -5815,6 +5891,7 @@ def decompose_class_ii_alpha(
     *,
     allele: str = "",
     gene: str = "",
+    mutations: str | Sequence[object] = (),
     features: Optional[SequenceFeatures] = None,
     use_early_shortcuts: bool = True,
 ) -> AlleleRecord:
@@ -5899,7 +5976,11 @@ def decompose_class_ii_alpha(
             flags=grammar.missing_no_anchor_flags,
         ),
     )
-    return _select_best_record_candidate(candidates)
+    result = _select_best_record_candidate(candidates)
+    normalized_mutations = _normalize_mutations(mutations)
+    if normalized_mutations and result.ok:
+        result = apply_mutations(result, normalized_mutations)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -5912,6 +5993,7 @@ def decompose_class_ii_beta(
     *,
     allele: str = "",
     gene: str = "",
+    mutations: str | Sequence[object] = (),
     features: Optional[SequenceFeatures] = None,
     use_early_shortcuts: bool = True,
 ) -> AlleleRecord:
@@ -6017,7 +6099,11 @@ def decompose_class_ii_beta(
             flags=missing_flags,
         ),
     )
-    return _select_best_record_candidate(candidates)
+    result = _select_best_record_candidate(candidates)
+    normalized_mutations = _normalize_mutations(mutations)
+    if normalized_mutations and result.ok:
+        result = apply_mutations(result, normalized_mutations)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -6057,7 +6143,7 @@ def decompose_domains(
     allele: str = "",
     gene: str = "",
     species: Optional[str] = None,
-    mutations: Sequence[object] = (),
+    mutations: str | Sequence[object] = (),
     features: Optional[SequenceFeatures] = None,
     use_early_shortcuts: bool = True,
 ) -> AlleleRecord:
@@ -6066,12 +6152,13 @@ def decompose_domains(
     If ``mutations`` is provided, the groove is first extracted from the
     wild-type sequence (preserving Cys-pair detection), then the mutations
     are applied to the result.  Mutations use mature protein numbering
-    (1-indexed) and can be strings ("K66A"), tuples, or mhcgnomes Mutation
-    objects.
+    (1-indexed) and can be a single string (``"K66A"``) or a sequence of
+    strings, tuples, or mhcgnomes Mutation objects.
     """
     nc = normalize_mhc_class(mhc_class)
+    normalized_mutations = _normalize_mutations(mutations)
     cleaned_seq = features.seq if features is not None else _clean_seq(seq)
-    if features is None and not mutations:
+    if features is None and not normalized_mutations:
         return _decompose_domains_cached(
             cleaned_seq,
             nc,
@@ -6153,8 +6240,8 @@ def decompose_domains(
             features=features,
             use_early_shortcuts=use_early_shortcuts,
         )
-        if mutations and result.ok:
-            result = apply_mutations(result, mutations)
+        if normalized_mutations and result.ok:
+            result = apply_mutations(result, normalized_mutations)
         result = _refine_status(result)
         if gene_token in NON_GROOVE_GENES and "non_groove_gene" not in result.flags:
             result = replace(result, flags=_flags_to_tuple((*result.flags, "non_groove_gene")))
@@ -6183,8 +6270,8 @@ def decompose_domains(
                 pass
         result = _select_best_viable_record(candidates)
         if result is not None:
-            if mutations and result.ok:
-                result = apply_mutations(result, mutations)
+            if normalized_mutations and result.ok:
+                result = apply_mutations(result, normalized_mutations)
             result = _refine_status(result)
             return _attach_parse_candidate(result)
         # All parsers failed — return a structured failure
@@ -6318,8 +6405,8 @@ def decompose_domains(
             status="missing_groove",
             flags=("class_ii_all_parsers_failed",),
         )
-    if mutations and result.ok:
-        result = apply_mutations(result, mutations)
+    if normalized_mutations and result.ok:
+        result = apply_mutations(result, normalized_mutations)
     result = _refine_status(result)
     if gene_token in NON_GROOVE_GENES and "non_groove_gene" not in result.flags:
         result = replace(result, flags=_flags_to_tuple((*result.flags, "non_groove_gene")))

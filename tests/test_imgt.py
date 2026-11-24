@@ -2,12 +2,21 @@
 
 import pytest
 
+from mhcseqs.domain_parsing import decompose_class_i
 from mhcseqs.imgt import (
     CONSERVED_CYS_POSITIONS,
+    GALPHA1_POSITIONS,
     GALPHA2_POSITIONS,
     HELIX_INSERTIONS,
+    HLA_A0201_GALPHA1,
+    HLA_A0201_GALPHA2,
+    DomainAlignment,
+    GrooveAlignment,
+    align_domain_to_imgt,
+    align_groove_to_imgt,
     imgt_to_mature,
     imgt_to_mature_class_i,
+    map_groove_positions,
     mature_to_imgt,
     mature_to_imgt_class_i,
     structural_element,
@@ -309,3 +318,163 @@ def test_helix_insertions_defined():
     assert "61A" in HELIX_INSERTIONS
     assert "72A" in HELIX_INSERTIONS
     assert "61B" in HELIX_INSERTIONS
+
+
+def test_structural_element_general_dot_insertions():
+    assert structural_element("51.1") == "HELIX"
+    assert structural_element("51.3") == "HELIX"
+    assert structural_element("20.1") == "B-STRAND"
+    assert structural_element("61A.1") == "HELIX"
+
+
+# ---------------------------------------------------------------------------
+# Reference-anchored Class I IMGT G-DOMAIN alignment (#120)
+# ---------------------------------------------------------------------------
+
+_HLA_A01103_89AA_G1 = "SHSMRYFFTSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQKMEPRAPWIEQEGPEYWDQETRNMKAHSQTDRANLGTLRGYYNQSED"
+_HLA_A01103_G2 = "GSHTIQIMYGCDVGPDGRFLRGYRQDAYDGKDYIALNEDLRSWTAADMAAQITKRKWEAVHAAEQRRVYLEGRCVDGLRRYLENGKETLQRTD"
+
+_PTAL_N0101_G1 = "GFHSLRYFYTAWSRPGSGEPRFVAVGYVDDTQFVRFDSDNASPRAEPRAPWMDLVEQQDPQYWDRNTRNARDAAQTYRVGLDNVRGYYNQSEA"
+_PTAL_N0101_G2 = "GSHTIQRMYGCDVGPHGRLLRGYDQLAYDGADYIALNEDLRSWTAADLAAQNTRRKWEEAGYAERDRAYLEGECVEWLLKHLENGRETLLRAD"
+
+_TRVU_UB0101_G1 = "GSHSLRYFYTAVSGPELREPRFLSVGYVDEQQFVRFDSASESPREEPRAKWIERVGEEDPEYWERQTGILRRNTQVFRVGLETLRGYFNQSAG"
+_TRVU_UB0101_G2 = "GVHTLQTMYGCELTPELTFTRGFDQSAYDGRDYISLDTDTYTWTATAPQAVNTKRKWEADRSIAEGWKAYLEETCVLWLKKYLEMGKDTLGRTD"
+
+_MAFA_F0201_G1 = "SHSLRYFSTAVSRPGRREPRYRYIAVEYVDDTQFLRFDSDAAIPRMEPRAPWVEQEGPQYWERTTGYAKANARTDRVALRKLLLRYNQSEA"
+_MAFA_F0201_G2 = "GSHTLQGMNGCDMGPDGRLLRGYHQHAYDGKDYISLNEDPRSWTAADTVARITQRFYEAEEYAEEFRTYLEGECLELLRRYLENGKETLQRA"
+
+_ANPL_UAA01_G1 = "EPHSLRYFYTAVSDPSPGVPQFVTVGSVDGEVFVRYDSETRKMEPRVDWIVANVDQQYWDRETETSRGNEQIFRVNLDTARERYNQSR"
+_ANPL_UAA01_G2 = "GSHTWQCMHGCDLEDGSIRGFQQCGYDGKDFIALDKDTLTYTAADAAAQITKRKWEQEGTVAEQWKNYLENTCIEWLRKYVSYGKDVLERRE"
+
+_GAGA_BF1_G1 = "ELHTLRYISTAMTDPGPGQPWYVDVGYVDGELFTHYNSTARRAVPRTEWIAANTDQQYWDRETQIAQGNEQIDRENLDIRQQRHNQTG"
+_GAGA_BF1_G2 = "GSHTAQWMYGCDILEDGTIRGYHQMACDGRDFIALAEDMKTFTAAVPEAVPTKRKWEEGGYAERKKQYLEETCVEGLRRYVEYGKAELGRRE"
+
+_ONMY_UBA_G1 = "GLLHIASAVTHSLRYFYTATTGIPDFPEFVDVGVVNGKVISYYDSITKRKVPKQSWMEENFNQQYWNQGTDLLKGTEQTFKANIQVAQTRFNQTG"
+_ONMY_UBA_G2 = "GVHIVQVMYGCTWDDDSGVIEGVQQHGYDGEDFLVYDMKTFTWIAPKQQAEITQRKWNNNPAGMAQRKSYITQECVEWLKKYVDFGKNTLMRTV"
+
+
+def test_align_canonical_hla_a0201_groove():
+    rec = decompose_class_i(HLA_A0201_MATURE, allele="HLA-A*02:01")
+    aln = align_groove_to_imgt(rec)
+    assert isinstance(aln, GrooveAlignment)
+    assert aln.alpha1 is not None
+    assert aln.alpha2 is not None
+    assert not aln.has_indels
+    assert not aln.is_truncated
+    assert aln.summary() == "canonical"
+    assert aln.alpha1.identity == 1.0
+    assert aln.alpha2.identity == 1.0
+    # mhcseqs groove2 includes mature pos 183 ('D'), which is C-terminal overhang past IMGT 92
+    assert aln.alpha2.c_term_overhang == "D"
+    assert aln.residue_at(66) == "K"
+    assert aln.residue_at(101) == "C"
+    assert aln.residue_at(164) == "C"
+    assert aln.residue_at_imgt("G-ALPHA2", "11") == "C"
+    assert aln.residue_at_imgt("G-ALPHA2", "74") == "C"
+    assert aln.residue_at_imgt("G-ALPHA2", "61A") == "A"
+    assert len(GALPHA1_POSITIONS) == 90
+
+
+def test_align_fast_path_matches_full_dp():
+    fast1 = align_domain_to_imgt(HLA_A0201_GALPHA1, "G-ALPHA1", use_fast_path=True)
+    full1 = align_domain_to_imgt(HLA_A0201_GALPHA1, "G-ALPHA1", use_fast_path=False)
+    assert fast1.aligned_ref == full1.aligned_ref
+    assert fast1.aligned_query == full1.aligned_query
+    assert fast1.mature_to_aa == full1.mature_to_aa
+
+    fast2 = align_domain_to_imgt(HLA_A0201_GALPHA2 + "D", "G-ALPHA2", use_fast_path=True)
+    full2 = align_domain_to_imgt(HLA_A0201_GALPHA2 + "D", "G-ALPHA2", use_fast_path=False)
+    assert fast2.aligned_ref == full2.aligned_ref
+    assert fast2.aligned_query == full2.aligned_query
+    assert fast2.c_term_overhang == "D"
+
+
+def test_align_partial_exon2_89aa_distinguishes_truncation_from_deletion():
+    aln = map_groove_positions(_HLA_A01103_89AA_G1, _HLA_A01103_G2)
+    assert aln.alpha1 is not None
+    assert aln.alpha1.n_term_missing == 1
+    assert aln.alpha1.c_term_missing == 0
+    assert aln.alpha1.canonical_start_mature_pos == 2
+    assert aln.alpha1.deletions == ()
+    assert aln.alpha1.insertions == ()
+    assert aln.is_truncated
+    assert not aln.has_indels
+    assert aln.residue_at(1) is None
+    assert aln.residue_at(2) == "S"
+    assert aln.residue_at(66) == "N"  # HLA-A*01 has N66-M67 (vs HLA-A*02 K66-V67)
+    assert aln.residue_at(67) == "M"
+    assert aln.residue_at(101) == "C"
+    assert aln.extract_positions([1, 2, 66, 101]) == "XSNC"
+
+
+def test_align_ptal_n0101_mdl_insertion():
+    aln = map_groove_positions(_PTAL_N0101_G1, _PTAL_N0101_G2)
+    assert aln.has_insertions
+    assert not aln.has_deletions
+    assert len(aln.insertions) == 1
+    ins = aln.insertions[0]
+    assert ins.domain == "G-ALPHA1"
+    assert ins.after_mature_pos == 51
+    assert ins.after_imgt_pos == "51"
+    assert ins.sequence == "MDL"
+    assert ins.length == 3
+    assert ins.imgt_codes == ("51.1", "51.2", "51.3")
+    assert ins.structural_element == "HELIX"
+    # Canonical positions after the insertion still map accurately
+    assert aln.residue_at(51) == "W"
+    assert aln.residue_at(59) == "Y"
+    assert aln.residue_at(60) == "W"
+    assert aln.residue_at(84) == "Y"
+    assert aln.residue_at(101) == "C"
+    assert aln.residue_at(164) == "C"
+    assert "MDL" in aln.summary()
+
+
+def test_align_trvu_ub0101_alpha1_and_alpha2_insertions():
+    aln = map_groove_positions(_TRVU_UB0101_G1, _TRVU_UB0101_G2)
+    assert aln.alpha1 is not None and aln.alpha2 is not None
+    assert sum(i.length for i in aln.alpha1.insertions) == 3
+    assert sum(i.length for i in aln.alpha2.insertions) == 1
+    assert aln.residue_at(101) == "C"
+    assert aln.residue_at(164) == "C"
+    assert aln.residue_at(59) == "Y"
+
+
+def test_align_mafa_f0201_simultaneous_truncation_and_insertion():
+    aln = map_groove_positions(_MAFA_F0201_G1, _MAFA_F0201_G2)
+    assert aln.alpha1 is not None
+    assert aln.alpha1.n_term_missing == 1
+    assert sum(i.length for i in aln.alpha1.insertions) == 2
+    assert aln.alpha1.deletions == ()
+    assert aln.residue_at(1) is None
+    assert aln.residue_at(2) == "S"
+    assert aln.residue_at(59) == "Y"
+
+
+def test_align_avian_and_fish_indels_and_overhang():
+    for g1, g2 in ((_ANPL_UAA01_G1, _ANPL_UAA01_G2), (_GAGA_BF1_G1, _GAGA_BF1_G2)):
+        aln = map_groove_positions(g1, g2)
+        assert aln.has_deletions
+        assert aln.residue_at(101) == "C"
+        assert aln.residue_at(164) == "C"
+
+    onmy = map_groove_positions(_ONMY_UBA_G1, _ONMY_UBA_G2)
+    assert onmy.alpha1 is not None and onmy.alpha2 is not None
+    assert len(onmy.alpha1.n_term_overhang) >= 6
+    assert onmy.alpha2.has_insertions
+    assert onmy.residue_at(101) == "C"
+    assert onmy.residue_at(164) == "C"
+
+
+def test_align_groove_to_imgt_accepts_dict_record_and_strings():
+    row = {"groove1": HLA_A0201_GALPHA1, "groove2": HLA_A0201_GALPHA2}
+    aln_dict = align_groove_to_imgt(row)
+    aln_str = align_groove_to_imgt(HLA_A0201_GALPHA1, HLA_A0201_GALPHA2)
+    assert aln_dict.mature_to_aa == aln_str.mature_to_aa
+
+    empty_dom = align_domain_to_imgt("", "G-ALPHA1")
+    assert isinstance(empty_dom, DomainAlignment)
+    assert empty_dom.n_term_missing == 90
+
+    with pytest.raises(TypeError):
+        align_groove_to_imgt(12345)

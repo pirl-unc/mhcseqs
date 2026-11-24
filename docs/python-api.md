@@ -108,6 +108,16 @@ Core groove extraction and domain decomposition.
 - `find_cys_pairs(seq)` — locate Ig-fold Cys-Cys pairs
 - `AlleleRecord` — dataclass with all parsed fields
 
+### `mhcseqs.imgt`
+
+IMGT G-DOMAIN numbering and reference-anchored Class I groove alignment.
+
+- `align_groove_to_imgt(record_or_groove1, groove2=None)` — align an `AlleleRecord`, row dict, or `(groove1, groove2)` pair to canonical IMGT G-DOMAIN coordinates, returning a `GrooveAlignment` with structured `insertions` (`GrooveInsertion`), `deletions` (`GrooveDeletion`), and truncation metadata
+- `align_domain_to_imgt(seq, domain="G-ALPHA1")` — align a single Class I groove half (`G-ALPHA1` or `G-ALPHA2`) to IMGT coordinates (`DomainAlignment`)
+- `map_groove_positions(groove1, groove2)` — align `(groove1, groove2)` strings onto canonical IMGT coordinates
+- `mature_to_imgt(mature_pos, mhc_class="I", chain="")` / `imgt_to_mature(domain, imgt_pos)` — canonical fixed-reference coordinate converters
+- `structural_element(imgt_pos)` — structural element lookup (`A-STRAND`, `HELIX`, etc.)
+
 ### `mhcseqs.alleles`
 
 Allele name parsing via mhcgnomes.

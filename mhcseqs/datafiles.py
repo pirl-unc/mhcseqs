@@ -137,12 +137,16 @@ ALLELE_LOOKUP_FIELDS = (
     "representative_allele",
     "allele_normalized",
     "allele_raw",
+    "source_id",
 )
 
 
 def build_query_candidates(query: str) -> set[str]:
     """Return casefolded candidate strings for matching an allele query against CSV rows."""
+    import mhcgnomes
+
     from .alleles import canonical_allele_name, parse_allele_name
+    from .species import full_species_name_alias
 
     token = query.strip()
     if not token:
@@ -150,8 +154,32 @@ def build_query_candidates(query: str) -> set[str]:
     candidates = {token.casefold()}
     parsed = parse_allele_name(token)
     if parsed is not None:
-        candidates.add(canonical_allele_name(parsed).casefold())
-        candidates.add(canonical_allele_name(parsed, allele_fields=2).casefold())
+        restricted = parsed.restrict_allele_fields(2)
+        for obj in (parsed, restricted):
+            candidates.add(canonical_allele_name(obj).casefold())
+            candidates.add(str(obj.to_string()).casefold())
+
+        # Bridge genus-level prefixes (e.g. FLA -> Felis sp.) and member species
+        # (e.g. Felis catus) using mhcgnomes' species hierarchy so lookup("FLA-E*003:01")
+        # finds FelisCatus-E*003:01 and lookup("Bota-1*007:01") finds BosSp-1*007:01.
+        species = getattr(parsed, "species", None)
+        if species is not None and species.name:
+            related_names: set[str] = set()
+            if species.name.endswith(" sp.") and species.mhc_prefix:
+                for sp_obj in mhcgnomes.species.find_matching_species_objects(species.mhc_prefix):
+                    if sp_obj.name:
+                        related_names.add(sp_obj.name)
+            parent = getattr(species, "parent", None)
+            if parent is not None and getattr(parent, "name", None) and parent.name.endswith(" sp."):
+                related_names.add(parent.name)
+            for rel_name in related_names:
+                rel_alias = full_species_name_alias(rel_name)
+                if not rel_alias:
+                    continue
+                for obj in (parsed, restricted):
+                    body = str(obj.to_string(include_species=False))
+                    if body:
+                        candidates.add(f"{rel_alias}-{body}".casefold())
     return candidates
 
 

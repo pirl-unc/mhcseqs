@@ -129,6 +129,7 @@ def test_data_list_marks_corrupt_version_invalid(capsys, tmp_path, monkeypatch):
 def test_lookup_no_csvs(capsys, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("mhcseqs.__main__.default_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr("mhcseqs.datafiles.__file__", str(tmp_path / "pkg" / "datafiles.py"))
     with patch.object(sys, "argv", ["mhcseqs", "lookup", "HLA-A*02:01", "--output-dir", str(tmp_path)]):
         with pytest.raises(SystemExit) as exc_info:
             main()
@@ -225,7 +226,89 @@ def test_lookup_with_mutations(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     rec = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A"])
     assert rec.groove1[65] == "A"
+    assert rec.mature_sequence[65] == "A"
     assert rec.mutations == ("K66A",)
+
+    # Single string mutation works without character iteration (#121)
+    rec_str = mhcseqs.lookup("HLA-A*02:01", mutations="K66A")
+    assert rec_str.groove1[65] == "A"
+    assert rec_str.mutations == ("K66A",)
+
+
+def test_lookup_resolves_curated_non_human_and_genus_aliases(tmp_path, monkeypatch):
+    """Issues #117 and #119: lookup resolves FLA-*, Trvu-*, Ptal-*, Anpl-*, SahaI*, H2-Kb, and UniProt IDs."""
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
+        [
+            {
+                "two_field_allele": "FelisCatus-E*003:01",
+                "representative_allele": "FelisCatus-E*003:01",
+                "gene": "E",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Felis catus",
+                "species_category": "carnivore",
+                "species_prefix": "FelisCatus",
+                "source": "uniprot",
+                "source_id": "Q95482",
+                "sequence": _A0201_SEQ,
+            },
+            {
+                "two_field_allele": "TrichosurusVulpecula-UB*01:01",
+                "representative_allele": "TrichosurusVulpecula-UB*01:01",
+                "gene": "UB",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Trichosurus vulpecula",
+                "species_category": "other_mammal",
+                "species_prefix": "TrichosurusVulpecula",
+                "source": "uniprot",
+                "source_id": "Q95IT0",
+                "sequence": _A0201_SEQ,
+            },
+            {
+                "two_field_allele": "SarcophilusHarrisii-I*27",
+                "representative_allele": "SarcophilusHarrisii-I*27",
+                "gene": "I",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Sarcophilus harrisii",
+                "species_category": "other_mammal",
+                "species_prefix": "SarcophilusHarrisii",
+                "source": "genbank",
+                "source_id": "GQ411435.1",
+                "sequence": _A0201_SEQ,
+            },
+            {
+                "two_field_allele": "H2-K*b",
+                "representative_allele": "H2-K*b",
+                "gene": "K",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Mus musculus",
+                "species_category": "murine",
+                "species_prefix": "H2",
+                "source": "uniprot",
+                "source_id": "P01901",
+                "sequence": _A0201_SEQ,
+            },
+        ],
+    )
+    monkeypatch.chdir(tmp_path)
+    for query, expected in (
+        ("FLA-E*003:01", "FelisCatus-E*003:01"),
+        ("FLA-E*00301", "FelisCatus-E*003:01"),
+        ("Feca-E*003:01", "FelisCatus-E*003:01"),
+        ("FelisCatus-E*003:01", "FelisCatus-E*003:01"),
+        ("Q95482", "FelisCatus-E*003:01"),
+        ("Trvu-UB*01:01", "TrichosurusVulpecula-UB*01:01"),
+        ("Q95IT0", "TrichosurusVulpecula-UB*01:01"),
+        ("SahaI*27", "SarcophilusHarrisii-I*27"),
+        ("Saha-I*27", "SarcophilusHarrisii-I*27"),
+        ("H2-Kb", "H2-K*b"),
+    ):
+        rec = mhcseqs.lookup(query)
+        assert rec.allele == expected, f"query {query!r} resolved to {rec.allele!r}, expected {expected!r}"
 
 
 def test_lookup_not_found(tmp_path, monkeypatch):
@@ -366,6 +449,7 @@ def test_cli_lookup_formats_and_all_and_output(capsys, tmp_path, monkeypatch):
 
 def test_cli_lookup_no_match_goes_to_stderr(capsys, tmp_path, monkeypatch):
     monkeypatch.setattr("mhcseqs.__main__.default_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr("mhcseqs.datafiles.__file__", str(tmp_path / "pkg" / "datafiles.py"))
     monkeypatch.chdir(tmp_path)
     _write_full_seqs_csv(
         tmp_path / "mhc-full-seqs.csv",

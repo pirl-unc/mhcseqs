@@ -21,13 +21,18 @@ import pytest
 import mhcseqs
 from mhcseqs.domain_grammar import SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH
 from mhcseqs.domain_parsing import _load_sp_boundary_model, _load_sp_sequence_cue_model
-from mhcseqs.pipeline import _GENBANK_SAHA_CSV, _load_genbank_saha_references
+from mhcseqs.pipeline import (
+    _CURATED_UNIPROT_ALLELES_CSV,
+    _GENBANK_SAHA_CSV,
+    _load_curated_uniprot_allele_map,
+    _load_genbank_saha_references,
+)
 
 PACKAGE_DIR = Path(mhcseqs.__file__).resolve().parent
 PYPROJECT = PACKAGE_DIR.parent / "pyproject.toml"
 
 # Files mhcseqs opens at runtime, each behind a fail-soft loader.
-RUNTIME_DATA_PATHS = (SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH, _GENBANK_SAHA_CSV)
+RUNTIME_DATA_PATHS = (SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH, _GENBANK_SAHA_CSV, _CURATED_UNIPROT_ALLELES_CSV)
 
 
 def _package_data_entries() -> set[str]:
@@ -71,6 +76,7 @@ def test_fail_soft_loaders_actually_loaded_something():
     assert _load_sp_boundary_model().get("groups"), "SP boundary model did not load; scoring would degrade to 0.0"
     assert _load_sp_sequence_cue_model(), "SP sequence-cue model did not load; cue scores would degrade to 0.0"
     assert _load_genbank_saha_references(), "GenBank SahaI references did not load; devil alleles would be dropped"
+    assert _load_curated_uniprot_allele_map(), "Curated UniProt allele map did not load; named non-IPD alleles would be dropped"
 
 
 def test_shipped_data_files_are_parseable():

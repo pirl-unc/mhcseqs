@@ -12,7 +12,9 @@ from mhcseqs.pipeline import (
     _extract_source_id,
     _infer_chain,
     _load_b2m_references,
+    _load_curated_uniprot_allele_map,
     _load_diverse_mhc_references,
+    _load_genbank_saha_references,
     _load_mouse_h2_references,
     _looks_like_nucleotide,
     build_raw_index,
@@ -276,7 +278,67 @@ def test_diverse_references_fall_back_to_curated_source_category(diverse_mhc_ref
     bank_vole = next(r for r in rows if r["source_id"] == "A0AAW0H2V6")
     assert bank_vole["species"] == "Myodes glareolus"
     assert bank_vole["species_category"] == "other_mammal"
+    assert bank_vole["species_prefix"] == "MyodesGlareolus"
     assert all(r["species_category"] for r in rows)
+    assert all(r["species_prefix"] for r in rows)
+
+
+def test_diverse_references_include_felis_catus_and_curated_alleles(diverse_mhc_reference_rows):
+    """Issues #117 and #119: FLA Class I heavy chains and named non-IPD reference alleles."""
+    rows = diverse_mhc_reference_rows
+    by_source_id = {r["source_id"]: r for r in rows}
+
+    # Every curated UniProt accession must be present and mapped to a canonical two-field name
+    curated_map = _load_curated_uniprot_allele_map()
+    assert len(curated_map) >= 20
+    for acc in curated_map:
+        assert acc in by_source_id, f"Curated accession {acc} missing from diverse_mhc_sequences.csv"
+        row = by_source_id[acc]
+        assert row["two_field_allele"] != acc
+        assert row["species_prefix"]
+
+    # Spot-check key benchmark alleles from #117 and #119
+    expected = {
+        "Q95IT0": ("TrichosurusVulpecula-UB*01:01", "TrichosurusVulpecula", "other_mammal"),
+        "A0A125R585": ("PteropusAlecto-N*01:01", "PteropusAlecto", "other_mammal"),
+        "Q6I7L2": ("AnasPlatyrhynchos-UAA*01", "AnasPlatyrhynchos", "bird"),
+        "A0A6M3RI17": ("AnasPlatyrhynchos-UAA*76", "AnasPlatyrhynchos", "bird"),
+        "Q95482": ("FelisCatus-E*003:01", "FelisCatus", "carnivore"),
+        "C6ZK69": ("FelisCatus-K*007:01", "FelisCatus", "carnivore"),
+        "C6ZK72": ("FelisCatus-E*018:01", "FelisCatus", "carnivore"),
+        "A0A7H1D3E9": ("FelisCatus-E*001:01", "FelisCatus", "carnivore"),
+        "A0A516V164": ("FelisCatus-E*005:01", "FelisCatus", "carnivore"),
+        "A0A7H1D3F5": ("FelisCatus-K*012:02", "FelisCatus", "carnivore"),
+    }
+    for acc, (allele_canon, sp_prefix, sp_cat) in expected.items():
+        row = by_source_id[acc]
+        assert row["two_field_allele"] == allele_canon
+        assert row["species_prefix"] == sp_prefix
+        assert row["species_category"] == sp_cat
+        parsed = parse_domain_record(
+            row["sequence"],
+            mhc_class=row["mhc_class"],
+            gene=row["gene"],
+            allele=row["two_field_allele"],
+            chain=row["chain"],
+            species=row["species"],
+        )
+        assert parsed is not None and parsed.ok and parsed.groove1 and parsed.groove2
+
+    # Felis catus Class I heavy-chain coverage (#117)
+    fla_ci = [r for r in rows if r["species_prefix"] == "FelisCatus" and r["mhc_class"] == "I" and r["chain"] == "alpha"]
+    assert len(fla_ci) >= 15
+
+
+def test_genbank_saha_references_use_canonical_names():
+    """Issue #119: genbank_saha_sequences.csv alleles normalize to SarcophilusHarrisii-I*..."""
+    rows = _load_genbank_saha_references()
+    assert len(rows) >= 60
+    by_raw = {r["allele_raw"]: r for r in rows}
+    assert by_raw["SahaI*27"]["two_field_allele"] == "SarcophilusHarrisii-I*27"
+    assert by_raw["SahaI*27"]["species_prefix"] == "SarcophilusHarrisii"
+    assert by_raw["SahaI*27"]["gene"] == "I"
+    assert all(r["species_prefix"] == "SarcophilusHarrisii" for r in rows)
 
 
 def test_load_diverse_references_signal_peptide_metadata_is_consistent(diverse_mhc_reference_rows):
