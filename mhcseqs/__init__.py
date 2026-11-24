@@ -67,12 +67,22 @@ from .domain_parsing import (
 from .download import SOURCES, download_all
 from .imgt import (
     CONSERVED_CYS_POSITIONS,
+    GALPHA1_POSITIONS,
     GALPHA2_GAP_POSITIONS,
     GALPHA2_POSITIONS,
     HELIX_INSERTIONS,
+    HLA_A0201_GALPHA1,
+    HLA_A0201_GALPHA2,
     STRUCTURAL_ELEMENTS,
+    DomainAlignment,
+    GrooveAlignment,
+    GrooveDeletion,
+    GrooveInsertion,
+    align_domain_to_imgt,
+    align_groove_to_imgt,
     imgt_to_mature,
     imgt_to_mature_class_i,
+    map_groove_positions,
     mature_to_imgt,
     mature_to_imgt_class_i,
     structural_element,
@@ -329,7 +339,7 @@ def load_sequences_dataframe(path: str | None = None):
 def lookup(
     allele: str,
     *,
-    mutations: Sequence = (),
+    mutations: str | Sequence = (),
     search_dir: str | None = None,
 ) -> AlleleRecord:
     """Look up a single allele and return a fully parsed AlleleRecord.
@@ -410,6 +420,7 @@ def lookup(
         mutations=mutations,
     )
 
+    final_seq = result.sequence if result.mutations and result.sequence else seq
     return replace(
         result,
         full_allele=full_allele_name,
@@ -418,8 +429,8 @@ def lookup(
         species_prefix=hit.get("species_prefix", ""),
         source=hit.get("source", ""),
         source_id=hit.get("source_id", ""),
-        sequence=seq,
-        seq_len=len(seq),
+        sequence=final_seq,
+        seq_len=len(final_seq),
     )
 
 
@@ -487,9 +498,19 @@ __all__ = [
     "imgt_to_mature",
     "imgt_to_mature_class_i",
     "structural_element",
+    "align_domain_to_imgt",
+    "align_groove_to_imgt",
+    "map_groove_positions",
+    "DomainAlignment",
+    "GrooveAlignment",
+    "GrooveInsertion",
+    "GrooveDeletion",
     "STRUCTURAL_ELEMENTS",
+    "GALPHA1_POSITIONS",
     "GALPHA2_GAP_POSITIONS",
     "GALPHA2_POSITIONS",
     "HELIX_INSERTIONS",
+    "HLA_A0201_GALPHA1",
+    "HLA_A0201_GALPHA2",
     "CONSERVED_CYS_POSITIONS",
 ]

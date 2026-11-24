@@ -1,0 +1,21 @@
+uniprot_accession,allele_name,gene,mhc_class,chain,species,pdb_ids,evidence
+Q95IT0,Trvu-UB*01:01,UB,I,alpha,Trichosurus vulpecula,7EDO,PDB 7EDO; UniProt Q95IT0 (Truv-UB)
+A0A125R585,Ptal-N*01:01,N,I,alpha,Pteropus alecto,6ILC;6ILE;6ILF;6ILG;6J2D;6J2E;6J2F;6J2G;6J2H;6J2I;6J2J;6K7T,PDB 6ILC; Lu et al. Cell 2019; UniProt A0A125R585 (Ptal-N)
+Q6I7L2,Anpl-UAA*01,UAA,I,alpha,Anas platyrhynchos,5GJX;5GJY,PDB 5GJX/5GJY; Wu et al. J Immunol 2017; UniProt Q6I7L2
+A0A6M3RI17,Anpl-UAA*76,UAA,I,alpha,Anas platyrhynchos,9M63;9LUD;9M4L,PDB 9M63; UniProt A0A6M3RI17 (B4 duck UAA*76)
+A0A7H1D3E9,FLA-E*001:01,E,I,alpha,Felis catus,,EMBL MN810559.1 (/allele="FLA-E*001:01"); UniProt A0A7H1D3E9
+Q95482,FLA-E*003:01,E,I,alpha,Felis catus,7XQU,PDB 7XQU; Qiao et al. J Immunol 2025 (PMID 40073263); EMBL U07668; UniProt Q95482
+A0A516V164,FLA-E*005:01,E,I,alpha,Felis catus,,EMBL MN810560.1 (/allele="FLA-E*005:01"); UniProt A0A516V164
+C6ZK72,FLA-E*018:01,E,I,alpha,Felis catus,5XMF;5XMM,PDB 5XMF/5XMM; Liang et al. J Immunol 2018; EMBL EU915360; UniProt C6ZK72
+A0A516V1E3,FLA-E*021:01,E,I,alpha,Felis catus,,EMBL MN810561.1 (/allele="FLA-E*021:01"); UniProt A0A516V1E3
+A0A516V1F1,FLA-E*029:01,E,I,alpha,Felis catus,,EMBL MN810562.1 (/allele="FLA-E*029:01"); UniProt A0A516V1F1
+A0A516V169,FLA-H*002:01,H,I,alpha,Felis catus,,EMBL MN810567.1 (/allele="FLA-H*002:01"); UniProt A0A516V169
+A0A516V176,FLA-H*004:01,H,I,alpha,Felis catus,,EMBL MN810566.1 (/allele="FLA-H*004:01"); UniProt A0A516V176
+S4Z264,FLA-H*005:01,H,I,alpha,Felis catus,,EMBL KC763057.1 (/allele="FLAI-H*00501"); UniProt S4Z264
+A0A516V1B6,FLA-J*01:11,J,I,alpha,Felis catus,,EMBL MN939778.1 (/allele="FLA-J*01:11"); UniProt A0A516V1B6
+A0A7T8I0W9,FLA-J*01:18,J,I,alpha,Felis catus,,EMBL MN939779.1 (/allele="FLA-J*01:18"); UniProt A0A7T8I0W9
+S4Z3H8,FLA-K*002:01,K,I,alpha,Felis catus,,EMBL KC763056.1 (/allele="FLAI-K*00201"); UniProt S4Z3H8
+S4Z9P2,FLA-K*003:02,K,I,alpha,Felis catus,,EMBL KC763058.1/MN810564.1 (/allele="FLA-K*003:02"); UniProt S4Z9P2
+A0A516V1C0,FLA-K*005:01,K,I,alpha,Felis catus,,EMBL MN810563.1 (/allele="FLA-K*005:01"); UniProt A0A516V1C0
+C6ZK69,FLA-K*007:01,K,I,alpha,Felis catus,7XQS;7XQT,PDB 7XQS/7XQT; Qiao et al. J Immunol 2025 (PMID 40073263); EMBL EU915357; UniProt C6ZK69
+A0A7H1D3F5,FLA-K*012:02,K,I,alpha,Felis catus,,EMBL MN810565.1 (/allele="FLA-K*012:02"); UniProt A0A7H1D3F5

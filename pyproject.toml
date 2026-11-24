@@ -46,6 +46,7 @@ include = ["mhcseqs*"]
 [tool.setuptools.package-data]
 mhcseqs = [
     "b2m_sequences.csv",
+    "curated_uniprot_alleles.csv",
     "mouse_h2_sequences.csv",
     "diverse_mhc_sequences.csv",
     "genbank_saha_sequences.csv",

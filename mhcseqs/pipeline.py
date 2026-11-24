@@ -45,6 +45,8 @@ _MOUSE_H2_CSV = Path(__file__).resolve().parent / "mouse_h2_sequences.csv"
 # Legacy filename: this is the curated supplemental UniProt bundle for
 # underrepresented taxa outside the IMGT/IPD downloads.
 _DIVERSE_MHC_CSV = Path(__file__).resolve().parent / "diverse_mhc_sequences.csv"
+# Verified UniProt accession -> canonical allele name mappings (PDB/GenBank/literature).
+_CURATED_UNIPROT_ALLELES_CSV = Path(__file__).resolve().parent / "curated_uniprot_alleles.csv"
 # Tasmanian devil SahaI alleles from GenBank (Siddle/Cheng et al. 2010-2015),
 # including the DFT2-relevant alleles from Caldwell et al. 2018.
 _GENBANK_SAHA_CSV = Path(__file__).resolve().parent / "genbank_saha_sequences.csv"
@@ -63,6 +65,7 @@ _DIVERSE_GROUP_TO_CATEGORY = {
     "marsupial": "other_mammal",
     "monotreme": "other_mammal",
     "bat": "other_mammal",
+    "cat": "carnivore",
     "other_mammal": "other_mammal",
 }
 
@@ -551,15 +554,43 @@ def _signal_peptide_fields(
     return refined_start, has_sp, sp_seq
 
 
+def _load_curated_uniprot_allele_map() -> Dict[str, dict]:
+    """Load verified UniProt accession -> canonical allele metadata mappings."""
+    if not _CURATED_UNIPROT_ALLELES_CSV.exists():
+        return {}
+    mapping: Dict[str, dict] = {}
+    with open(_CURATED_UNIPROT_ALLELES_CSV, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            acc = (row.get("uniprot_accession") or "").strip()
+            if acc:
+                mapping[acc] = row
+    return mapping
+
+
+def _resolve_uniprot_species_prefix(organism: str) -> str:
+    """Resolve canonical full-binomial ``species_prefix`` for a UniProt organism string.
+
+    Uses ``mhcgnomes.Species.get`` on the extracted Latin binomial when
+    available so synonyms/subspecies map to mhcgnomes' canonical species name,
+    falling back to :func:`full_species_name_alias` for taxa not yet in
+    mhcgnomes.
+    """
+    latin = extract_latin_binomial(organism)
+    sp_obj = mhcgnomes.Species.get(latin) if latin else None
+    if sp_obj is not None and sp_obj.name:
+        return full_species_name_alias(sp_obj.name)
+    return full_species_name_alias(latin or organism)
+
+
 def _load_genbank_saha_references() -> List[dict]:
     """Load Tasmanian devil SahaI alleles from NCBI GenBank.
 
     These are partial class I alpha-chain sequences (mostly alpha-1 domain)
     deposited outside IPD-MHC, including the alleles discussed in Caldwell
     et al. 2018 (DFT2). Allele identifiers follow the GenBank convention
-    ``SahaI*N`` and are not assigned to a Saha-UA/UB/UC locus, so mhcgnomes
-    cannot parse them; downstream curation encodes them under the
-    ``~ref:SarcophilusHarrisii|<acc>:SahaI*N`` vocabulary.
+    ``SahaI*N`` and are normalized through mhcgnomes to canonical two-field
+    names (e.g. ``SarcophilusHarrisii-I*27``) so ``mhcseqs.lookup()`` resolves
+    ``SahaI*27``, ``Saha-I*27``, and ``SarcophilusHarrisii-I*27``.
     """
     if not _GENBANK_SAHA_CSV.exists():
         return []
@@ -569,13 +600,24 @@ def _load_genbank_saha_references() -> List[dict]:
             seq = row.get("sequence", "")
             if not seq or len(seq) < MIN_MHC_SEQUENCE_LEN:
                 continue
-            allele_name = row["allele_name"]
+            allele_raw = row["allele_name"]
             gene = row.get("gene", "SahaI")
             accession = row["accession"]
             is_pseudogene = row.get("is_pseudogene", "False") == "True"
             # alpha-1-only or partial-CDS fragments: mark questionable
             note = row.get("note", "").lower()
             is_fragment = "alpha-1" in note or "alpha 1" in note or len(seq) < 180
+
+            parsed = parse_allele_name(allele_raw, species="Sarcophilus harrisii")
+            if parsed is not None:
+                allele_normalized = canonical_allele_name(parsed, allele_fields=2)
+                two_field = allele_normalized
+                gene_obj = getattr(parsed, "gene", None)
+                if gene_obj is not None and gene_obj.name:
+                    gene = str(gene_obj.name)
+            else:
+                allele_normalized = allele_raw
+                two_field = allele_raw
 
             features = analyze_sequence(seq)
             mature_start, has_sp, sp_seq = _signal_peptide_fields(
@@ -587,15 +629,15 @@ def _load_genbank_saha_references() -> List[dict]:
             )
             rows.append(
                 {
-                    "allele_raw": allele_name,
-                    "allele_normalized": allele_name,
-                    "two_field_allele": allele_name,
+                    "allele_raw": allele_raw,
+                    "allele_normalized": allele_normalized,
+                    "two_field_allele": two_field,
                     "gene": gene,
                     "mhc_class": "I",
                     "chain": "alpha",
                     "species": "Sarcophilus harrisii",
                     "species_category": "other_mammal",
-                    "species_prefix": "Saha",
+                    "species_prefix": "SarcophilusHarrisii",
                     "source": "genbank",
                     "source_id": accession,
                     "seq_len": str(len(seq)),
@@ -617,10 +659,18 @@ def _load_diverse_mhc_references() -> List[dict]:
     The CSV keeps its historical ``diverse_mhc_sequences.csv`` filename, but
     today it serves as the curated supplemental UniProt bundle for taxa
     underrepresented in IMGT/HLA and IPD-MHC: reptiles, amphibians, birds,
-    fish, sharks, marsupials, monotremes, and bats.
+    fish, sharks, marsupials, monotremes, bats, and cats (FLA).
+
+    Verified UniProt accessions listed in ``curated_uniprot_alleles.csv`` are
+    assigned their canonical allele names (e.g. ``TrichosurusVulpecula-UB*01:01``,
+    ``PteropusAlecto-N*01:01``, ``AnasPlatyrhynchos-UAA*01``, ``FelisCatus-E*003:01``)
+    while retaining the UniProt accession in ``source_id``. Every row receives
+    a populated ``species_prefix``.
     """
     if not _DIVERSE_MHC_CSV.exists():
         return []
+    curated_alleles = _load_curated_uniprot_allele_map()
+    species_prefix_cache: Dict[str, str] = {}
     rows = []
     with open(_DIVERSE_MHC_CSV, "r", encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -641,8 +691,10 @@ def _load_diverse_mhc_references() -> List[dict]:
             if accession in NON_MHC_ACCESSIONS:
                 continue
 
-            # Use accession as the allele name (no standard nomenclature)
+            # Default: accession as allele name (no standard nomenclature)
+            allele_raw = accession
             allele_name = accession
+            species_out = organism
 
             # Source groups are authoritative for broad vertebrate taxonomy.
             # Within the catch-all mammal group, retain finer categories when
@@ -651,10 +703,30 @@ def _load_diverse_mhc_references() -> List[dict]:
             if source_group == "other_mammal" or not species_category:
                 species_category = normalize_mhc_species(organism) or species_category
 
-            # Override mhc_class from mhcgnomes when the CSV value is
-            # wrong or unknown — UniProt annotations frequently misclassify
-            # RT1/H-2 class II genes (DOb, Ba, Eb, DQA, etc.) as class I.
-            if gene:
+            # Apply curated UniProt -> canonical allele mapping when verified.
+            curated_entry = curated_alleles.get(accession)
+            if curated_entry is not None:
+                curated_allele_raw = (curated_entry.get("allele_name") or "").strip()
+                curated_species = (curated_entry.get("species") or "").strip() or extract_latin_binomial(organism)
+                parsed_curated = parse_allele_name(curated_allele_raw, species=curated_species) if curated_allele_raw else None
+                if parsed_curated is not None:
+                    allele_raw = curated_allele_raw
+                    allele_name = canonical_allele_name(parsed_curated, allele_fields=2)
+                    gene_obj = getattr(parsed_curated, "gene", None)
+                    if gene_obj is not None and gene_obj.name:
+                        gene = str(gene_obj.name)
+                    elif curated_entry.get("gene"):
+                        gene = curated_entry["gene"].strip()
+                    if curated_entry.get("mhc_class"):
+                        mhc_class = curated_entry["mhc_class"].strip()
+                    if curated_entry.get("chain"):
+                        chain = curated_entry["chain"].strip()
+                    species_out = curated_species
+                    species_category = normalize_mhc_species(curated_species) or species_category
+            elif gene:
+                # Override mhc_class from mhcgnomes when the CSV value is
+                # wrong or unknown — UniProt annotations frequently misclassify
+                # RT1/H-2 class II genes (DOb, Ba, Eb, DQA, etc.) as class I.
                 pgc = parse_gene_class(gene, species=extract_latin_binomial(organism))
                 if pgc and pgc.get("mhc_class") in ("I", "II"):
                     mhc_class = pgc["mhc_class"]
@@ -667,6 +739,11 @@ def _load_diverse_mhc_references() -> List[dict]:
                     chain = "alpha"
                 elif gene:
                     chain = "beta"
+
+            species_prefix = species_prefix_cache.get(species_out)
+            if species_prefix is None:
+                species_prefix = _resolve_uniprot_species_prefix(species_out)
+                species_prefix_cache[species_out] = species_prefix
 
             # This curated file is large (~20k rows), so keep the light-weight
             # SP-only path here, but run it through the same cached SP feature
@@ -682,15 +759,15 @@ def _load_diverse_mhc_references() -> List[dict]:
 
             rows.append(
                 {
-                    "allele_raw": accession,
+                    "allele_raw": allele_raw,
                     "allele_normalized": allele_name,
                     "two_field_allele": allele_name,
                     "gene": gene,
                     "mhc_class": mhc_class,
                     "chain": chain,
-                    "species": organism,
+                    "species": species_out,
                     "species_category": species_category,
-                    "species_prefix": "",
+                    "species_prefix": species_prefix,
                     "source": "uniprot",
                     "source_id": accession,
                     "seq_len": str(length),
@@ -855,6 +932,9 @@ def build_raw_index(
             records[key] = sr
             stats["parsed"] += 1
             stats["genbank_saha_references"] = stats.get("genbank_saha_references", 0) + 1
+        elif records[key].get("source") == "genbank" and len(sr["sequence"]) > len(records[key]["sequence"]):
+            records[key] = sr
+            stats["replaced"] += 1
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     with open(out_csv, "w", newline="", encoding="utf-8") as f:

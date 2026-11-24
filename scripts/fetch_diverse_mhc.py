@@ -41,6 +41,7 @@ QUERY_GROUPS = {
     "marsupial": ("9263", ""),
     "monotreme": ("9255", ""),
     "bat": ("9397", ""),  # Chiroptera
+    "cat": ("9685", ""),  # Felis catus (FLA)
 }
 
 # UniProt keyword-based MHC query
