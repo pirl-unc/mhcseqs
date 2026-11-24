@@ -20,6 +20,7 @@ Reference: Lefranc et al. (2005) Dev Comp Immunol 29:917-938.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Mapping, Optional, Sequence
 
 # =============================================================================
@@ -569,46 +570,6 @@ def _galpha2_cys_anchor_bonus(qry: str) -> Optional[dict[tuple[int, int], float]
     }
 
 
-def _try_canonical_ungapped_alignment(
-    ref: str,
-    qry: str,
-    domain: str,
-    *,
-    end_gap: float = -0.5,
-) -> Optional[tuple[float, str, str]]:
-    """Fast-path for canonical-length, high-similarity ungapped grooves."""
-    m = len(ref)
-    n = len(qry)
-    if domain == "G-ALPHA1":
-        if n != m:
-            return None
-        overhang = ""
-        core = qry
-    else:
-        if n not in (m, m + 1):
-            return None
-        if qry[_GALPHA2_REF_C1_IDX] != "C" or qry[_GALPHA2_REF_C2_IDX] != "C":
-            return None
-        core = qry[:m]
-        overhang = qry[m:]
-
-    # Verify every overlapping 15-aa window scores well ungapped so hidden
-    # compensating indels (+k/-k) always fall through to full Gotoh DP.
-    scores = [_BLOSUM62.get(ra, _BLOSUM62_UNKNOWN).get(qa, -1) for ra, qa in zip(ref, core)]
-    matches = [1 if ra == qa else 0 for ra, qa in zip(ref, core)]
-    win = 15
-    for start in range(0, m - win + 1, 5):
-        if sum(scores[start : start + win]) < 15 or sum(matches[start : start + win]) < 4:
-            return None
-    if sum(scores[m - win :]) < 15 or sum(matches[m - win :]) < 4:
-        return None
-
-    total = float(sum(scores)) + (end_gap * len(overhang))
-    if overhang:
-        return total, ref + ("-" * len(overhang)), core + overhang
-    return total, ref, core
-
-
 def _semiglobal_gotoh(
     ref: str,
     qry: str,
@@ -722,6 +683,15 @@ def _semiglobal_gotoh(
     return score, "".join(ar), "".join(aq)
 
 
+def _align_class_i_domain(ref: str, qry: str, domain: str) -> tuple[float, str, str]:
+    anchor_bonus = _galpha2_cys_anchor_bonus(qry) if domain == "G-ALPHA2" else None
+    return _semiglobal_gotoh(ref, qry, anchor_bonus=anchor_bonus)
+
+
+# Cache only the score and traceback strings. Public coordinate maps are mutable.
+_cached_class_i_alignment = lru_cache(maxsize=4096)(_align_class_i_domain)
+
+
 def align_domain_to_imgt(
     seq: str,
     domain: str = "G-ALPHA1",
@@ -743,8 +713,8 @@ def align_domain_to_imgt(
         ``"G-ALPHA1"`` (default) or ``"G-ALPHA2"`` (aliases ``"alpha1"`` /
         ``"alpha2"`` / ``"groove1"`` / ``"groove2"`` accepted).
     use_fast_path : bool, optional
-        When True (default), bypass full DP for exact-length, high-similarity
-        ungapped canonical grooves.
+        When True (default), reuse the exact alignment for repeated domain
+        sequences. Set to False to recompute the same score and traceback.
 
     Returns
     -------
@@ -779,12 +749,8 @@ def align_domain_to_imgt(
             n_term_missing=len(ref_seq),
         )
 
-    fast = _try_canonical_ungapped_alignment(ref_seq, qry, norm_domain) if use_fast_path else None
-    if fast is not None:
-        score, aligned_ref, aligned_qry = fast
-    else:
-        anchor_bonus = _galpha2_cys_anchor_bonus(qry) if norm_domain == "G-ALPHA2" else None
-        score, aligned_ref, aligned_qry = _semiglobal_gotoh(ref_seq, qry, anchor_bonus=anchor_bonus)
+    align = _cached_class_i_alignment if use_fast_path else _align_class_i_domain
+    score, aligned_ref, aligned_qry = align(ref_seq, qry, norm_domain)
 
     # Identify the span of columns containing aligned (non-gap in both) pairs
     # so leading/trailing truncations and overhangs stay distinct from internal indels.

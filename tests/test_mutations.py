@@ -334,6 +334,15 @@ def test_decompose_class_i_mutations_parity():
     assert mut2.mutations == ("K66A", "D77S")
 
 
+def test_direct_class_i_fragment_applies_requested_mutation():
+    fragment = HLA_A0201_MATURE[:90]
+    direct = decompose_class_i(fragment, mutations="K66A")
+    generic = decompose_domains(fragment, mhc_class="I", mutations="K66A")
+    assert direct.status == "alpha1_only"
+    assert direct.mutations == generic.mutations == ("K66A",)
+    assert direct.groove1 == direct.mature_sequence == generic.groove1 == fragment[:65] + "A" + fragment[66:]
+
+
 def test_partial_exon2_89aa_mature_numbering_not_shifted():
     """89-aa partial exon-2 grooves starting at mature pos 2 index canonical mature pos (#121)."""
     wt = decompose_class_i(HLA_A0201_PARTIAL_EXON2, allele="HLA-A*02:01")

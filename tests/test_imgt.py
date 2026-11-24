@@ -375,18 +375,23 @@ def test_align_canonical_hla_a0201_groove():
     assert len(GALPHA1_POSITIONS) == 90
 
 
-def test_align_fast_path_matches_full_dp():
-    fast1 = align_domain_to_imgt(HLA_A0201_GALPHA1, "G-ALPHA1", use_fast_path=True)
-    full1 = align_domain_to_imgt(HLA_A0201_GALPHA1, "G-ALPHA1", use_fast_path=False)
-    assert fast1.aligned_ref == full1.aligned_ref
-    assert fast1.aligned_query == full1.aligned_query
-    assert fast1.mature_to_aa == full1.mature_to_aa
-
-    fast2 = align_domain_to_imgt(HLA_A0201_GALPHA2 + "D", "G-ALPHA2", use_fast_path=True)
-    full2 = align_domain_to_imgt(HLA_A0201_GALPHA2 + "D", "G-ALPHA2", use_fast_path=False)
-    assert fast2.aligned_ref == full2.aligned_ref
-    assert fast2.aligned_query == full2.aligned_query
-    assert fast2.c_term_overhang == "D"
+@pytest.mark.parametrize(
+    ("seq", "domain"),
+    [
+        (HLA_A0201_GALPHA1, "G-ALPHA1"),
+        (HLA_A0201_GALPHA2 + "D", "G-ALPHA2"),
+        # Mafa-I*01:62 in the v2.9.0 release has compensating indels in a 90-aa groove.
+        ("GSHSLRYFGTTVSRPGRGEPRFIAVGYVDDTQFVRFDSDAESPRMEPRAPWMEQEGPEYWEEETRIAKARAQTDLGTLRTALRYYNQSEG", "G-ALPHA1"),
+        # HLA-C*07:819Q (IPD-IMGT/HLA HLA25172), 93-aa groove with an internal insertion.
+        ("GSHTLQRMYGCDLGPDGRLLRGYDQSAYDGKDYIALNEDLRSWTAADTAAQITQRKLEAARAAEQLRAYLEGTCVEWLRRYLEGTCVEWLRRY", "G-ALPHA2"),
+    ],
+)
+def test_align_fast_path_matches_full_dp(seq, domain):
+    expected = align_domain_to_imgt(seq, domain, use_fast_path=False)
+    first = align_domain_to_imgt(seq, domain)
+    assert first == expected
+    first.imgt_to_aa.clear()
+    assert align_domain_to_imgt(seq, domain) == expected
 
 
 def test_align_partial_exon2_89aa_distinguishes_truncation_from_deletion():
