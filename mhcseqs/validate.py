@@ -398,8 +398,21 @@ def validate_build(
 
     stats["full_total"] = len(full_rows)
     groove_ok = 0
+    unparseable_alleles = 0
+
+    from .alleles import parse_allele_name
 
     for row in full_rows:
+        allele = (row.get("two_field_allele") or "").strip()
+        source = (row.get("source") or "").strip()
+        source_id = (row.get("source_id") or "").strip()
+        # Every non-accession, non-B2M canonical allele emitted to mhc-full-seqs.csv
+        # must round-trip cleanly through mhcseqs.parse_allele_name / mhcgnomes.
+        if allele and allele != source_id and not allele.startswith("B2M_") and (source in ("imgt", "ipd_mhc") or "-" in allele):
+            if parse_allele_name(allele) is None:
+                unparseable_alleles += 1
+                warnings.append(f"ALLELE_ROUNDTRIP({allele}): two_field_allele failed parse_allele_name() round-trip (source={source})")
+
         mature_warnings = _check_mature_sequence(row)
         warnings.extend(mature_warnings)
 
@@ -421,6 +434,7 @@ def validate_build(
             groove_ok += 1
 
     stats["groove_ok"] = groove_ok
+    stats["unparseable_two_field_alleles"] = unparseable_alleles
 
     # Amino acid composition of mature sequences by class
     for class_label, seqs in mature_by_class.items():

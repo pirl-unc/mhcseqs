@@ -286,3 +286,39 @@ def test_canonical_allele_name_uses_full_binomial_species_alias():
     assert canonical_allele_name(parsed) == "HomoSapiens-A*02:01:01:02L"
     assert canonical_allele_name(parsed, allele_fields=2) == "HomoSapiens-A*02:01L"
     assert canonical_allele_name(parse_allele_name("HLA-DRB1"), allele_fields=2) == "HomoSapiens-DRB1"
+
+
+def test_genus_level_species_emit_roundtrip_mhc_prefix():
+    """Issues #92 and #130: Sus sp./Bos sp./Canis sp./Felis sp. emit SLA/BoLA/DLA/FLA and round-trip."""
+    cases = [
+        ("SLA-1*01:01:01", "SLA-1*01:01"),
+        ("BoLA-1*007:01:01:01", "BoLA-1*007:01"),
+        ("DLA-12*001:01:02", "DLA-12*001:01"),
+        ("FLA-E*003:01", "FLA-E*003:01"),
+    ]
+    for raw, expected in cases:
+        norm = normalize_allele_name(raw)
+        assert norm == expected
+        assert parse_allele_name(norm) is not None
+        assert normalize_allele_name(norm) == expected
+
+
+def test_canonical_species_prefix_roundtrips_for_every_mhcgnomes_species():
+    """Every species in mhcgnomes must produce a canonical prefix that round-trips cleanly (#92, #130)."""
+    from mhcseqs.alleles import canonical_species_prefix
+
+    seen: set[str] = set()
+    for sp in mhcgnomes.species.species_name_to_species_object.values():
+        if sp.name in seen:
+            continue
+        seen.add(sp.name)
+        prefix = canonical_species_prefix(sp)
+        assert prefix, f"Empty canonical_species_prefix for {sp.name!r}"
+        rt = mhcgnomes.Species.get(prefix)
+        assert rt is not None and rt.name == sp.name, f"Prefix {prefix!r} for {sp.name!r} round-tripped to {rt!r}"
+        fake_allele = f"{prefix}-A*01:01"
+        parsed = parse_allele_name(fake_allele)
+        if parsed is not None:
+            norm = canonical_allele_name(parsed, allele_fields=2)
+            assert parse_allele_name(norm) is not None, f"Canonical allele {norm!r} failed round-trip"
+            assert normalize_allele_name(norm) == norm, f"normalize_allele_name not idempotent for {norm!r}"

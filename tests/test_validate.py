@@ -264,3 +264,55 @@ def test_release_artifact_minimums_cover_hla_source_loss():
     assert MIN_RELEASE_ARTIFACT_COUNTS["functional_human"] >= 20_000
     assert MIN_RELEASE_ARTIFACT_COUNTS["functional_class_i"] >= 30_000
     assert MIN_RELEASE_ARTIFACT_COUNTS["functional_class_ii"] >= 18_000
+
+
+def test_validate_build_flags_unparseable_two_field_allele(tmp_path):
+    from mhcseqs.validate import validate_build
+
+    raw_csv = tmp_path / "raw.csv"
+    full_csv = tmp_path / "full.csv"
+    _write_count_fixture(raw_csv, ["allele_normalized", "sequence", "has_signal_peptide", "gene"], [])
+    _write_count_fixture(
+        full_csv,
+        ["two_field_allele", "source", "source_id", "mhc_class", "chain", "groove_status", "groove1", "groove2", "mature_sequence"],
+        [
+            {
+                "two_field_allele": "SLA-1*01:01",
+                "source": "ipd_mhc",
+                "source_id": "SLA00001",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "groove_status": "not_applicable",
+                "groove1": "",
+                "groove2": "",
+                "mature_sequence": "",
+            },
+            {
+                "two_field_allele": "SusSp-1*01:01",
+                "source": "ipd_mhc",
+                "source_id": "SLA00002",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "groove_status": "not_applicable",
+                "groove1": "",
+                "groove2": "",
+                "mature_sequence": "",
+            },
+            {
+                "two_field_allele": "A0A125R585",
+                "source": "uniprot",
+                "source_id": "A0A125R585",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "groove_status": "not_applicable",
+                "groove1": "",
+                "groove2": "",
+                "mature_sequence": "",
+            },
+        ],
+    )
+    warnings, stats = validate_build(raw_csv, full_csv)
+    assert stats["unparseable_two_field_alleles"] == 1
+    assert any("ALLELE_ROUNDTRIP(SusSp-1*01:01)" in w for w in warnings)
+    assert not any("SLA-1*01:01" in w for w in warnings)
+    assert not any("A0A125R585" in w for w in warnings)
