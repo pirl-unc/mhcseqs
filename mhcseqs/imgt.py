@@ -418,6 +418,9 @@ def _load_class_i_profile() -> dict[str, Any]:
         "alphabet": alphabet,
         "gap_ext": float(raw.get("gap_ext", -1.0)),
         "end_gap": float(raw.get("end_gap", -0.5)),
+        "training_source": raw.get("training_source", {}),
+        "clade_representatives": raw.get("clade_representatives", {}),
+        "representative_ids": raw.get("representative_ids", {}),
         "domains": domains,
     }
 
@@ -466,12 +469,20 @@ def _fill_hotspot_slots(seq: str, slots: tuple[str, ...], mode: str) -> tuple[di
 
 @dataclass(frozen=True)
 class AlignedResidue:
-    """One actual residue in a variable-length groove with its IMGT coordinates."""
+    """One actual residue in a variable-length groove with its IMGT coordinates.
+
+    For canonical match residues, ``mature_pos`` is the 1-indexed canonical
+    mature position and ``is_insertion`` is ``False``.  For internal insertions,
+    ``mature_pos`` is the preceding anchor mature position and ``is_insertion``
+    is ``True``.  For N- or C-terminal overhangs outside the canonical groove
+    boundaries, ``mature_pos`` is ``None``, ``is_insertion`` is ``True``, and
+    ``structural_element`` is ``"N-OVERHANG"`` or ``"C-OVERHANG"``.
+    """
 
     aa: str
     domain: str
     query_index: int
-    mature_pos: int
+    mature_pos: Optional[int]
     imgt_pos: str
     is_insertion: bool = False
     insertion_rank: int = 0
@@ -521,18 +532,18 @@ class DomainAlignment:
     query_index_to_imgt: dict[int, str]
     insertions: tuple[GrooveInsertion, ...] = ()
     deletions: tuple[GrooveDeletion, ...] = ()
-    residues: tuple[AlignedResidue, ...] = ()
-    a3m_seq: str = ""
-    fixed_seq: str = ""
-    fixed_slots: tuple[str, ...] = ()
-    fixed_slot_to_aa: dict[str, str] = field(default_factory=dict)
-    overflow_insertions: tuple[GrooveInsertion, ...] = ()
     n_term_missing: int = 0
     c_term_missing: int = 0
     n_term_overhang: str = ""
     c_term_overhang: str = ""
     score: float = 0.0
     identity: float = 0.0
+    residues: tuple[AlignedResidue, ...] = ()
+    a3m_seq: str = ""
+    fixed_seq: str = ""
+    fixed_slots: tuple[str, ...] = ()
+    fixed_slot_to_aa: dict[str, str] = field(default_factory=dict)
+    overflow_insertions: tuple[GrooveInsertion, ...] = ()
 
     @property
     def has_insertions(self) -> bool:
@@ -634,9 +645,15 @@ class GrooveAlignment:
 
     @property
     def a3m_seq(self) -> str:
-        """Lossless variable-length IMGT A3M string (uppercase match, lowercase ins, '-' del, 'X' missing)."""
-        s1 = self.alpha1.a3m_seq if self.alpha1 is not None else ("X" * _GALPHA1_SIZE)
-        s2 = self.alpha2.a3m_seq if self.alpha2 is not None else ("X" * _GALPHA2_SIZE)
+        """Lossless variable-length IMGT A3M string.
+
+        Uppercase ``A-Z`` = canonical match column (including observed ``'X'``),
+        lowercase ``a-z`` = internal insertion or N/C-terminal overhang,
+        ``'-'`` = internal structural deletion, ``'~'`` = missing/truncated
+        match column (or absent domain).
+        """
+        s1 = self.alpha1.a3m_seq if self.alpha1 is not None else ("~" * _GALPHA1_SIZE)
+        s2 = self.alpha2.a3m_seq if self.alpha2 is not None else ("~" * _GALPHA2_SIZE)
         return s1 + s2
 
     @property
@@ -813,50 +830,27 @@ def _galpha2_cys_anchor_bonus(qry: str) -> Optional[dict[tuple[int, int], float]
     }
 
 
-def _try_canonical_ungapped_alignment(
-    ref: str,
-    qry: str,
-    domain: str,
-    *,
-    pssm: Optional[list[dict[str, float]]] = None,
-    end_gap: float = -0.5,
-) -> Optional[tuple[float, str, str]]:
-    """Fast-path for canonical-length, high-similarity ungapped grooves."""
-    m = len(ref)
-    n = len(qry)
-    if domain == "G-ALPHA1":
-        if n != m:
-            return None
-        overhang = ""
-        core = qry
-    else:
-        if n not in (m, m + 1):
-            return None
-        if qry[_GALPHA2_REF_C1_IDX] != "C" or qry[_GALPHA2_REF_C2_IDX] != "C":
-            return None
-        core = qry[:m]
-        overhang = qry[m:]
+def _align_class_i_domain(ref: str, qry: str, domain: str) -> tuple[float, str, str]:
+    """Run exact semi-global alignment for one Class I groove domain."""
+    anchor_bonus = _galpha2_cys_anchor_bonus(qry) if domain == "G-ALPHA2" else None
+    profile = _load_class_i_profile()
+    dom_profile = profile.get("domains", {}).get(domain) if profile else None
+    if dom_profile is not None:
+        return _profile_gotoh(
+            ref,
+            dom_profile["pssm"],
+            dom_profile["gap_open_del"],
+            dom_profile["gap_open_ins"],
+            qry,
+            gap_ext=profile["gap_ext"],
+            end_gap=profile["end_gap"],
+            anchor_bonus=anchor_bonus,
+        )
+    return _semiglobal_gotoh(ref, qry, anchor_bonus=anchor_bonus)
 
-    # Verify every overlapping 15-aa window scores strongly ungapped so hidden
-    # compensating indels (+k/-k) always fall through to full profile DP.
-    if pssm is not None:
-        scores = [pssm[idx].get(qa, -1.0) for idx, qa in enumerate(core)]
-        min_win_score = 18.0
-    else:
-        scores = [float(_BLOSUM62.get(ra, _BLOSUM62_UNKNOWN).get(qa, -1)) for ra, qa in zip(ref, core)]
-        min_win_score = 15.0
-    matches = [1 if ra == qa else 0 for ra, qa in zip(ref, core)]
-    win = 15
-    for start in range(0, m - win + 1, 5):
-        if sum(scores[start : start + win]) < min_win_score or sum(matches[start : start + win]) < 4:
-            return None
-    if sum(scores[m - win :]) < min_win_score or sum(matches[m - win :]) < 4:
-        return None
 
-    total = float(sum(scores)) + (end_gap * len(overhang))
-    if overhang:
-        return total, ref + ("-" * len(overhang)), core + overhang
-    return total, ref, core
+# Cache only immutable score and traceback strings. Public coordinate maps are fresh per call.
+_cached_class_i_alignment = lru_cache(maxsize=4096)(_align_class_i_domain)
 
 
 def _profile_gotoh(
@@ -1163,13 +1157,15 @@ def align_domain_to_imgt(
     G-DOMAIN loop hotspots (falling back to BLOSUM62 against HLA-A*02:01 if
     the profile file is unavailable).
 
-    Emits all three sequence granularities from a single alignment:
+    Emits all three sequence granularities from a single exact alignment:
       - Per-position coordinate maps (``mature_to_aa``, ``imgt_to_aa``) and
         structured ``insertions`` / ``deletions`` (distinct from terminal
         truncations and overhangs).
       - Lossless variable-length views: ``residues`` (:class:`AlignedResidue`
-        tokens) and ``a3m_seq`` (uppercase match, lowercase insertion, ``'-'``
-        deletion, ``'X'`` missing/truncated).
+        tokens, including N- and C-terminal overhangs) and ``a3m_seq``
+        (uppercase ``A-Z`` match including observed ``'X'``, lowercase ``a-z``
+        internal insertion or terminal overhang, ``'-'`` internal deletion,
+        ``'~'`` missing/truncated match column).
       - Fixed-index IMGT frame: ``fixed_seq`` (96 chars for G-ALPHA1, 102
         chars for G-ALPHA2, 22-token alphabet with ``'-'`` vs ``'X'``) plus
         ``overflow_insertions``.
@@ -1182,8 +1178,9 @@ def align_domain_to_imgt(
         ``"G-ALPHA1"`` (default) or ``"G-ALPHA2"`` (aliases ``"alpha1"`` /
         ``"alpha2"`` / ``"groove1"`` / ``"groove2"`` accepted).
     use_fast_path : bool, optional
-        When True (default), bypass full DP for exact-length, high-similarity
-        ungapped canonical grooves.
+        When True (default), reuse cached exact score/traceback results for
+        repeated domain sequences. Set to False to recompute the exact same
+        alignment without cache lookup.
 
     Returns
     -------
@@ -1215,44 +1212,36 @@ def align_domain_to_imgt(
             mature_to_query_index={},
             query_index_to_mature={},
             query_index_to_imgt={},
+            n_term_missing=len(ref_seq),
             residues=(),
-            a3m_seq="X" * len(ref_seq),
+            a3m_seq="~" * len(ref_seq),
             fixed_seq=fixed_seq,
             fixed_slots=fixed_slots,
             fixed_slot_to_aa=slot_map,
             overflow_insertions=overflow,
-            n_term_missing=len(ref_seq),
         )
 
-    profile = _load_class_i_profile()
-    dom_profile = profile.get("domains", {}).get(norm_domain) if profile else None
-    pssm = dom_profile["pssm"] if dom_profile is not None else None
-    end_gap = profile.get("end_gap", -0.5) if profile else -0.5
-
-    fast = _try_canonical_ungapped_alignment(ref_seq, qry, norm_domain, pssm=pssm, end_gap=end_gap) if use_fast_path else None
-    if fast is not None:
-        score, aligned_ref, aligned_qry = fast
-    else:
-        anchor_bonus = _galpha2_cys_anchor_bonus(qry) if norm_domain == "G-ALPHA2" else None
-        if dom_profile is not None:
-            score, aligned_ref, aligned_qry = _profile_gotoh(
-                ref_seq,
-                dom_profile["pssm"],
-                dom_profile["gap_open_del"],
-                dom_profile["gap_open_ins"],
-                qry,
-                gap_ext=profile["gap_ext"],
-                end_gap=end_gap,
-                anchor_bonus=anchor_bonus,
-            )
-        else:
-            score, aligned_ref, aligned_qry = _semiglobal_gotoh(ref_seq, qry, anchor_bonus=anchor_bonus)
+    align = _cached_class_i_alignment if use_fast_path else _align_class_i_domain
+    score, aligned_ref, aligned_qry = align(ref_seq, qry, norm_domain)
 
     # Identify the span of columns containing aligned (non-gap in both) pairs
     # so leading/trailing truncations and overhangs stay distinct from internal indels.
     paired_cols = [idx for idx, (r, q) in enumerate(zip(aligned_ref, aligned_qry)) if r != "-" and q != "-"]
     if not paired_cols:
         fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, {}, ())
+        overhang_residues = tuple(
+            AlignedResidue(
+                aa=ch,
+                domain=norm_domain,
+                query_index=idx,
+                mature_pos=None,
+                imgt_pos=f"0.{idx + 1}",
+                is_insertion=True,
+                insertion_rank=idx + 1,
+                structural_element="N-OVERHANG",
+            )
+            for idx, ch in enumerate(qry)
+        )
         return DomainAlignment(
             domain=norm_domain,
             query_seq=qry,
@@ -1263,17 +1252,17 @@ def align_domain_to_imgt(
             imgt_to_aa={},
             mature_to_query_index={},
             query_index_to_mature={},
-            query_index_to_imgt={},
-            residues=(),
-            a3m_seq="X" * len(ref_seq),
-            fixed_seq=fixed_seq,
-            fixed_slots=fixed_slots,
-            fixed_slot_to_aa=slot_map,
-            overflow_insertions=overflow,
+            query_index_to_imgt={idx: f"0.{idx + 1}" for idx in range(len(qry))},
             n_term_missing=len(ref_seq),
             n_term_overhang=qry,
             score=score,
             identity=0.0,
+            residues=overhang_residues,
+            a3m_seq=qry.lower() + ("~" * len(ref_seq)),
+            fixed_seq=fixed_seq,
+            fixed_slots=fixed_slots,
+            fixed_slot_to_aa=slot_map,
+            overflow_insertions=overflow,
         )
 
     first_paired = paired_cols[0]
@@ -1293,6 +1282,9 @@ def align_domain_to_imgt(
     c_term_missing = 0
     n_term_overhang_chars: list[str] = []
     c_term_overhang_chars: list[str] = []
+    n_overhang_rank = 0
+    c_overhang_rank = 0
+    last_imgt_pos = imgt_positions[-1]
 
     ref_idx = 0
     qry_idx = 0
@@ -1308,9 +1300,25 @@ def align_domain_to_imgt(
         if col < first_paired:
             if r != "-":
                 n_term_missing += 1
-                a3m_chars.append("X")
+                a3m_chars.append("~")
                 ref_idx += 1
             if q != "-":
+                n_overhang_rank += 1
+                code = f"0.{n_overhang_rank}"
+                query_index_to_imgt[qry_idx] = code
+                residues.append(
+                    AlignedResidue(
+                        aa=q,
+                        domain=norm_domain,
+                        query_index=qry_idx,
+                        mature_pos=None,
+                        imgt_pos=code,
+                        is_insertion=True,
+                        insertion_rank=n_overhang_rank,
+                        structural_element="N-OVERHANG",
+                    )
+                )
+                a3m_chars.append(q.lower())
                 n_term_overhang_chars.append(q)
                 qry_idx += 1
             col += 1
@@ -1319,9 +1327,25 @@ def align_domain_to_imgt(
         if col > last_paired:
             if r != "-":
                 c_term_missing += 1
-                a3m_chars.append("X")
+                a3m_chars.append("~")
                 ref_idx += 1
             if q != "-":
+                c_overhang_rank += 1
+                code = f"{last_imgt_pos}.{c_overhang_rank}"
+                query_index_to_imgt[qry_idx] = code
+                residues.append(
+                    AlignedResidue(
+                        aa=q,
+                        domain=norm_domain,
+                        query_index=qry_idx,
+                        mature_pos=None,
+                        imgt_pos=code,
+                        is_insertion=True,
+                        insertion_rank=c_overhang_rank,
+                        structural_element="C-OVERHANG",
+                    )
+                )
+                a3m_chars.append(q.lower())
                 c_term_overhang_chars.append(q)
                 qry_idx += 1
             col += 1
@@ -1430,18 +1454,18 @@ def align_domain_to_imgt(
         query_index_to_imgt=query_index_to_imgt,
         insertions=tuple(insertions),
         deletions=tuple(deletions),
-        residues=tuple(residues),
-        a3m_seq="".join(a3m_chars),
-        fixed_seq=fixed_seq,
-        fixed_slots=fixed_slots,
-        fixed_slot_to_aa=slot_map,
-        overflow_insertions=overflow,
         n_term_missing=n_term_missing,
         c_term_missing=c_term_missing,
         n_term_overhang="".join(n_term_overhang_chars),
         c_term_overhang="".join(c_term_overhang_chars),
         score=score,
         identity=identity,
+        residues=tuple(residues),
+        a3m_seq="".join(a3m_chars),
+        fixed_seq=fixed_seq,
+        fixed_slots=fixed_slots,
+        fixed_slot_to_aa=slot_map,
+        overflow_insertions=overflow,
     )
 
 

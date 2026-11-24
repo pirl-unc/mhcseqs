@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 from collections import defaultdict
@@ -250,70 +251,113 @@ def _profile_gotoh(
     return score, "".join(ar), "".join(aq)
 
 
-def classify_clade(row: dict) -> str:
-    """Assign a fine vertebrate clade label for clade-balanced PSSM weighting."""
-    sp = (row.get("species") or "").lower()
-    cat = row.get("species_category") or ""
+_DIVERSE_MHC_CSV = Path(__file__).resolve().parent.parent / "mhcseqs" / "diverse_mhc_sequences.csv"
+
+_DIVERSE_SOURCE_GROUP_TO_CLADE: dict[str, str] = {
+    "amphibian": "amphibian",
+    "bat": "bat",
+    "bird_non_chicken": "bird",
+    "bony_fish": "bony_fish",
+    "cat": "carnivore",
+    "chicken": "bird",
+    "marsupial": "marsupial",
+    "monotreme": "monotreme",
+    "murine": "murine",
+    "other_mammal": "other_mammal",
+    "reptile_crocodylia": "reptile",
+    "reptile_lepidosauria": "reptile",
+    "reptile_testudines": "reptile",
+    "shark_ray": "shark_ray",
+}
+
+# Verified exact binomial genera (first word of scientific name ONLY, never substring matches
+# against organism display synonyms like "Polyodon spathula (Squalus spathula)").
+_SHARK_RAY_GENERA = frozenset(
+    {
+        "callorhinchus",
+        "carcharodon",
+        "chiloscyllium",
+        "ginglymostoma",
+        "heterodontus",
+        "leucoraja",
+        "raja",
+        "rhincodon",
+        "scyliorhinus",
+        "squalus",
+        "triakis",
+    }
+)
+_BONY_FISH_GENERA = frozenset(
+    {
+        "danio",
+        "gadus",
+        "oncorhynchus",
+        "oreochromis",
+        "oryzias",
+        "polyodon",
+        "salmo",
+        "salvelinus",
+        "takifugu",
+    }
+)
+_MONOTREME_GENERA = frozenset({"ornithorhynchus", "tachyglossus"})
+
+
+def load_curated_source_groups(diverse_csv: Path = _DIVERSE_MHC_CSV) -> dict[str, str]:
+    """Load verified UniProt accession -> curated source_group mappings."""
+    groups: dict[str, str] = {}
+    if not diverse_csv.exists():
+        return groups
+    with open(diverse_csv, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            acc = (row.get("uniprot_accession") or "").strip()
+            sg = (row.get("source_group") or "").strip()
+            if acc and sg:
+                groups[acc] = sg
+    return groups
+
+
+def _extract_binomial_genus(species_str: str) -> str:
+    """Return the lowercased first token (genus) of a species name."""
+    parts = (species_str or "").strip().split()
+    return parts[0].strip("(),.;:").lower() if parts else ""
+
+
+def classify_clade(row: dict, curated_source_groups: dict[str, str] | None = None) -> str | None:
+    """Assign a verified vertebrate clade label for clade-balanced PSSM weighting.
+
+    Uses packaged curated ``source_group`` annotations by accession first, then
+    verified ``species_category`` and exact binomial-genus matching.  Returns
+    ``None`` for unverified organisms rather than guessing a default clade.
+    """
+    source_id = (row.get("source_id") or "").strip()
+    cat = (row.get("species_category") or "").strip()
+    genus = _extract_binomial_genus(row.get("species") or "")
+
+    if curated_source_groups and source_id in curated_source_groups:
+        sg = curated_source_groups[source_id]
+        clade = _DIVERSE_SOURCE_GROUP_TO_CLADE.get(sg)
+        if clade == "other_mammal":
+            if genus in _MONOTREME_GENERA:
+                return "monotreme"
+            if cat == "murine" or genus == "mus":
+                return "murine"
+        return clade
+
     if cat in ("human", "nhp", "murine", "ungulate", "carnivore", "bird"):
         return cat
-    if cat == "fish":
-        if any(
-            k in sp
-            for k in (
-                "squalus",
-                "triakis",
-                "ginglymostoma",
-                "scyliorhinus",
-                "heterodontus",
-                "callorhinchus",
-                "chiloscyllium",
-                "carcharodon",
-                "raja",
-                "leucoraja",
-            )
-        ):
-            return "shark_ray"
-        return "bony_fish"
-    if cat == "other_vertebrate":
-        if any(k in sp for k in ("xenopus", "rana", "andrias", "ambystoma", "zhangixalus", "bufo", "pelophylax", "nanorana", "lithobates")):
-            return "amphibian"
-        return "reptile"
     if cat == "other_mammal":
-        if any(
-            k in sp
-            for k in (
-                "monodelphis",
-                "trichosurus",
-                "sarcophilus",
-                "phascolarctos",
-                "macropus",
-                "didelphis",
-                "vombatus",
-                "notamacropus",
-                "wallabia",
-            )
-        ):
-            return "marsupial"
-        if any(
-            k in sp
-            for k in (
-                "pteropus",
-                "myotis",
-                "rhinolophus",
-                "eptesicus",
-                "rousettus",
-                "pipistrellus",
-                "miniopterus",
-                "desmodus",
-                "artibeus",
-                "phyllostomus",
-            )
-        ):
-            return "bat"
-        if any(k in sp for k in ("ornithorhynchus", "tachyglossus")):
+        if genus in _MONOTREME_GENERA:
             return "monotreme"
         return "other_mammal"
-    return "other"
+    if cat == "fish":
+        if genus in _SHARK_RAY_GENERA:
+            return "shark_ray"
+        if genus in _BONY_FISH_GENERA:
+            return "bony_fish"
+        return None
+    # Uncurated other_vertebrate rows are excluded unless backed by curated source_group.
+    return None
 
 
 def train_domain_profile(
@@ -376,9 +420,18 @@ def train_domain_profile(
     }
 
 
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--full-csv", type=Path, default=None, help="Path to built mhc-full-seqs.csv")
+    parser.add_argument("--release", type=str, default="", help="Release tag of the input CSV (e.g. v2.9.0)")
     parser.add_argument(
         "--output",
         type=Path,
@@ -389,6 +442,9 @@ def main() -> None:
     args = parser.parse_args()
 
     full_csv = args.full_csv or find_csv(FULL_SEQS_CSV)
+    source_sha256 = _sha256_file(full_csv)
+    curated_source_groups = load_curated_source_groups()
+
     with open(full_csv, "r", encoding="utf-8") as f:
         rows = [
             r
@@ -403,30 +459,46 @@ def main() -> None:
         ]
 
     by_clade: dict[str, list[dict]] = defaultdict(list)
+    skipped = 0
     for r in rows:
-        by_clade[classify_clade(r)].append(r)
+        clade = classify_clade(r, curated_source_groups=curated_source_groups)
+        if clade is None:
+            skipped += 1
+            continue
+        by_clade[clade].append(r)
 
     clade_g1: dict[str, list[str]] = defaultdict(list)
     clade_g2: dict[str, list[str]] = defaultdict(list)
     clade_counts: dict[str, int] = {}
+    representative_ids: dict[str, list[str]] = {}
 
     for clade, crows in sorted(by_clade.items()):
         # Deterministically select diverse species/genes across each clade
-        crows.sort(key=lambda r: (r["species"], r["gene"], r["two_field_allele"]))
+        crows.sort(key=lambda r: (r["species"], r["gene"], r["two_field_allele"], r.get("source_id", "")))
         step = max(1, len(crows) // args.per_clade)
         picked = crows[::step][: args.per_clade]
         for r in picked:
             clade_g1[clade].append(r["groove1"])
             clade_g2[clade].append(r["groove2"])
         clade_counts[clade] = len(picked)
+        representative_ids[clade] = [(r.get("source_id") or r["two_field_allele"]).strip() for r in picked]
         print(f"  clade {clade:16s}: {len(crows):6d} eligible -> {len(picked):2d} representatives")
+    if skipped:
+        print(f"  skipped (unverified clade): {skipped}")
 
     profile = {
         "version": "1",
         "alphabet": AA20,
         "gap_ext": GAP_EXT,
         "end_gap": END_GAP,
+        "training_source": {
+            "filename": full_csv.name,
+            "release": args.release,
+            "sha256": source_sha256,
+            "per_clade": args.per_clade,
+        },
         "clade_representatives": clade_counts,
+        "representative_ids": representative_ids,
         "domains": {
             "G-ALPHA1": train_domain_profile("G-ALPHA1", clade_g1),
             "G-ALPHA2": train_domain_profile("G-ALPHA2", clade_g2),
