@@ -96,7 +96,8 @@ def test_resolve_data_dir_defaults_to_user_cache_without_creating_it(monkeypatch
         monkeypatch.setenv(DATA_DIR_ENV_VAR, env_value)
     monkeypatch.delenv("OPENVAX_DATA_CACHE", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setattr(datacache.common, "_platform_cache_dir", lambda name: str(tmp_path / "platform" / name))
+    platform_cache_attr = "platform_cache_dir" if hasattr(datacache.common, "platform_cache_dir") else "_platform_cache_dir"
+    monkeypatch.setattr(datacache.common, platform_cache_attr, lambda name: str(tmp_path / "platform" / name))
 
     # Empty legacy -> uses shared OpenVax platform cache without creating it
     assert resolve_data_dir() == tmp_path / "platform" / "openvax" / "mhcseqs"
