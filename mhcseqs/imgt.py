@@ -19,7 +19,10 @@ Reference: Lefranc et al. (2005) Dev Comp Immunol 29:917-938.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 # =============================================================================
@@ -69,7 +72,7 @@ def structural_element(imgt_pos: str) -> str:
         if base_str in HELIX_INSERTIONS:
             return "HELIX"
         try:
-            base = int(base_str.rstrip("AB"))
+            base = int(base_str.rstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
         except ValueError:
             return "unknown"
         if base <= 1:
@@ -83,8 +86,8 @@ def structural_element(imgt_pos: str) -> str:
                 return element
         return "unknown"
 
-    # Handle letter-suffix insertions (61A, 72A, etc.)
-    num_part = imgt_pos.rstrip("AB")
+    # Handle letter-suffix insertions (19A, 54A-54C, 61A-61C, 72A, 40A-40C, etc.)
+    num_part = imgt_pos.rstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     try:
         num = int(num_part)
     except ValueError:
@@ -340,6 +343,140 @@ _GALPHA2_REF_C1_IDX = 10  # mature 101 = IMGT G-ALPHA2 11
 _GALPHA2_REF_C2_IDX = 73  # mature 164 = IMGT G-ALPHA2 74
 _GALPHA2_CYS_ANCHOR_BONUS = 6.0
 
+#: Shipped multi-clade Class I IMGT G-DOMAIN structural PSSM + loop gap profile.
+IMGT_CLASS_I_PROFILE_PATH = Path(__file__).resolve().parent / "imgt_class_i_profile.json"
+
+#: 22-token alphabet for fixed-index IMGT frame strings:
+#: 20 canonical amino acids + '-' (structural gap) + 'X' (missing/unknown).
+FIXED_FRAME_ALPHABET = "ARNDCQEGHILKMFPSTWYV-X"
+_CANONICAL_AA20 = frozenset("ARNDCQEGHILKMFPSTWYV")
+
+#: Fixed-index IMGT G-ALPHA1 slot schema (96 slots):
+#: 90 canonical match columns + AB-turn slots (19A-19C) + N-helix hinge slots (54A-54C).
+IMGT_GALPHA1_SLOTS: tuple[str, ...] = (
+    tuple(str(i) for i in range(1, 20))
+    + ("19A", "19B", "19C")
+    + tuple(str(i) for i in range(20, 55))
+    + ("54A", "54B", "54C")
+    + tuple(str(i) for i in range(55, 91))
+)
+
+#: Fixed-index IMGT G-ALPHA2 slot schema (102 slots):
+#: 94 IMGT backbone positions (including CD-turn 40, 41 and helix 61A, 72A)
+#: + AB-turn slots (13A-13C) + CD-turn slots (40A-40C) + helix-kink slots (61B-61C).
+IMGT_GALPHA2_SLOTS: tuple[str, ...] = (
+    tuple(str(i) for i in range(1, 14))
+    + ("13A", "13B", "13C")
+    + tuple(str(i) for i in range(14, 40))
+    + ("40", "40A", "40B", "40C", "41")
+    + tuple(str(i) for i in range(42, 62))
+    + ("61A", "61B", "61C")
+    + tuple(str(i) for i in range(62, 73))
+    + ("72A",)
+    + tuple(str(i) for i in range(73, 93))
+)
+
+#: Combined Class I fixed-index IMGT groove frame (198 slots: 96 G-ALPHA1 + 102 G-ALPHA2).
+IMGT_CLASS_I_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("G-ALPHA1", s) for s in IMGT_GALPHA1_SLOTS) + tuple(
+    ("G-ALPHA2", s) for s in IMGT_GALPHA2_SLOTS
+)
+
+# Hotspot bucket definitions: (anchor_imgt_positions, target_slots, flanking_backbone_pair, fill_mode)
+# fill_mode: "center_out" (1->mid, 2->flanks, 3->all) or "cd_turn" (1->40, 2->40+41, 3->40+40B+41, ...)
+# or "left" (1->61B, 2->61B+61C)
+_GALPHA1_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
+    (frozenset(str(i) for i in range(14, 22)), ("19A", "19B", "19C"), ("19", "20"), "center_out"),
+    (frozenset(str(i) for i in range(50, 59)), ("54A", "54B", "54C"), ("54", "55"), "center_out"),
+)
+_GALPHA2_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
+    (frozenset(str(i) for i in range(11, 21)), ("13A", "13B", "13C"), ("13", "14"), "center_out"),
+    (frozenset({"37", "38", "39", "42", "43", "44"}), ("40", "40A", "40B", "40C", "41"), ("39", "42"), "cd_turn"),
+    (frozenset({"58", "59", "60", "61", "61A", "62", "63", "64", "65", "66"}), ("61B", "61C"), ("61A", "62"), "left"),
+)
+
+
+@lru_cache(maxsize=1)
+def _load_class_i_profile() -> dict[str, Any]:
+    """Load the shipped multi-clade Class I IMGT structural PSSM + loop gap profile."""
+    if not IMGT_CLASS_I_PROFILE_PATH.exists():
+        return {}
+    with open(IMGT_CLASS_I_PROFILE_PATH, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+    alphabet = raw.get("alphabet", "ARNDCQEGHILKMFPSTWYV")
+    domains: dict[str, dict[str, Any]] = {}
+    for dom_name, dom_data in raw.get("domains", {}).items():
+        pssm_dicts = [{aa: float(val) for aa, val in zip(alphabet, row)} for row in dom_data["pssm"]]
+        domains[dom_name] = {
+            "length": int(dom_data["length"]),
+            "consensus": str(dom_data["consensus"]),
+            "gap_open_del": [float(x) for x in dom_data["gap_open_del"]],
+            "gap_open_ins": [float(x) for x in dom_data["gap_open_ins"]],
+            "pssm": pssm_dicts,
+        }
+    return {
+        "version": str(raw.get("version", "1")),
+        "alphabet": alphabet,
+        "gap_ext": float(raw.get("gap_ext", -1.0)),
+        "end_gap": float(raw.get("end_gap", -0.5)),
+        "domains": domains,
+    }
+
+
+def _fill_hotspot_slots(seq: str, slots: tuple[str, ...], mode: str) -> tuple[dict[str, str], bool]:
+    """Fill a fixed hotspot slot tuple with *seq*, returning (slot_map, overflowed)."""
+    cleaned = "".join(ch if ch in _CANONICAL_AA20 else "X" for ch in seq)
+    k = len(slots)
+    n = len(cleaned)
+    out = {s: "-" for s in slots}
+    if n == 0:
+        return out, False
+    overflow = n > k
+    used = cleaned[:k]
+    m = len(used)
+
+    if mode == "left" or m == k:
+        for idx, ch in enumerate(used):
+            out[slots[idx]] = ch
+        return out, overflow
+
+    if mode == "cd_turn" and k == 5:
+        # ("40", "40A", "40B", "40C", "41"): 1->40, 2->40+41, 3->40+40B+41, 4->40+40A+40C+41
+        patterns = {
+            1: (0,),
+            2: (0, 4),
+            3: (0, 2, 4),
+            4: (0, 1, 3, 4),
+            5: (0, 1, 2, 3, 4),
+        }
+        for pos_idx, ch in zip(patterns[m], used):
+            out[slots[pos_idx]] = ch
+        return out, overflow
+
+    # Default "center_out" (e.g. 3 slots: 1->mid, 2->flanks, 3->all)
+    if m == 1:
+        out[slots[k // 2]] = used[0]
+    elif m == 2:
+        out[slots[0]] = used[0]
+        out[slots[-1]] = used[1]
+    else:
+        for idx, ch in enumerate(used):
+            out[slots[idx]] = ch
+    return out, overflow
+
+
+@dataclass(frozen=True)
+class AlignedResidue:
+    """One actual residue in a variable-length groove with its IMGT coordinates."""
+
+    aa: str
+    domain: str
+    query_index: int
+    mature_pos: int
+    imgt_pos: str
+    is_insertion: bool = False
+    insertion_rank: int = 0
+    structural_element: str = "unknown"
+
 
 @dataclass(frozen=True)
 class GrooveInsertion:
@@ -384,6 +521,12 @@ class DomainAlignment:
     query_index_to_imgt: dict[int, str]
     insertions: tuple[GrooveInsertion, ...] = ()
     deletions: tuple[GrooveDeletion, ...] = ()
+    residues: tuple[AlignedResidue, ...] = ()
+    a3m_seq: str = ""
+    fixed_seq: str = ""
+    fixed_slots: tuple[str, ...] = ()
+    fixed_slot_to_aa: dict[str, str] = field(default_factory=dict)
+    overflow_insertions: tuple[GrooveInsertion, ...] = ()
     n_term_missing: int = 0
     c_term_missing: int = 0
     n_term_overhang: str = ""
@@ -404,6 +547,10 @@ class DomainAlignment:
         return bool(self.insertions or self.deletions)
 
     @property
+    def has_overflow_insertions(self) -> bool:
+        return bool(self.overflow_insertions)
+
+    @property
     def is_truncated(self) -> bool:
         return self.n_term_missing > 0 or self.c_term_missing > 0
 
@@ -417,7 +564,13 @@ class DomainAlignment:
 
 @dataclass(frozen=True)
 class GrooveAlignment:
-    """Combined Class I G-ALPHA1 / G-ALPHA2 alignment onto IMGT G-DOMAIN coordinates."""
+    """Combined Class I G-ALPHA1 / G-ALPHA2 alignment onto IMGT G-DOMAIN coordinates.
+
+    Provides all three sequence granularities from a single profile alignment:
+      - Variable-length lossless: ``residues`` (:class:`AlignedResidue` tokens) and ``a3m_seq``
+      - Full-groove fixed-index IMGT frame (198 slots, 22-token alphabet with ``'-'`` vs ``'X'``): ``fixed_seq``
+      - Compact pocket / hotspot extraction: :meth:`extract_positions` and :meth:`extract_imgt_slots`
+    """
 
     alpha1: Optional[DomainAlignment] = None
     alpha2: Optional[DomainAlignment] = None
@@ -441,6 +594,15 @@ class GrooveAlignment:
         return tuple(parts)
 
     @property
+    def overflow_insertions(self) -> tuple[GrooveInsertion, ...]:
+        parts: list[GrooveInsertion] = []
+        if self.alpha1 is not None:
+            parts.extend(self.alpha1.overflow_insertions)
+        if self.alpha2 is not None:
+            parts.extend(self.alpha2.overflow_insertions)
+        return tuple(parts)
+
+    @property
     def has_insertions(self) -> bool:
         return bool(self.insertions)
 
@@ -453,8 +615,41 @@ class GrooveAlignment:
         return bool(self.insertions or self.deletions)
 
     @property
+    def has_overflow_insertions(self) -> bool:
+        return bool(self.overflow_insertions)
+
+    @property
     def is_truncated(self) -> bool:
         return (self.alpha1 is not None and self.alpha1.is_truncated) or (self.alpha2 is not None and self.alpha2.is_truncated)
+
+    @property
+    def residues(self) -> tuple[AlignedResidue, ...]:
+        """Lossless variable-length per-residue tokens across G-ALPHA1 and G-ALPHA2."""
+        parts: list[AlignedResidue] = []
+        if self.alpha1 is not None:
+            parts.extend(self.alpha1.residues)
+        if self.alpha2 is not None:
+            parts.extend(self.alpha2.residues)
+        return tuple(parts)
+
+    @property
+    def a3m_seq(self) -> str:
+        """Lossless variable-length IMGT A3M string (uppercase match, lowercase ins, '-' del, 'X' missing)."""
+        s1 = self.alpha1.a3m_seq if self.alpha1 is not None else ("X" * _GALPHA1_SIZE)
+        s2 = self.alpha2.a3m_seq if self.alpha2 is not None else ("X" * _GALPHA2_SIZE)
+        return s1 + s2
+
+    @property
+    def fixed_slots(self) -> tuple[tuple[str, str], ...]:
+        """Ordered ``(domain, imgt_slot)`` coordinates corresponding to :attr:`fixed_seq`."""
+        return IMGT_CLASS_I_GROOVE_SLOTS
+
+    @property
+    def fixed_seq(self) -> str:
+        """Fixed-index IMGT G-DOMAIN string (198 chars, 22-token alphabet with '-' gap vs 'X' missing)."""
+        s1 = self.alpha1.fixed_seq if self.alpha1 is not None else ("X" * len(IMGT_GALPHA1_SLOTS))
+        s2 = self.alpha2.fixed_seq if self.alpha2 is not None else ("X" * len(IMGT_GALPHA2_SLOTS))
+        return s1 + s2
 
     @property
     def mature_to_aa(self) -> dict[int, str]:
@@ -487,11 +682,24 @@ class GrooveAlignment:
         return self.alpha2.mature_to_aa.get(mature_pos) if self.alpha2 is not None else None
 
     def residue_at_imgt(self, domain: str, imgt_pos: str) -> Optional[str]:
-        """Return the aligned amino acid at canonical IMGT ``(domain, imgt_pos)``."""
+        """Return the aligned amino acid at IMGT ``(domain, imgt_pos)``.
+
+        Supports both canonical backbone positions (e.g. ``("G-ALPHA1", "51")``,
+        ``("G-ALPHA2", "61A")``) and fixed hotspot insertion slots (e.g.
+        ``("G-ALPHA1", "54A")``, ``("G-ALPHA2", "61B")``, ``("G-ALPHA2", "40")``).
+        Returns ``"-"`` for structural gaps / unoccupied insertion slots, or
+        ``None`` when the position is missing / truncated.
+        """
         norm = _normalize_class_i_domain(domain)
-        if norm == "G-ALPHA1":
-            return self.alpha1.imgt_to_aa.get(imgt_pos) if self.alpha1 is not None else None
-        return self.alpha2.imgt_to_aa.get(imgt_pos) if self.alpha2 is not None else None
+        dom = self.alpha1 if norm == "G-ALPHA1" else self.alpha2
+        if dom is None:
+            return None
+        if imgt_pos in dom.imgt_to_aa:
+            return dom.imgt_to_aa[imgt_pos]
+        if imgt_pos in dom.fixed_slot_to_aa:
+            ch = dom.fixed_slot_to_aa[imgt_pos]
+            return None if ch == "X" else ch
+        return None
 
     def extract_positions(
         self,
@@ -514,6 +722,42 @@ class GrooveAlignment:
                 chars.append(deleted)
             else:
                 chars.append(aa)
+        return "".join(chars)
+
+    def extract_imgt_slots(
+        self,
+        slots: Sequence[tuple[str, str]],
+        *,
+        missing: str = "X",
+        deleted: str = "-",
+    ) -> str:
+        """Extract a fixed-position sequence at arbitrary ``(domain, imgt_slot)`` coordinates.
+
+        Accepts both canonical backbone positions and fixed hotspot insertion
+        slots (e.g. ``("G-ALPHA1", "54A")``, ``("G-ALPHA2", "61B")``), keeping
+        structural gaps (``deleted='-'``) distinct from missing/truncated
+        positions (``missing='X'``).
+        """
+        chars: list[str] = []
+        for domain, slot in slots:
+            norm = _normalize_class_i_domain(domain)
+            dom = self.alpha1 if norm == "G-ALPHA1" else self.alpha2
+            if dom is None:
+                chars.append(missing)
+                continue
+            if slot in dom.fixed_slot_to_aa:
+                ch = dom.fixed_slot_to_aa[slot]
+                if ch == "-":
+                    chars.append(deleted)
+                elif ch == "X":
+                    chars.append(missing)
+                else:
+                    chars.append(ch)
+            elif slot in dom.imgt_to_aa:
+                ch = dom.imgt_to_aa[slot]
+                chars.append(deleted if ch == "-" else ch)
+            else:
+                chars.append(missing)
         return "".join(chars)
 
     def summary(self) -> str:
@@ -574,6 +818,7 @@ def _try_canonical_ungapped_alignment(
     qry: str,
     domain: str,
     *,
+    pssm: Optional[list[dict[str, float]]] = None,
     end_gap: float = -0.5,
 ) -> Optional[tuple[float, str, str]]:
     """Fast-path for canonical-length, high-similarity ungapped grooves."""
@@ -592,21 +837,143 @@ def _try_canonical_ungapped_alignment(
         core = qry[:m]
         overhang = qry[m:]
 
-    # Verify every overlapping 15-aa window scores well ungapped so hidden
-    # compensating indels (+k/-k) always fall through to full Gotoh DP.
-    scores = [_BLOSUM62.get(ra, _BLOSUM62_UNKNOWN).get(qa, -1) for ra, qa in zip(ref, core)]
+    # Verify every overlapping 15-aa window scores strongly ungapped so hidden
+    # compensating indels (+k/-k) always fall through to full profile DP.
+    if pssm is not None:
+        scores = [pssm[idx].get(qa, -1.0) for idx, qa in enumerate(core)]
+        min_win_score = 18.0
+    else:
+        scores = [float(_BLOSUM62.get(ra, _BLOSUM62_UNKNOWN).get(qa, -1)) for ra, qa in zip(ref, core)]
+        min_win_score = 15.0
     matches = [1 if ra == qa else 0 for ra, qa in zip(ref, core)]
     win = 15
     for start in range(0, m - win + 1, 5):
-        if sum(scores[start : start + win]) < 15 or sum(matches[start : start + win]) < 4:
+        if sum(scores[start : start + win]) < min_win_score or sum(matches[start : start + win]) < 4:
             return None
-    if sum(scores[m - win :]) < 15 or sum(matches[m - win :]) < 4:
+    if sum(scores[m - win :]) < min_win_score or sum(matches[m - win :]) < 4:
         return None
 
     total = float(sum(scores)) + (end_gap * len(overhang))
     if overhang:
         return total, ref + ("-" * len(overhang)), core + overhang
     return total, ref, core
+
+
+def _profile_gotoh(
+    ref: str,
+    pssm: list[dict[str, float]],
+    go_del: list[float],
+    go_ins: list[float],
+    qry: str,
+    *,
+    gap_ext: float = -1.0,
+    end_gap: float = -0.5,
+    anchor_bonus: Optional[dict[tuple[int, int], float]] = None,
+) -> tuple[float, str, str]:
+    """Semi-global affine-gap (Gotoh) alignment against a multi-clade structural profile.
+
+    Uses per-column log-odds match scores (*pssm*) and position-specific
+    gap-open penalties (*go_del*, *go_ins*) lowered at the 6 conserved IMGT
+    G-DOMAIN loop hotspots, with light end-gap penalties and no direct
+    ``Ix <-> Iy`` zigzag transitions.
+    """
+    m = len(pssm)
+    n = len(qry)
+    neg = -1e9
+
+    mat = [[neg] * (n + 1) for _ in range(m + 1)]
+    ix = [[neg] * (n + 1) for _ in range(m + 1)]
+    iy = [[neg] * (n + 1) for _ in range(m + 1)]
+    tr_m = [[0] * (n + 1) for _ in range(m + 1)]
+    tr_x = [[0] * (n + 1) for _ in range(m + 1)]
+    tr_y = [[0] * (n + 1) for _ in range(m + 1)]
+
+    mat[0][0] = 0.0
+    for i in range(1, m + 1):
+        ix[i][0] = end_gap * i
+        tr_x[i][0] = 1 if i > 1 else 0
+    for j in range(1, n + 1):
+        iy[0][j] = end_gap * j
+        tr_y[0][j] = 2 if j > 1 else 0
+
+    for i in range(1, m + 1):
+        col_scores = pssm[i - 1]
+        del_open_i = go_del[i - 1]
+        ins_open_i = go_ins[i - 1]
+        m_i, m_p = mat[i], mat[i - 1]
+        ix_i, ix_p = ix[i], ix[i - 1]
+        iy_i, iy_p = iy[i], iy[i - 1]
+        trm_i, trx_i, try_i = tr_m[i], tr_x[i], tr_y[i]
+        is_last_ref = i == m
+
+        for j in range(1, n + 1):
+            qa = qry[j - 1]
+            sub = col_scores.get(qa, -1.0)
+            if anchor_bonus is not None:
+                bonus = anchor_bonus.get((i - 1, j - 1))
+                if bonus is not None:
+                    sub += bonus
+
+            v0 = m_p[j - 1]
+            v1 = ix_p[j - 1]
+            v2 = iy_p[j - 1]
+            if v0 >= v1 and v0 >= v2:
+                m_i[j] = v0 + sub
+                trm_i[j] = 0
+            elif v1 >= v2:
+                m_i[j] = v1 + sub
+                trm_i[j] = 1
+            else:
+                m_i[j] = v2 + sub
+                trm_i[j] = 2
+
+            go_x = end_gap if j == n else del_open_i
+            ge_x = end_gap if j == n else gap_ext
+            open_x = m_p[j] + go_x
+            ext_x = ix_p[j] + ge_x
+            if ext_x >= open_x:
+                ix_i[j] = ext_x
+                trx_i[j] = 1
+            else:
+                ix_i[j] = open_x
+                trx_i[j] = 0
+
+            go_y = end_gap if is_last_ref else ins_open_i
+            ge_y = end_gap if is_last_ref else gap_ext
+            open_y = m_i[j - 1] + go_y
+            ext_y = iy_i[j - 1] + ge_y
+            if ext_y >= open_y:
+                iy_i[j] = ext_y
+                try_i[j] = 2
+            else:
+                iy_i[j] = open_y
+                try_i[j] = 0
+
+    score, state = max(((mat[m][n], 0), (ix[m][n], 1), (iy[m][n], 2)))
+    ar: list[str] = []
+    aq: list[str] = []
+    i, j = m, n
+    while i > 0 or j > 0:
+        if state == 0:
+            prev = tr_m[i][j]
+            ar.append(ref[i - 1])
+            aq.append(qry[j - 1])
+            i -= 1
+            j -= 1
+        elif state == 1:
+            prev = tr_x[i][j]
+            ar.append(ref[i - 1])
+            aq.append("-")
+            i -= 1
+        else:
+            prev = tr_y[i][j]
+            ar.append("-")
+            aq.append(qry[j - 1])
+            j -= 1
+        state = prev
+    ar.reverse()
+    aq.reverse()
+    return score, "".join(ar), "".join(aq)
 
 
 def _semiglobal_gotoh(
@@ -722,6 +1089,67 @@ def _semiglobal_gotoh(
     return score, "".join(ar), "".join(aq)
 
 
+def _build_fixed_frame(
+    domain: str,
+    imgt_to_aa: dict[str, str],
+    insertions: Sequence[GrooveInsertion],
+) -> tuple[str, tuple[str, ...], dict[str, str], tuple[GrooveInsertion, ...]]:
+    """Project an aligned domain onto the fixed-index IMGT frame with '-' vs 'X'."""
+    if domain == "G-ALPHA1":
+        slots = IMGT_GALPHA1_SLOTS
+        hotspots = _GALPHA1_HOTSPOTS
+    else:
+        slots = IMGT_GALPHA2_SLOTS
+        hotspots = _GALPHA2_HOTSPOTS
+
+    slot_map: dict[str, str] = {}
+    for slot in slots:
+        if slot in imgt_to_aa:
+            aa = imgt_to_aa[slot]
+            if aa == "-":
+                slot_map[slot] = "-"
+            elif aa in _CANONICAL_AA20:
+                slot_map[slot] = aa
+            else:
+                slot_map[slot] = "X"
+        else:
+            slot_map[slot] = "X"
+
+    # Bucket internal insertions into hotspot slot tuples; track any overflow or
+    # out-of-hotspot insertions so no structural insertion is silently lost.
+    hotspot_seqs: list[list[str]] = [[] for _ in hotspots]
+    hotspot_sources: list[list[GrooveInsertion]] = [[] for _ in hotspots]
+    overflow: list[GrooveInsertion] = []
+
+    for ins in insertions:
+        matched_idx: Optional[int] = None
+        for idx, (anchors, _target_slots, _flanks, _mode) in enumerate(hotspots):
+            if ins.after_imgt_pos in anchors:
+                matched_idx = idx
+                break
+        if matched_idx is None:
+            overflow.append(ins)
+        else:
+            hotspot_seqs[matched_idx].append(ins.sequence)
+            hotspot_sources[matched_idx].append(ins)
+
+    for idx, (_anchors, target_slots, (left_flank, right_flank), mode) in enumerate(hotspots):
+        combined = "".join(hotspot_seqs[idx])
+        flanks_observed = left_flank in imgt_to_aa and right_flank in imgt_to_aa
+        if not combined:
+            fill_ch = "-" if flanks_observed else "X"
+            for s in target_slots:
+                slot_map[s] = fill_ch
+        else:
+            filled, did_overflow = _fill_hotspot_slots(combined, target_slots, mode)
+            slot_map.update(filled)
+            if did_overflow:
+                overflow.extend(hotspot_sources[idx])
+
+    fixed_seq = "".join(slot_map[s] for s in slots)
+    return fixed_seq, slots, slot_map, tuple(overflow)
+
+
 def align_domain_to_imgt(
     seq: str,
     domain: str = "G-ALPHA1",
@@ -730,10 +1158,21 @@ def align_domain_to_imgt(
 ) -> DomainAlignment:
     """Align a Class I groove half (G-ALPHA1 or G-ALPHA2) to canonical IMGT coordinates.
 
-    Handles N/C-terminal truncations (such as 89-aa partial exon-2 G-ALPHA1
-    sequences starting at mature residue 2), N/C-terminal overhangs (such as
-    the 93rd residue at mature 183 of mhcseqs ``groove2``), and internal
-    insertions or deletions across divergent vertebrate species.
+    Aligns against the shipped multi-clade Class I structural PSSM with
+    position-specific gap-open penalties lowered at the 6 conserved IMGT
+    G-DOMAIN loop hotspots (falling back to BLOSUM62 against HLA-A*02:01 if
+    the profile file is unavailable).
+
+    Emits all three sequence granularities from a single alignment:
+      - Per-position coordinate maps (``mature_to_aa``, ``imgt_to_aa``) and
+        structured ``insertions`` / ``deletions`` (distinct from terminal
+        truncations and overhangs).
+      - Lossless variable-length views: ``residues`` (:class:`AlignedResidue`
+        tokens) and ``a3m_seq`` (uppercase match, lowercase insertion, ``'-'``
+        deletion, ``'X'`` missing/truncated).
+      - Fixed-index IMGT frame: ``fixed_seq`` (96 chars for G-ALPHA1, 102
+        chars for G-ALPHA2, 22-token alphabet with ``'-'`` vs ``'X'``) plus
+        ``overflow_insertions``.
 
     Parameters
     ----------
@@ -749,9 +1188,8 @@ def align_domain_to_imgt(
     Returns
     -------
     DomainAlignment
-        Per-position mature and IMGT coordinate mappings plus structured
-        internal ``insertions`` and ``deletions`` (distinct from terminal
-        truncations and overhangs).
+        Per-position mappings, structured indels, lossless variable-length
+        ``residues`` / ``a3m_seq``, and fixed-index ``fixed_seq``.
     """
     norm_domain = _normalize_class_i_domain(domain)
     if norm_domain == "G-ALPHA1":
@@ -765,6 +1203,7 @@ def align_domain_to_imgt(
 
     qry = "".join(ch for ch in str(seq or "").strip().upper() if ch.isalpha())
     if not qry:
+        fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, {}, ())
         return DomainAlignment(
             domain=norm_domain,
             query_seq="",
@@ -776,20 +1215,44 @@ def align_domain_to_imgt(
             mature_to_query_index={},
             query_index_to_mature={},
             query_index_to_imgt={},
+            residues=(),
+            a3m_seq="X" * len(ref_seq),
+            fixed_seq=fixed_seq,
+            fixed_slots=fixed_slots,
+            fixed_slot_to_aa=slot_map,
+            overflow_insertions=overflow,
             n_term_missing=len(ref_seq),
         )
 
-    fast = _try_canonical_ungapped_alignment(ref_seq, qry, norm_domain) if use_fast_path else None
+    profile = _load_class_i_profile()
+    dom_profile = profile.get("domains", {}).get(norm_domain) if profile else None
+    pssm = dom_profile["pssm"] if dom_profile is not None else None
+    end_gap = profile.get("end_gap", -0.5) if profile else -0.5
+
+    fast = _try_canonical_ungapped_alignment(ref_seq, qry, norm_domain, pssm=pssm, end_gap=end_gap) if use_fast_path else None
     if fast is not None:
         score, aligned_ref, aligned_qry = fast
     else:
         anchor_bonus = _galpha2_cys_anchor_bonus(qry) if norm_domain == "G-ALPHA2" else None
-        score, aligned_ref, aligned_qry = _semiglobal_gotoh(ref_seq, qry, anchor_bonus=anchor_bonus)
+        if dom_profile is not None:
+            score, aligned_ref, aligned_qry = _profile_gotoh(
+                ref_seq,
+                dom_profile["pssm"],
+                dom_profile["gap_open_del"],
+                dom_profile["gap_open_ins"],
+                qry,
+                gap_ext=profile["gap_ext"],
+                end_gap=end_gap,
+                anchor_bonus=anchor_bonus,
+            )
+        else:
+            score, aligned_ref, aligned_qry = _semiglobal_gotoh(ref_seq, qry, anchor_bonus=anchor_bonus)
 
     # Identify the span of columns containing aligned (non-gap in both) pairs
     # so leading/trailing truncations and overhangs stay distinct from internal indels.
     paired_cols = [idx for idx, (r, q) in enumerate(zip(aligned_ref, aligned_qry)) if r != "-" and q != "-"]
     if not paired_cols:
+        fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, {}, ())
         return DomainAlignment(
             domain=norm_domain,
             query_seq=qry,
@@ -801,6 +1264,12 @@ def align_domain_to_imgt(
             mature_to_query_index={},
             query_index_to_mature={},
             query_index_to_imgt={},
+            residues=(),
+            a3m_seq="X" * len(ref_seq),
+            fixed_seq=fixed_seq,
+            fixed_slots=fixed_slots,
+            fixed_slot_to_aa=slot_map,
+            overflow_insertions=overflow,
             n_term_missing=len(ref_seq),
             n_term_overhang=qry,
             score=score,
@@ -817,6 +1286,8 @@ def align_domain_to_imgt(
     query_index_to_imgt: dict[int, str] = {}
     insertions: list[GrooveInsertion] = []
     deletions: list[GrooveDeletion] = []
+    residues: list[AlignedResidue] = []
+    a3m_chars: list[str] = []
 
     n_term_missing = 0
     c_term_missing = 0
@@ -837,6 +1308,7 @@ def align_domain_to_imgt(
         if col < first_paired:
             if r != "-":
                 n_term_missing += 1
+                a3m_chars.append("X")
                 ref_idx += 1
             if q != "-":
                 n_term_overhang_chars.append(q)
@@ -847,6 +1319,7 @@ def align_domain_to_imgt(
         if col > last_paired:
             if r != "-":
                 c_term_missing += 1
+                a3m_chars.append("X")
                 ref_idx += 1
             if q != "-":
                 c_term_overhang_chars.append(q)
@@ -857,11 +1330,25 @@ def align_domain_to_imgt(
         if r != "-" and q != "-":
             mpos = mature_positions[ref_idx]
             ipos = imgt_positions[ref_idx]
+            elem = structural_element(ipos)
             mature_to_aa[mpos] = q
             imgt_to_aa[ipos] = q
             mature_to_query_index[mpos] = qry_idx
             query_index_to_mature[qry_idx] = mpos
             query_index_to_imgt[qry_idx] = ipos
+            residues.append(
+                AlignedResidue(
+                    aa=q,
+                    domain=norm_domain,
+                    query_index=qry_idx,
+                    mature_pos=mpos,
+                    imgt_pos=ipos,
+                    is_insertion=False,
+                    insertion_rank=0,
+                    structural_element=elem,
+                )
+            )
+            a3m_chars.append(q)
             aligned_pairs += 1
             if r == q:
                 identical_pairs += 1
@@ -873,6 +1360,7 @@ def align_domain_to_imgt(
             ipos = imgt_positions[ref_idx]
             mature_to_aa[mpos] = "-"
             imgt_to_aa[ipos] = "-"
+            a3m_chars.append("-")
             deletions.append(
                 GrooveDeletion(
                     domain=norm_domain,
@@ -888,15 +1376,30 @@ def align_domain_to_imgt(
             after_ref_idx = ref_idx - 1
             after_mpos = mature_positions[after_ref_idx]
             after_ipos = imgt_positions[after_ref_idx]
+            elem = structural_element(after_ipos)
             ins_start_qry = qry_idx
             ins_chars: list[str] = []
             ins_codes: list[str] = []
             k = 1
             while col <= last_paired and aligned_ref[col] == "-" and aligned_qry[col] != "-":
+                ch = aligned_qry[col]
                 code = f"{after_ipos}.{k}"
-                ins_chars.append(aligned_qry[col])
+                ins_chars.append(ch)
                 ins_codes.append(code)
                 query_index_to_imgt[qry_idx] = code
+                residues.append(
+                    AlignedResidue(
+                        aa=ch,
+                        domain=norm_domain,
+                        query_index=qry_idx,
+                        mature_pos=after_mpos,
+                        imgt_pos=code,
+                        is_insertion=True,
+                        insertion_rank=k,
+                        structural_element=elem,
+                    )
+                )
+                a3m_chars.append(ch.lower())
                 qry_idx += 1
                 k += 1
                 col += 1
@@ -908,10 +1411,11 @@ def align_domain_to_imgt(
                     sequence="".join(ins_chars),
                     query_start=ins_start_qry,
                     imgt_codes=tuple(ins_codes),
-                    structural_element=structural_element(after_ipos),
+                    structural_element=elem,
                 )
             )
 
+    fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, imgt_to_aa, insertions)
     identity = identical_pairs / aligned_pairs if aligned_pairs else 0.0
     return DomainAlignment(
         domain=norm_domain,
@@ -926,6 +1430,12 @@ def align_domain_to_imgt(
         query_index_to_imgt=query_index_to_imgt,
         insertions=tuple(insertions),
         deletions=tuple(deletions),
+        residues=tuple(residues),
+        a3m_seq="".join(a3m_chars),
+        fixed_seq=fixed_seq,
+        fixed_slots=fixed_slots,
+        fixed_slot_to_aa=slot_map,
+        overflow_insertions=overflow,
         n_term_missing=n_term_missing,
         c_term_missing=c_term_missing,
         n_term_overhang="".join(n_term_overhang_chars),

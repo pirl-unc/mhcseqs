@@ -50,6 +50,7 @@ mhcseqs = [
     "mouse_h2_sequences.csv",
     "diverse_mhc_sequences.csv",
     "genbank_saha_sequences.csv",
+    "imgt_class_i_profile.json",
     "mhc_protein_datasets.json",
     "sp_boundary_model.json",
     "sp_sequence_cue_model.json",
