@@ -357,7 +357,7 @@ def test_failed_regeneration_preserves_records_and_manifest(monkeypatch, tmp_pat
     if failure == "manifest_write":
         monkeypatch.setattr(dataset, "_write_json", fail)
     elif failure == "manifest_validation":
-        monkeypatch.setattr(dataset, "_validate_file", fail)
+        monkeypatch.setattr(dataset, "validate_asset_file", fail)
     else:
         real_replace = dataset.os.replace
         backup = output.parent.with_name(".bundle.previous")
@@ -400,7 +400,7 @@ def test_builder_waits_for_source_bundle_publication(tmp_path):
     moved, resume, building = threading.Event(), threading.Event(), threading.Event()
 
     def swap_source():
-        with dataset._publication_lock(source_root):
+        with dataset.publication_lock(source_root):
             dataset.os.replace(source_root, backup)
             moved.set()
             try:

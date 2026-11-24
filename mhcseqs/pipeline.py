@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
 from .alleles import (
-    _canonicalize_parsed_name,
     allele_suffix_flags,
+    canonical_allele_name,
     infer_gene,
     infer_mhc_class,
     infer_species_identity,
@@ -23,6 +23,7 @@ from .alleles import (
     parse_allele_name,
     parse_gene_class,
 )
+from .datafiles import MERGE_REPORT
 from .domain_grammar import MAMMAL_CATEGORIES, NON_MHC_ACCESSIONS
 from .domain_parsing import (
     NON_GROOVE_GENES,
@@ -224,7 +225,7 @@ def _resolve_header_allele(header: str):
             parsed = parse_allele_name(token)
             if parsed is None:
                 continue
-            normalized = _canonicalize_parsed_name(parsed)
+            normalized = canonical_allele_name(parsed)
             gene = getattr(parsed.gene, "name", None) if getattr(parsed, "gene", None) else None
             species = getattr(parsed.species, "name", None) if getattr(parsed, "species", None) else None
             mhc_class = normalize_mhc_class(getattr(parsed, "mhc_class", None))
@@ -1519,7 +1520,7 @@ def build_full_seqs(
 
     # Write merge report
     if report_path is None:
-        report_path = out_csv.parent / "mhc-merge-report.txt"
+        report_path = out_csv.parent / MERGE_REPORT
     _write_merge_report(report_path, stats, mature_aligned_entries, conflict_entries)
 
     return dict(stats)

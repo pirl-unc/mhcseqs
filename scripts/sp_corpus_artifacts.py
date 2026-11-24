@@ -39,6 +39,7 @@ if str(ROOT) not in sys.path:
 
 VERTEBRATA_TAXON_ID = 7742
 
+from mhcseqs.datafiles import resolve_data_dir
 from scripts.sp_ground_truth_taxonomy import (
     CATEGORY_LINEAGE_RULES,
     SOURCE_CLADES,
@@ -131,10 +132,7 @@ MANIFEST_SCHEMA_VERSION = 2
 
 def artifact_dir(data_dir: Path | None = None) -> Path:
     """Return the directory holding downloaded UniProt artifacts."""
-    if data_dir is None:
-        env = os.environ.get("MHCSEQS_DATA")
-        data_dir = Path(env) if env else Path.home() / ".cache" / "mhcseqs"
-    return data_dir / "uniprot"
+    return resolve_data_dir(data_dir) / "uniprot"
 
 
 @dataclass(frozen=True)

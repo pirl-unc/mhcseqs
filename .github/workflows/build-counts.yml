@@ -11,10 +11,10 @@ jobs:
   build-and-report:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Set up Python 3.12
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.12"
 
@@ -32,6 +32,7 @@ jobs:
 
     - name: Enforce release artifact count gates
       run: |
+        DATA_DIR="$(python -c 'from mhcseqs.datafiles import resolve_data_dir; print(resolve_data_dir())')"
         python scripts/check_release_artifacts.py \
-          ~/.cache/mhcseqs/mhc-seqs-raw.csv \
-          ~/.cache/mhcseqs/mhc-full-seqs.csv
+          "$DATA_DIR/mhc-seqs-raw.csv" \
+          "$DATA_DIR/mhc-full-seqs.csv"

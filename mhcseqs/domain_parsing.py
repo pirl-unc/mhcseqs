@@ -4207,7 +4207,7 @@ def apply_mutations(result: AlleleRecord, mutations: Sequence[object]) -> Allele
     Mutations are applied to the mature sequence reconstructed from domain parts,
     then re-sliced into the same domain boundaries.
 
-    >>> from mhcseqs.domain_parsing import parse_class_i, apply_mutations
+    >>> from mhcseqs.domain_parsing import decompose_class_i, apply_mutations
     >>> wt = decompose_class_i("G" * 400, allele="test")  # doctest: +SKIP
     """
     if not result.ok:

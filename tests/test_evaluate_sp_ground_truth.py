@@ -1,6 +1,7 @@
 import csv
 import json
 from collections import Counter
+from importlib.resources import files
 
 import pytest
 
@@ -32,7 +33,7 @@ from scripts.sp_ground_truth_taxonomy import (
     load_taxonomy_audit,
     source_clade_from_lineage,
 )
-from scripts.train_sp_boundary_model import OUT_JSON, train
+from scripts.train_sp_boundary_model import train
 
 
 def test_species_category_uses_audited_taxon_lineage():
@@ -219,7 +220,7 @@ def test_unlabelled_inference_set_is_complete_eligible_and_disjoint():
 
 
 def test_stored_boundary_model_matches_lineage_backed_training_groups():
-    with OUT_JSON.open() as handle:
+    with (files("mhcseqs") / "sp_boundary_model.json").open() as handle:
         stored = json.load(handle)
     assert {group: payload["n_positive"] for group, payload in stored["groups"].items()} == {
         "bird": 784,

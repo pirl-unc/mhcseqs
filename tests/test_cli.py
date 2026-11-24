@@ -248,3 +248,17 @@ def test_lookup_no_csv(tmp_path, monkeypatch):
     )
     with pytest.raises(FileNotFoundError, match="build"):
         mhcseqs.lookup("HLA-A*02:01")
+
+
+def test_main_accepts_explicit_argv(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--version"])
+    assert exc_info.value.code == 0
+    assert mhcseqs.__version__ in capsys.readouterr().out
+
+
+def test_package_all_lists_every_public_export():
+    assert len(mhcseqs.__all__) == len(set(mhcseqs.__all__))
+    assert all(hasattr(mhcseqs, name) for name in mhcseqs.__all__)
+    for name in ("SequenceFeatures", "StructuralDomain", "analyze_sequence", "infer_structural_domains", "lookup", "build"):
+        assert name in mhcseqs.__all__

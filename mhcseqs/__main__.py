@@ -3,8 +3,9 @@
 Usage:
     mhcseqs build [--output-dir DIR] [--data-dir DIR] [--force-download]
     mhcseqs lookup ALLELE [--output-dir DIR]
-    mhcseqs data list
-    mhcseqs data install mhc-proteins [--version VERSION] [--with-sources]
+    mhcseqs data list [--details]
+    mhcseqs data install mhc-proteins [--version VERSION] [--with-sources] [--force]
+    mhcseqs data path mhc-proteins [--version VERSION]
     mhcseqs data refresh [--source imgt_hla|ipd_mhc]
     mhcseqs data clear [--source ...] [--built | --built-only]
     python -m mhcseqs build
@@ -16,12 +17,24 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 from . import default_data_dir
+from . import default_data_dir as _default_data_dir_impl
+from .datafiles import (
+    FULL_SEQS_CSV,
+    MERGE_REPORT,
+    RAW_CSV,
+    VALIDATION_REPORT,
+    fasta_dir,
+    inventory,
+    resolve_data_dir,
+    resolve_data_location,
+)
 from .datafiles import clear as clear_data
-from .datafiles import fasta_dir, inventory
 from .download import SOURCES, download_all
 from .mhc_protein_dataset import (
     DATASET_NAME as MHC_PROTEIN_DATASET_NAME,
@@ -43,7 +56,7 @@ from .version import __version__
 def cmd_build(args):
     dd = Path(default_data_dir())
     out_dir: Path = args.output_dir or dd
-    data_dir: Path = args.data_dir or (dd / "fasta")
+    data_dir: Path = args.data_dir or fasta_dir(dd)
 
     print("=" * 60)
     print("Step 1/4: Downloading FASTA source files")
@@ -56,7 +69,7 @@ def cmd_build(args):
         (paths["ipd_mhc"], SOURCES["ipd_mhc"]["label"]),
     ]
 
-    raw_csv = out_dir / "mhc-seqs-raw.csv"
+    raw_csv = out_dir / RAW_CSV
     print("=" * 60)
     print("Step 2/4: Building raw sequence index")
     print("=" * 60)
@@ -65,8 +78,8 @@ def cmd_build(args):
     print(f"  -> {raw_csv}")
     print()
 
-    full_csv = out_dir / "mhc-full-seqs.csv"
-    report_path = out_dir / "mhc-merge-report.txt"
+    full_csv = out_dir / FULL_SEQS_CSV
+    report_path = out_dir / MERGE_REPORT
     print("=" * 60)
     print("Step 3/4: Selecting two-field representatives + groove extraction")
     print("=" * 60)
@@ -82,7 +95,7 @@ def cmd_build(args):
     warnings, val_stats = validate_build(raw_csv, full_csv)
     report = format_validation_report(warnings, val_stats)
     print(report)
-    validation_path = out_dir / "mhc-validation-report.txt"
+    validation_path = out_dir / VALIDATION_REPORT
     with open(validation_path, "w", encoding="utf-8") as f:
         f.write(report + "\n")
     print(f"  -> {validation_path}")
@@ -103,7 +116,7 @@ def cmd_lookup(args):
     # Find the CSVs — look in output dir, default data dir, and CWD
     search_dirs = [out_dir, dd, Path(".")]
     csv_files = {}
-    for name in ("mhc-seqs-raw.csv", "mhc-full-seqs.csv"):
+    for name in (RAW_CSV, FULL_SEQS_CSV):
         for d in search_dirs:
             p = d / name
             if p.exists():
@@ -204,34 +217,231 @@ def _print_file_group(title: str, items, *, details: bool) -> None:
                 print(f"    Source: {item.url}")
 
 
+@contextmanager
+def _offline_override(offline: bool):
+    if not offline:
+        yield
+        return
+    previous = os.environ.get("DATACACHE_OFFLINE")
+    os.environ["DATACACHE_OFFLINE"] = "1"
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("DATACACHE_OFFLINE", None)
+        else:
+            os.environ["DATACACHE_OFFLINE"] = previous
+
+
+def _dir_stats(path: Path) -> tuple[bool, int, int]:
+    if not path.exists():
+        return False, 0, 0
+    total_bytes = 0
+    file_count = 0
+    for root, _dirs, files in os.walk(path, followlinks=False):
+        for name in files:
+            try:
+                st = os.lstat(os.path.join(root, name))
+            except OSError:
+                continue
+            total_bytes += st.st_size
+            file_count += 1
+    return True, total_bytes, file_count
+
+
+def _cli_data_dir(*, create: bool) -> Path:
+    if default_data_dir is not _default_data_dir_impl:
+        return Path(default_data_dir())
+    if create:
+        return Path(default_data_dir())
+    return resolve_data_dir()
+
+
 def cmd_data(args):
-    dd = Path(default_data_dir())
+    import datacache
+
     action = args.data_command
+    read_only = action in ("dirs", "list", "verify", "path")
+    dd = _cli_data_dir(create=not read_only)
+    json_output = getattr(args, "json", False)
+
+    if action == "dirs":
+        loc = resolve_data_location()
+        # Honor monkeypatched default_data_dir() in tests if it differs from loc.path
+        effective_path = dd
+        exists, total_bytes, file_count = _dir_stats(effective_path)
+        offline = datacache.offline_source()
+        entries = []
+        if effective_path.is_dir():
+            try:
+                children = sorted(os.scandir(effective_path), key=lambda e: e.name)
+            except OSError:
+                children = []
+            for entry in children:
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+                _, sub_bytes, sub_files = _dir_stats(Path(entry.path))
+                entries.append(
+                    dict(
+                        name=entry.name,
+                        path=entry.path,
+                        size_bytes=sub_bytes,
+                        file_count=sub_files,
+                    )
+                )
+        payload = dict(
+            data_dir=str(effective_path),
+            origin=loc.origin,
+            detail=loc.detail,
+            exists=exists,
+            size_bytes=total_bytes,
+            file_count=file_count,
+            offline=offline is not None,
+            offline_source=offline,
+            subdirectories=entries,
+        )
+        if json_output:
+            print(json.dumps(payload, indent=2))
+            return
+        print(f"Data directory: {effective_path}")
+        print(f"Origin:         {loc.detail} ({loc.origin})")
+        if exists:
+            print(f"Size:           {datacache.format_bytes(total_bytes)} ({file_count} file(s))")
+        else:
+            print("Size:           not created yet")
+        if offline:
+            print(f"Offline:        enabled ({offline})")
+        if entries:
+            print()
+            for entry in entries:
+                print(f"  {entry['name']:<20} {datacache.format_bytes(entry['size_bytes']):>10}  ({entry['file_count']} file(s))")
+        return
+
+    if action == "verify":
+        checks = []
+        ok = True
+        for item in inventory(dd):
+            if not item.exists:
+                continue
+            status = "ok" if item.size > 0 else "corrupt"
+            if status != "ok":
+                ok = False
+            checks.append(
+                dict(
+                    kind=item.kind,
+                    name=item.key,
+                    path=str(item.path),
+                    status=status,
+                    size_bytes=item.size,
+                )
+            )
+        for version in available_mhc_protein_dataset_versions():
+            try:
+                paths = validate_mhc_protein_dataset(version, data_dir=dd)
+                checks.append(
+                    dict(
+                        kind="dataset",
+                        name=f"{MHC_PROTEIN_DATASET_NAME}:{version}",
+                        path=str(paths.records),
+                        status="verified",
+                    )
+                )
+            except ProteinDatasetNotInstalledError:
+                continue
+            except ProteinDatasetError as exc:
+                ok = False
+                checks.append(
+                    dict(
+                        kind="dataset",
+                        name=f"{MHC_PROTEIN_DATASET_NAME}:{version}",
+                        path=str(dd),
+                        status="corrupt",
+                        error=str(exc),
+                    )
+                )
+        payload = dict(data_dir=str(dd), ok=ok, checks=checks)
+        if json_output:
+            print(json.dumps(payload, indent=2))
+        else:
+            if not checks:
+                print(f"No downloaded files found under {dd}.")
+            else:
+                for check in checks:
+                    extra = f" ({check['error']})" if check.get("error") else ""
+                    print(f"  [{check['status']:<8}] {check['kind']}:{check['name']}{extra}")
+        if not ok:
+            sys.exit(1)
+        return
 
     if action == "list":
-        print(f"Data directory: {dd}")
         items = inventory(dd)
+        dataset_rows = []
+        for version in available_mhc_protein_dataset_versions():
+            try:
+                paths = validate_mhc_protein_dataset(version, data_dir=dd)
+                dataset_rows.append(
+                    dict(
+                        dataset=MHC_PROTEIN_DATASET_NAME,
+                        version=version,
+                        status="installed; verified",
+                        records=str(paths.records),
+                        manifest=str(paths.manifest),
+                    )
+                )
+            except ProteinDatasetNotInstalledError:
+                dataset_rows.append(
+                    dict(
+                        dataset=MHC_PROTEIN_DATASET_NAME,
+                        version=version,
+                        status="not installed",
+                    )
+                )
+            except ProteinDatasetError:
+                dataset_rows.append(
+                    dict(
+                        dataset=MHC_PROTEIN_DATASET_NAME,
+                        version=version,
+                        status="invalid; reinstall with --force",
+                    )
+                )
+        if json_output:
+            print(
+                json.dumps(
+                    dict(
+                        data_dir=str(dd),
+                        files=[
+                            dict(
+                                key=item.key,
+                                kind=item.kind,
+                                path=str(item.path),
+                                exists=item.exists,
+                                size_bytes=item.size,
+                                mtime=item.mtime,
+                                url=item.url,
+                            )
+                            for item in items
+                        ],
+                        datasets=dataset_rows,
+                    ),
+                    indent=2,
+                )
+            )
+            return
+        print(f"Data directory: {dd}")
         _print_file_group("Source FASTA files", [item for item in items if item.kind == "source"], details=args.details)
         _print_file_group("Built CSVs and reports", [item for item in items if item.kind == "built"], details=args.details)
         print("\nVersioned datasets")
         print("DATASET       VERSION             STATUS")
-        for version in available_mhc_protein_dataset_versions():
-            try:
-                paths = validate_mhc_protein_dataset(version, data_dir=dd)
-                status = "installed; verified"
-            except ProteinDatasetNotInstalledError:
-                status = "not installed"
-            except ProteinDatasetError:
-                status = "invalid; reinstall with --force"
-            print(f"{MHC_PROTEIN_DATASET_NAME:<13} {version:<19} {status}")
-            if args.details and status == "installed; verified":
-                print(f"  Records: {paths.records}")
-                print(f"  Manifest: {paths.manifest}")
+        for row in dataset_rows:
+            print(f"{row['dataset']:<13} {row['version']:<19} {row['status']}")
+            if args.details and row["status"] == "installed; verified":
+                print(f"  Records: {row['records']}")
+                print(f"  Manifest: {row['manifest']}")
         if not args.details:
             print("\nUse 'mhcseqs data list --details' for full paths and source URLs.")
         return
 
-    if action == "install":
+    if action in ("install", "fetch"):
         paths = install_mhc_protein_dataset(args.version, data_dir=dd, force=args.force)
         print(f"Installed {MHC_PROTEIN_DATASET_NAME} {paths.version}")
         print(f"  records: {paths.records}")
@@ -253,17 +463,30 @@ def cmd_data(args):
                 file=sys.stderr,
             )
             sys.exit(1)
-        print(paths.records)
+        if json_output:
+            print(
+                json.dumps(
+                    dict(
+                        dataset=MHC_PROTEIN_DATASET_NAME,
+                        version=paths.version,
+                        records=str(paths.records),
+                        manifest=str(paths.manifest),
+                    ),
+                    indent=2,
+                )
+            )
+        else:
+            print(paths.records)
         return
 
     if action == "refresh":
         from .download import download_fasta
 
         keys = [args.source] if args.source else list(SOURCES)
-        print(f"Refreshing source FASTA(s): {', '.join(keys)}")
+        print(f"Refreshing source FASTA(s): {', '.join(keys)}", file=sys.stderr)
         for k in keys:
             download_fasta(k, fasta_dir(dd), force=True)
-        print("Done.")
+        print("Done.", file=sys.stderr)
         return
 
     if action == "clear":
@@ -284,7 +507,27 @@ def cmd_data(args):
         return
 
 
-def main():
+def main(argv: list[str] | None = None) -> None:
+    """Run the ``mhcseqs`` command line.
+
+    Parameters
+    ----------
+    argv : list of str, optional
+        Arguments after the program name. Defaults to ``sys.argv[1:]``.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    SystemExit
+        With status 0 after ``--help``/``--version``, 2 on invalid
+        arguments, and 1 when no command (or no ``data`` subcommand) is
+        given, ``lookup`` finds no built CSV or no match, or ``data path``
+        finds the dataset missing or corrupt. Other failures (for example a
+        failed download) propagate as exceptions.
+    """
     parser = argparse.ArgumentParser(
         prog="mhcseqs",
         description="MHC sequence curation and binding groove extraction",
@@ -315,6 +558,11 @@ def main():
         action="store_true",
         help="Re-download source FASTA files even when a cached copy exists",
     )
+    build_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Forbid remote downloads (equivalent to OPENVAX_OFFLINE=1)",
+    )
 
     # lookup
     lookup_parser = subparsers.add_parser("lookup", help="Look up an allele from built CSVs")
@@ -323,7 +571,7 @@ def main():
         "--output-dir",
         type=Path,
         default=None,
-        help="Directory where built CSVs are located (default: ~/.cache/mhcseqs)",
+        help="Directory where built CSVs are located (default: resolved mhcseqs data dir)",
     )
 
     # data — manage cached source FASTAs and built CSVs
@@ -331,7 +579,12 @@ def main():
     data_sub = data_parser.add_subparsers(dest="data_command")
     list_parser = data_sub.add_parser("list", help="List cached source and built data files")
     list_parser.add_argument("--details", action="store_true", help="Show full paths and source URLs")
-    install_parser = data_sub.add_parser("install", help="Install an immutable versioned dataset")
+    list_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+    dirs_parser = data_sub.add_parser("dirs", help="Show where mhcseqs data lives, why it resolved there, and disk usage")
+    dirs_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+    verify_parser = data_sub.add_parser("verify", help="Verify cached source files and installed datasets offline")
+    verify_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+    install_parser = data_sub.add_parser("install", aliases=["fetch"], help="Install an immutable versioned dataset")
     install_parser.add_argument("dataset", choices=[MHC_PROTEIN_DATASET_NAME])
     install_parser.add_argument("--version", choices=available_mhc_protein_dataset_versions())
     install_parser.add_argument("--force", action="store_true", help="Re-download and replace this exact cached version")
@@ -340,15 +593,26 @@ def main():
         action="store_true",
         help="Also install the pinned source and curation artifacts needed for offline regeneration",
     )
+    install_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Forbid remote downloads (equivalent to OPENVAX_OFFLINE=1)",
+    )
     path_parser = data_sub.add_parser("path", help="Print the path to an installed versioned dataset")
     path_parser.add_argument("dataset", choices=[MHC_PROTEIN_DATASET_NAME])
     path_parser.add_argument("--version", choices=available_mhc_protein_dataset_versions())
+    path_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     refresh_parser = data_sub.add_parser("refresh", help="Re-download source FASTA(s)")
     refresh_parser.add_argument(
         "--source",
         choices=list(SOURCES),
         default=None,
         help="Only refresh this source (default: all)",
+    )
+    refresh_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Forbid remote downloads (equivalent to OPENVAX_OFFLINE=1)",
     )
     clear_parser = data_sub.add_parser("clear", help="Delete cached source FASTA(s)")
     clear_parser.add_argument(
@@ -368,20 +632,27 @@ def main():
         help="Delete only built CSVs/reports, keep source FASTAs",
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    if args.command == "build":
-        cmd_build(args)
-    elif args.command == "lookup":
-        cmd_lookup(args)
-    elif args.command == "data":
-        if not args.data_command:
-            data_parser.print_help()
+    import datacache
+
+    with _offline_override(getattr(args, "offline", False)):
+        try:
+            if args.command == "build":
+                cmd_build(args)
+            elif args.command == "lookup":
+                cmd_lookup(args)
+            elif args.command == "data":
+                if not args.data_command:
+                    data_parser.print_help()
+                    sys.exit(1)
+                cmd_data(args)
+            else:
+                parser.print_help()
+                sys.exit(1)
+        except datacache.OfflineError as exc:
+            print(f"error: {exc}", file=sys.stderr)
             sys.exit(1)
-        cmd_data(args)
-    else:
-        parser.print_help()
-        sys.exit(1)
 
 
 if __name__ == "__main__":
