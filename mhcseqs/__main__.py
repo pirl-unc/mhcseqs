@@ -2,7 +2,7 @@
 
 Usage:
     mhcseqs build [--output-dir DIR] [--data-dir DIR] [--force-download]
-    mhcseqs lookup ALLELE [--output-dir DIR]
+    mhcseqs lookup ALLELE [--output-dir DIR] [--format {text,csv,tsv,json,fasta}] [--all] [--output PATH]
     mhcseqs data list [--details]
     mhcseqs data install mhc-proteins [--version VERSION] [--with-sources] [--force]
     mhcseqs data path mhc-proteins [--version VERSION]
@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import os
 import sys
@@ -29,8 +30,11 @@ from .datafiles import (
     MERGE_REPORT,
     RAW_CSV,
     VALIDATION_REPORT,
+    build_query_candidates,
     fasta_dir,
+    find_csv,
     inventory,
+    match_allele_row,
     resolve_data_dir,
     resolve_data_location,
 )
@@ -109,67 +113,108 @@ def cmd_build(args):
     print(f"  {validation_path}")
 
 
-def cmd_lookup(args):
-    dd = Path(default_data_dir())
-    out_dir: Path = args.output_dir or dd
+LOOKUP_FORMATS = ("text", "csv", "tsv", "json", "fasta")
 
-    # Find the CSVs — look in output dir, default data dir, and CWD
-    search_dirs = [out_dir, dd, Path(".")]
-    csv_files = {}
-    for name in (RAW_CSV, FULL_SEQS_CSV):
-        for d in search_dirs:
-            p = d / name
-            if p.exists():
-                csv_files[name] = p
-                break
+
+def format_lookup_results(
+    matches: list[tuple[str, dict[str, str]]],
+    fmt: str = "text",
+) -> str:
+    """Format matched lookup rows in the requested output format.
+
+    All formats emit full sequences without truncation.
+    """
+    if fmt == "text":
+        blocks = []
+        for csv_name, row in matches:
+            lines = [f"--- {csv_name} ---"]
+            for k, v in row.items():
+                lines.append(f"  {k}: {v}")
+            blocks.append("\n".join(lines))
+        return "\n\n".join(blocks) + "\n"
+
+    if fmt == "json":
+        payload = [{"csv": csv_name, **row} for csv_name, row in matches]
+        return json.dumps(payload, indent=2) + "\n"
+
+    if fmt in ("csv", "tsv"):
+        buf = io.StringIO()
+        fieldnames = ["csv"]
+        seen_fields = {"csv"}
+        for _, row in matches:
+            for key in row:
+                if key not in seen_fields:
+                    seen_fields.add(key)
+                    fieldnames.append(key)
+        delimiter = "\t" if fmt == "tsv" else ","
+        writer = csv.DictWriter(
+            buf,
+            fieldnames=fieldnames,
+            delimiter=delimiter,
+            lineterminator="\n",
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        for csv_name, row in matches:
+            writer.writerow({"csv": csv_name, **row})
+        return buf.getvalue()
+
+    if fmt == "fasta":
+        records = []
+        for csv_name, row in matches:
+            allele_id = (
+                row.get("representative_allele") or row.get("allele_normalized") or row.get("two_field_allele") or row.get("allele_raw") or "unknown"
+            )
+            meta = [f"csv={csv_name}"]
+            for key in ("gene", "mhc_class", "chain", "species"):
+                val = (row.get(key) or "").strip()
+                if val:
+                    meta.append(f"{key}={val}")
+            seq = (row.get("sequence") or "").strip()
+            records.append(f">{allele_id} {' '.join(meta)}\n{seq}")
+        return "\n".join(records) + "\n"
+
+    raise ValueError(f"Unsupported lookup format: {fmt!r}")
+
+
+def cmd_lookup(args):
+    dd = _cli_data_dir(create=False)
+
+    # Locate built CSVs using the same search order as mhcseqs.lookup()
+    csv_files: dict[str, Path] = {}
+    for name in (FULL_SEQS_CSV, RAW_CSV):
+        try:
+            csv_files[name] = find_csv(name, search_dir=args.output_dir, data_dir=dd)
+        except FileNotFoundError:
+            continue
 
     if not csv_files:
         print("No built CSVs found. Run 'mhcseqs build' first.", file=sys.stderr)
         sys.exit(1)
 
     query = args.allele.strip()
-    query_upper = query.upper()
+    query_candidates = build_query_candidates(query)
 
-    # Normalize query for matching
-    try:
-        from .alleles import normalize_allele_name
-
-        query_normalized = normalize_allele_name(query)
-    except Exception:
-        query_normalized = query
-
-    def _matches(row: dict) -> bool:
-        for field in (
-            "two_field_allele",
-            "representative_allele",
-            "allele_normalized",
-            "allele_raw",
-        ):
-            val = row.get(field, "").strip()
-            if val and (val == query or val.upper() == query_upper or val == query_normalized):
-                return True
-        return False
-
-    found_any = False
-    for csv_name, csv_path in sorted(csv_files.items()):
+    matches: list[tuple[str, dict[str, str]]] = []
+    for csv_name, csv_path in csv_files.items():
         with open(csv_path, "r", encoding="utf-8") as f:
             for row in csv.DictReader(f):
-                if _matches(row):
-                    if not found_any:
-                        found_any = True
-                    print(f"\n--- {csv_name} ---")
-                    for k, v in row.items():
-                        if k == "sequence":
-                            print(f"  {k}: {v[:50]}... ({len(v)} aa)")
-                        elif k == "mature_sequence":
-                            print(f"  {k}: {v[:50]}... ({len(v)} aa)")
-                        else:
-                            print(f"  {k}: {v}")
-                    break  # one match per CSV is enough
+                if match_allele_row(row, query, query_candidates=query_candidates):
+                    matches.append((csv_name, row))
+                    if not getattr(args, "all", False):
+                        break
 
-    if not found_any:
-        print(f"No match found for '{query}'")
+    if not matches:
+        print(f"No match found for '{query}'", file=sys.stderr)
         sys.exit(1)
+
+    rendered = format_lookup_results(matches, fmt=getattr(args, "format", "text"))
+    output_path: Path | None = getattr(args, "output", None)
+    if output_path is not None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(rendered, encoding="utf-8")
+    else:
+        sys.stdout.write(rendered)
 
 
 def _human_size(n: int) -> str:
@@ -545,13 +590,13 @@ def main(argv: list[str] | None = None) -> None:
         "--output-dir",
         type=Path,
         default=None,
-        help="Directory for output CSVs (default: ~/.cache/mhcseqs)",
+        help="Directory for output CSVs (default: resolved mhcseqs data dir)",
     )
     build_parser.add_argument(
         "--data-dir",
         type=Path,
         default=None,
-        help="Directory for downloaded FASTA files (default: ~/.cache/mhcseqs/fasta)",
+        help="Directory for downloaded FASTA files (default: <data dir>/fasta)",
     )
     build_parser.add_argument(
         "--force-download",
@@ -571,7 +616,25 @@ def main(argv: list[str] | None = None) -> None:
         "--output-dir",
         type=Path,
         default=None,
-        help="Directory where built CSVs are located (default: resolved mhcseqs data dir)",
+        help="Directory searched first for built CSVs (before CWD and resolved mhcseqs data dir)",
+    )
+    lookup_parser.add_argument(
+        "--format",
+        choices=LOOKUP_FORMATS,
+        default="text",
+        help="Output format (default: text). All formats emit full sequences.",
+    )
+    lookup_parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Emit every matching row instead of only the first match per CSV",
+    )
+    lookup_parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help="Write lookup output to PATH instead of stdout",
     )
 
     # data — manage cached source FASTAs and built CSVs

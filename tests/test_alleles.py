@@ -1,5 +1,7 @@
+import mhcgnomes
+import pytest
+
 from mhcseqs.alleles import (
-    _coerce_allele_name,
     allele_suffix_flags,
     canonical_allele_name,
     infer_gene,
@@ -66,6 +68,29 @@ def test_allele_suffix_flags_h2_haplotype_not_null():
     assert flags["is_questionable"] is False
 
 
+def test_allele_suffix_flags_gene_level_pseudogenes():
+    """mhcgnomes marks gene-level pseudogenes even without a Ps suffix (#95)."""
+    for name in ("HLA-H*01:01:01:01", "HLA-DRB9*01:01", "HomoSapiens-H*01:01:01:01"):
+        flags = allele_suffix_flags(name)
+        assert flags == {"is_null": False, "is_questionable": False, "is_pseudogene": True}
+
+    j_flags = allele_suffix_flags("HLA-J*01:01:01:02N")
+    assert j_flags == {"is_null": True, "is_questionable": False, "is_pseudogene": True}
+
+    ps_flags = allele_suffix_flags("Patr-A*05:01Ps")
+    assert ps_flags == {"is_null": False, "is_questionable": False, "is_pseudogene": True}
+
+
+def test_allele_suffix_flags_accepts_parsed_mhcgnomes_object():
+    parsed = parse_allele_name("HLA-H*01:01:01:01")
+    assert allele_suffix_flags(parsed) == {"is_null": False, "is_questionable": False, "is_pseudogene": True}
+
+
+def test_allele_suffix_flags_unparseable_returns_false():
+    assert allele_suffix_flags("B2M_human") == {"is_null": False, "is_questionable": False, "is_pseudogene": False}
+    assert allele_suffix_flags(None) == {"is_null": False, "is_questionable": False, "is_pseudogene": False}
+
+
 def test_normalize_allele_name_full():
     assert normalize_allele_name("HLA-A*02:01") == "HomoSapiens-A*02:01"
 
@@ -111,15 +136,14 @@ def test_source_attested_concatenated_prefix_is_supported():
 def test_historical_nomenclature_prefixes_are_supported():
     assert parse_allele_name("HL-A-A*02:01").species.name == "Homo sapiens"
     assert parse_allele_name("H-2-Kb").species.name == "Mus musculus"
-    assert parse_allele_name("RhLA-A1*001:01").species.name == "Macaca mulatta"
+    assert parse_allele_name("H2-Kb").species.name == "Mus musculus"
+    assert parse_allele_name("H-2Kb").species.name == "Mus musculus"
+    assert parse_allele_name("H_2-Kb").species.name == "Mus musculus"
+    assert parse_allele_name("HLA_A*02:01").species.name == "Homo sapiens"
+    assert parse_allele_name("RhLA-A1*001:01").species.name == "Macaca sp."
     assert parse_allele_name("GPLA-DRA").species.name == "Cavia porcellus"
     assert parse_allele_name("XL-A-DAB").species.name == "Xenopus laevis"
     assert parse_allele_name("B-BF2", species="Gallus gallus").species.name == "Gallus gallus"
-
-
-def test_historical_hyphenated_h2_survives_ambiguous_modern_coercion():
-    assert parse_allele_name("H2-Kb") is None
-    assert parse_allele_name("H-2-Kb").species.name == "Mus musculus"
 
 
 def test_colliding_attested_prefix_requires_species_context():
@@ -221,31 +245,40 @@ def test_normalize_mhc_class_mhcgnomes_subclasses():
     assert normalize_mhc_class("IIb") == "II"
 
 
-def test_coerce_allele_name_hla_short_forms():
-    """Known HLA genes are coerced to allele notation."""
-    assert _coerce_allele_name("A2") == "HLA-A*02"
-    assert _coerce_allele_name("B7") == "HLA-B*07"
-    assert _coerce_allele_name("C4") == "HLA-C*04"
-    assert _coerce_allele_name("E1") == "HLA-E*01"
-    assert _coerce_allele_name("G1") == "HLA-G*01"
-    assert _coerce_allele_name("HLA-A2") == "HLA-A*02"
-    assert _coerce_allele_name("A0201") == "HLA-A*0201"
+def test_short_hla_serotypes_are_not_coerced_to_allele_groups():
+    """Serotypes such as A2, HLA-A2, B15, B27 must not become allele groups (#95)."""
+    for name in ("A2", "HLA-A2", "B7", "B15", "B27"):
+        assert parse_allele_name(name) is None
+        serotype = parse_allele_name(name, allow_serotypes=True)
+        assert isinstance(serotype, mhcgnomes.Serotype)
+        assert serotype.species.name == "Homo sapiens"
 
 
-def test_coerce_allele_name_rejects_non_hla():
-    """Non-HLA gene-like tokens must NOT be coerced to HLA format."""
-    assert _coerce_allele_name("RT1") == "RT1"
-    assert _coerce_allele_name("SLA1") == "SLA1"
-    assert _coerce_allele_name("K2") == "K2"
-    assert _coerce_allele_name("D3") == "D3"
-    assert _coerce_allele_name("DRB1") == "DRB1"
+def test_infer_gene_returns_none_without_string_fallback():
+    """Unparseable strings return None rather than splitting on '-'/'*' (#95)."""
+    assert infer_gene("NotASpecies-FakeGene*99:99") is None
+    assert infer_gene("") is None
+    assert infer_gene(None) is None
 
 
-def test_coerce_allele_name_h2_passthrough():
-    """Mouse H-2 alleles pass through correctly."""
-    assert _coerce_allele_name("H2-Kb") == "H2-Kb"
-    assert _coerce_allele_name("H-2-Kb") == "H2-Kb"
-    assert _coerce_allele_name("H-2Kb") == "H2-Kb"
+def test_parse_allele_name_propagates_unexpected_errors(monkeypatch):
+    """Unexpected mhcgnomes bugs must not be silently swallowed (#97)."""
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("simulated bug")
+
+    monkeypatch.setattr(mhcgnomes, "parse", boom)
+    with pytest.raises(RuntimeError, match="simulated bug"):
+        parse_allele_name("HLA-A*02:01")
+
+
+def test_parse_gene_class_propagates_unexpected_errors(monkeypatch):
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("simulated bug")
+
+    monkeypatch.setattr(mhcgnomes, "parse_gene_class", boom)
+    with pytest.raises(RuntimeError, match="simulated bug"):
+        parse_gene_class("HLA-A*02:01")
 
 
 def test_canonical_allele_name_uses_full_binomial_species_alias():

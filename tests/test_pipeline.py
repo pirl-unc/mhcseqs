@@ -7,7 +7,7 @@ from mhcseqs.pipeline import (
     FULL_FIELDS,
     FUNCTIONAL_GROOVE_STATUSES,
     RAW_FIELDS,
-    _candidate_tokens,
+    ResolvedHeaderAllele,
     _emit_full_row,
     _extract_source_id,
     _infer_chain,
@@ -15,8 +15,10 @@ from mhcseqs.pipeline import (
     _load_diverse_mhc_references,
     _load_mouse_h2_references,
     _looks_like_nucleotide,
-    _resolve_header_allele,
     build_raw_index,
+    header_tokens,
+    parse_domain_record,
+    resolve_header_allele,
 )
 
 
@@ -47,24 +49,33 @@ def test_looks_like_nucleotide_short_protein():
     assert _looks_like_nucleotide("ACDEFGHIKLM") is False
 
 
-def test_candidate_tokens_hla():
-    tokens = _candidate_tokens("HLA-A*02:01:01:01 123 prot")
-    assert tokens[0] == "HLA-A*02:01:01:01"
+def test_header_tokens_splits_delimiters():
+    assert header_tokens("HLA-A*02:01:01:01 123 prot") == ["HLA-A*02:01:01:01", "123", "prot"]
+    assert "A*02:01" in header_tokens("A*02:01 | some description | extra")
+    assert header_tokens("") == []
 
 
-def test_candidate_tokens_pipe():
-    tokens = _candidate_tokens("A*02:01 | some description | extra")
-    assert "A*02:01" in tokens
+def test_resolve_header_allele_picks_allele_over_bare_gene_word():
+    """Header resolution delegates to mhcgnomes without prefix hacks (#95)."""
+    resolved = resolve_header_allele("a protein H-2-Kb 200 prot")
+    assert resolved.allele_normalized == "MusMusculus-K*b"
+    assert resolved.two_field_allele == "MusMusculus-K*b"
+    assert resolved.gene == "K"
+    assert resolved.species == "Mus musculus"
+    assert resolved.species_prefix == "MusMusculus"
+    assert resolved.allele_raw == "H-2-Kb"
 
 
-def test_candidate_tokens_empty():
-    assert _candidate_tokens("") == []
+def test_resolve_header_allele_marks_gene_level_pseudogenes():
+    resolved = resolve_header_allele("HLA:HLA00001 H*01:01:01:01 365 bp")
+    assert resolved.allele_normalized == "HomoSapiens-H*01:01:01:01"
+    assert resolved.is_pseudogene is True
+    assert resolved.is_null is False
 
 
-def test_candidate_tokens_h2():
-    tokens = _candidate_tokens("H-2-Kb 200 prot")
-    # H-2 prefix should be scored higher
-    assert tokens[0] == "H-2-Kb"
+def test_resolve_header_allele_raises_value_error_when_unparseable():
+    with pytest.raises(ValueError, match="Failed to parse allele"):
+        resolve_header_allele("unknown_header 123 prot")
 
 
 def test_infer_chain_class_i():
@@ -181,14 +192,17 @@ def test_extract_source_id_unknown():
 
 
 def test_resolve_official_imgt_header_with_bare_hla_allele():
-    result = _resolve_header_allele("HLA:HLA00001 A*01:01:01:01 365 bp")
-    assert result == (
-        "HomoSapiens-A*01:01:01:01",
-        "A",
-        "I",
-        "Homo sapiens",
-        "A*01:01:01:01",
-    )
+    result = resolve_header_allele("HLA:HLA00001 A*01:01:01:01 365 bp")
+    assert result.allele_normalized == "HomoSapiens-A*01:01:01:01"
+    assert result.two_field_allele == "HomoSapiens-A*01:01"
+    assert result.gene == "A"
+    assert result.mhc_class == "I"
+    assert result.species == "Homo sapiens"
+    assert result.species_prefix == "HomoSapiens"
+    assert result.allele_raw == "A*01:01:01:01"
+    assert result.is_null is False
+    assert result.is_questionable is False
+    assert result.is_pseudogene is False
 
 
 def test_load_mouse_h2_references():
@@ -286,13 +300,25 @@ def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, 
     fasta_path.write_text(">synthetic\n" + seq + "\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        "mhcseqs.pipeline._resolve_header_allele",
-        lambda header: ("HLA-A*02:01", "A", "I", "Homo sapiens", "HLA-A*02:01"),
+        "mhcseqs.pipeline.resolve_header_allele",
+        lambda header: ResolvedHeaderAllele(
+            parsed=None,
+            allele_raw="HLA-A*02:01",
+            allele_normalized="HomoSapiens-A*02:01",
+            two_field_allele="HomoSapiens-A*02:01",
+            gene="A",
+            mhc_class="I",
+            species="Homo sapiens",
+            species_prefix="HomoSapiens",
+            is_null=False,
+            is_questionable=False,
+            is_pseudogene=False,
+        ),
     )
     monkeypatch.setattr("mhcseqs.pipeline._extract_source_id", lambda header, source_label: "SYN001")
     monkeypatch.setattr(
-        "mhcseqs.pipeline._try_domain_parse",
-        lambda seq, *, mhc_class, gene, allele, chain="", species="", features=None: AlleleRecord(status="ok", mature_start=27),
+        "mhcseqs.pipeline.parse_domain_record",
+        lambda seq, *, mhc_class, gene, allele, chain="", species="", features=None, stats=None: AlleleRecord(status="ok", mature_start=27),
     )
     monkeypatch.setattr(
         "mhcseqs.pipeline.refine_signal_peptide",
@@ -357,3 +383,52 @@ def test_emit_full_row_realigns_domain_fields_after_refinement(monkeypatch):
     assert row["groove1"] == seq[29:117]
     assert row["domain_architecture"].startswith("signal_peptide>g_alpha1>g_alpha2>c1_alpha3")
     assert row["domain_spans"].startswith("signal_peptide:1-29;g_alpha1:30-117")
+
+
+def test_emit_full_row_marks_gene_level_pseudogene_not_functional():
+    seq = "M" * 40 + "A" * 260
+    representative = {
+        "allele_normalized": "HomoSapiens-H*01:01:01:01",
+        "gene": "H",
+        "mhc_class": "I",
+        "chain": "alpha",
+        "species": "Homo sapiens",
+        "species_category": "human",
+        "species_prefix": "HomoSapiens",
+        "source": "imgt",
+        "source_id": "HLA00001",
+    }
+    groove = AlleleRecord(
+        status="ok",
+        mhc_class="I",
+        chain="alpha",
+        mature_start=24,
+        groove1=seq[24:114],
+        groove2=seq[114:207],
+        groove_seq=seq[24:207],
+        groove1_len=90,
+        groove2_len=93,
+    )
+    row = _emit_full_row("HomoSapiens-H*01:01", representative, "unique", seq, groove)
+    assert row["is_pseudogene"] == "True"
+    assert row["is_functional"] == "False"
+
+
+def test_parse_domain_record_counts_value_error_and_propagates_bugs(monkeypatch):
+    from collections import Counter
+
+    stats = Counter()
+
+    def bad_value(*_args, **_kwargs):
+        raise ValueError("bad sequence")
+
+    monkeypatch.setattr("mhcseqs.pipeline.decompose_domains", bad_value)
+    assert parse_domain_record("MAVMAP" * 20, mhc_class="I", gene="A", allele="HLA-A*02:01", stats=stats) is None
+    assert stats["domain_parse_errors"] == 1
+
+    def bug(*_args, **_kwargs):
+        raise RuntimeError("unexpected bug")
+
+    monkeypatch.setattr("mhcseqs.pipeline.decompose_domains", bug)
+    with pytest.raises(RuntimeError, match="unexpected bug"):
+        parse_domain_record("MAVMAP" * 20, mhc_class="I", gene="A", allele="HLA-A*02:01", stats=stats)

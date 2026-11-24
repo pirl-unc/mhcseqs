@@ -4313,10 +4313,7 @@ def _normalized_gene_token(gene: str, allele: str = "") -> str:
         body = raw.split("-", 1)[1].split("*", 1)[0]
         if body.upper() in {"H60A", "H60B", "H60C"}:
             return body.upper()
-    try:
-        inferred = infer_gene(raw)
-    except Exception:
-        inferred = ""
+    inferred = infer_gene(raw)
     return str(inferred or raw).strip().upper()
 
 
@@ -6088,7 +6085,7 @@ def decompose_domains(
     gene_token = _normalized_gene_token(gene, allele)
 
     # Filter non-MHC genes (TAP1, CIITA, HM13, etc.).
-    # mhcgnomes 3.40 classification uses the species constraint when present;
+    # mhcgnomes classification uses the species constraint when present;
     # the helper retains a small local set for unscoped non-MHC labels.
     if is_non_mhc_gene(gene or allele, species=species):
         return _attach_parse_candidate(
@@ -6105,7 +6102,7 @@ def decompose_domains(
             )
         )
 
-    # Infer class from the species-aware mhcgnomes 3.40 classifier. Ambiguous
+    # Infer class from the species-aware mhcgnomes classifier. Ambiguous
     # unscoped gene labels remain unresolved rather than using duplicate local
     # suffix rules that can disagree with the ontology.
     if nc not in ("I", "II") and (gene or allele):
@@ -6182,7 +6179,7 @@ def decompose_domains(
                 )
                 if r.ok and r.mature_start >= 0:
                     candidates.append(r)
-            except Exception:
+            except ValueError:
                 pass
         result = _select_best_viable_record(candidates)
         if result is not None:

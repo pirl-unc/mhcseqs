@@ -8,16 +8,16 @@ from __future__ import annotations
 import csv
 import re
 from collections import Counter
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
+
+import mhcgnomes
 
 from .alleles import (
     allele_suffix_flags,
     canonical_allele_name,
-    infer_gene,
     infer_mhc_class,
-    infer_species_identity,
     normalize_allele_name,
     normalize_mhc_class,
     parse_allele_name,
@@ -193,67 +193,95 @@ def _extract_source_id(header: str, source_label: str) -> str:
     return ""
 
 
-def _candidate_tokens(header: str) -> List[str]:
-    """Score and rank tokens from a FASTA header for allele parsing."""
+@dataclass(frozen=True)
+class ResolvedHeaderAllele:
+    """Parsed MHC allele metadata resolved from a FASTA header via mhcgnomes."""
+
+    parsed: Any
+    allele_raw: str
+    allele_normalized: str
+    two_field_allele: str
+    gene: str
+    mhc_class: str
+    species: str
+    species_prefix: str
+    is_null: bool
+    is_questionable: bool
+    is_pseudogene: bool
+
+
+def header_tokens(header: str) -> List[str]:
+    """Split a FASTA header into candidate allele tokens."""
     cleaned = header.replace("|", " ").replace(";", " ")
-    tokens = [t.strip() for t in cleaned.split() if t.strip()]
-    if not tokens:
-        return []
-    scored = []
-    for tok in tokens:
-        score = 0
-        if "*" in tok:
-            score += 3
-        if tok.upper().startswith("HLA-"):
-            score += 2
-        if tok.upper().startswith("H-2"):
-            score += 2
-        if tok.upper().startswith("MAMU"):
-            score += 2
-        if ":" in tok:
-            score += 1
-        scored.append((score, tok))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return [tok for _, tok in scored]
+    return [t.strip() for t in cleaned.split() if t.strip()]
 
 
-def _resolve_header_allele(header: str):
-    """Parse allele metadata from a FASTA header using mhcgnomes."""
-    last_error = None
-    for token in _candidate_tokens(header):
-        try:
-            parsed = parse_allele_name(token)
-            if parsed is None:
-                continue
-            normalized = canonical_allele_name(parsed)
-            gene = getattr(parsed.gene, "name", None) if getattr(parsed, "gene", None) else None
-            species = getattr(parsed.species, "name", None) if getattr(parsed, "species", None) else None
-            mhc_class = normalize_mhc_class(getattr(parsed, "mhc_class", None))
-            return normalized, gene, mhc_class, species, token
-        except Exception as exc:
-            last_error = exc
+def _parsed_token_rank(parsed: Any, index: int) -> Tuple[int, int, int]:
+    """Rank parsed mhcgnomes results by molecule specificity (higher is better)."""
+    if isinstance(parsed, (mhcgnomes.Allele, mhcgnomes.Pair)):
+        type_rank = 3
+    elif isinstance(parsed, mhcgnomes.AlleleWithoutGene):
+        type_rank = 2
+    else:
+        type_rank = 1
+    species_source = getattr(parsed, "species_source", None)
+    if species_source == "explicit":
+        source_rank = 3
+    elif species_source == "inferred":
+        source_rank = 2
+    else:
+        source_rank = 1
+    return (type_rank, source_rank, -index)
+
+
+def resolve_header_allele(header: str) -> ResolvedHeaderAllele:
+    """Parse allele metadata from a FASTA header using mhcgnomes.
+
+    Tries :func:`mhcseqs.alleles.parse_allele_name` on each token in *header*
+    and selects the most specific parsed molecule result without prefix hacks.
+
+    Raises
+    ------
+    ValueError
+        If no token in *header* parses as an MHC molecule in mhcgnomes.
+    """
+    best: Optional[Tuple[Tuple[int, int, int], Any, str]] = None
+    for index, token in enumerate(header_tokens(header)):
+        parsed = parse_allele_name(token)
+        if parsed is None:
             continue
-    raise RuntimeError(f"Failed to parse allele from FASTA header: '{header}'.") from last_error
+        rank = _parsed_token_rank(parsed, index)
+        if best is None or rank > best[0]:
+            best = (rank, parsed, token)
 
+    if best is None:
+        raise ValueError(f"Failed to parse allele from FASTA header: {header!r}.")
 
-def _infer_species_prefix(allele: Optional[str]) -> str:
-    """Extract the species MHC prefix from an allele name (e.g. HLA, SLA, Mamu)."""
-    if not allele:
-        return ""
-    try:
-        parsed = parse_allele_name(allele)
-    except Exception:
-        parsed = None
-    if parsed is not None:
-        species = getattr(parsed, "species", None)
-        prefix = full_species_name_alias(getattr(species, "name", None))
-        if prefix:
-            return str(prefix)
-    # Fallback: extract prefix before the dash
-    token = str(allele).strip()
-    if "-" in token:
-        return token.split("-", 1)[0]
-    return ""
+    _, parsed, allele_token = best
+    normalized = canonical_allele_name(parsed)
+    two_field = canonical_allele_name(parsed, allele_fields=2)
+    gene_obj = getattr(parsed, "gene", None)
+    gene = str(gene_obj.name) if gene_obj is not None and gene_obj.name else ""
+    species_obj = getattr(parsed, "species", None)
+    species = str(species_obj.name).strip() if species_obj is not None and species_obj.name else ""
+    mhc_class = normalize_mhc_class(getattr(parsed, "mhc_class", None))
+    if not mhc_class:
+        mhc_class = infer_mhc_class(normalized, species=species or None) or ""
+    species_prefix = full_species_name_alias(species)
+    flags = allele_suffix_flags(parsed)
+    return ResolvedHeaderAllele(
+        parsed=parsed,
+        allele_raw=allele_token,
+        allele_normalized=normalized,
+        two_field_allele=two_field,
+        gene=gene,
+        mhc_class=mhc_class,
+        species=species,
+        species_prefix=species_prefix,
+        is_null=flags["is_null"],
+        is_questionable=flags["is_questionable"],
+        is_pseudogene=flags["is_pseudogene"],
+    )
 
 
 def _load_b2m_references() -> List[dict]:
@@ -321,7 +349,7 @@ def _load_mouse_h2_references() -> List[dict]:
 
             # Groove parse to infer signal peptide / mature start
             features = analyze_sequence(seq)
-            groove = _try_domain_parse(
+            groove = parse_domain_record(
                 seq,
                 mhc_class=mhc_class,
                 gene=gene,
@@ -698,6 +726,7 @@ def build_raw_index(
         skipped=0,
         skipped_nucleotide=0,
         skipped_short=0,
+        domain_parse_errors=0,
         duplicates=0,
         replaced=0,
     )
@@ -711,23 +740,22 @@ def build_raw_index(
             # Allow even very short/empty for the raw CSV — but skip nucleotide
             source_id = _extract_source_id(header, source_label)
             try:
-                normalized, gene, mhc_class, species_raw, allele_token = _resolve_header_allele(header)
-            except RuntimeError:
+                resolved = resolve_header_allele(header)
+            except (ValueError, mhcgnomes.ParseError):
                 stats["skipped"] += 1
                 continue
 
-            if not gene:
-                gene = infer_gene(normalized)
-            if not mhc_class:
-                mhc_class = infer_mhc_class(normalized) or ""
-            mhc_class = normalize_mhc_class(mhc_class, default=infer_mhc_class(normalized)) or ""
-            if not species_raw:
-                species_raw = infer_species_identity(normalized) or ""
+            normalized = resolved.allele_normalized
+            two_field = resolved.two_field_allele
+            gene = resolved.gene
+            mhc_class = resolved.mhc_class
+            species_raw = resolved.species
+            allele_token = resolved.allele_raw
 
-            chain = _infer_chain(gene or "", mhc_class)
+            chain = _infer_chain(gene, mhc_class)
             species_fine = species_raw
             species_category = normalize_mhc_species(species_fine) or ""
-            species_prefix = _infer_species_prefix(normalized)
+            species_prefix = resolved.species_prefix
 
             # Groove parse to infer mature protein start.
             # signal_peptide_len stores the mature_start offset from the
@@ -735,14 +763,15 @@ def build_raw_index(
             # present).  has_signal_peptide is only True when the sequence
             # actually begins with Met and the offset is plausible.
             features = analyze_sequence(seq)
-            groove = _try_domain_parse(
+            groove = parse_domain_record(
                 seq,
                 mhc_class=mhc_class,
-                gene=gene or "",
+                gene=gene,
                 allele=normalized,
                 chain=chain,
                 species=species_raw,
                 features=features,
+                stats=stats,
             )
             mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
             mature_start, has_sp, sp_seq = _signal_peptide_fields(
@@ -753,18 +782,11 @@ def build_raw_index(
                 features=features,
             )
 
-            suffix = allele_suffix_flags(normalized)
-
-            try:
-                two_field = normalize_allele_name(normalized)
-            except Exception:
-                two_field = normalized
-
             row = {
                 "allele_raw": allele_token,
                 "allele_normalized": normalized,
                 "two_field_allele": two_field,
-                "gene": gene or "",
+                "gene": gene,
                 "mhc_class": mhc_class,
                 "chain": chain,
                 "species": species_fine,
@@ -777,9 +799,9 @@ def build_raw_index(
                 "has_signal_peptide": str(has_sp),
                 "signal_peptide_len": str(mature_start),
                 "signal_peptide_seq": sp_seq,
-                "is_null": str(suffix["is_null"]),
-                "is_questionable": str(suffix["is_questionable"]),
-                "is_pseudogene": str(suffix["is_pseudogene"]),
+                "is_null": str(resolved.is_null),
+                "is_questionable": str(resolved.is_questionable),
+                "is_pseudogene": str(resolved.is_pseudogene),
             }
 
             # Dedup: prefer IMGT, prefer protein, prefer longer
@@ -844,7 +866,7 @@ def build_raw_index(
     return dict(stats)
 
 
-def _try_domain_parse(
+def parse_domain_record(
     seq: str,
     *,
     mhc_class: str,
@@ -853,29 +875,38 @@ def _try_domain_parse(
     chain: str = "",
     species: str = "",
     features: Optional[SequenceFeatures] = None,
+    stats: Optional[Counter] = None,
 ) -> Optional[AlleleRecord]:
+    """Run :func:`decompose_domains` for a pipeline record, skipping B2M/unknown class.
+
+    Expected per-record ``ValueError`` / ``mhcgnomes.ParseError`` failures are
+    counted in ``stats["domain_parse_errors"]`` when *stats* is provided;
+    unexpected exceptions propagate.
+    """
+    gene_upper = (gene or "").strip().upper()
+    if gene_upper in ("B2M", "BETA-2-MICROGLOBULIN"):
+        return None
+    nc = normalize_mhc_class(mhc_class)
+    if nc not in {"I", "II"}:
+        return None
     try:
-        gene_upper = (gene or "").strip().upper()
-        if gene_upper in ("B2M", "BETA-2-MICROGLOBULIN"):
-            return None
-        nc = normalize_mhc_class(mhc_class)
-        if nc in {"I", "II"}:
-            if features is None:
-                features = analyze_sequence(seq)
-            chain_token = str(chain or "").strip().lower()
-            chain_hint = None if chain_token in {"", "unknown"} else chain
-            return decompose_domains(
-                seq,
-                mhc_class=nc,
-                chain=chain_hint,
-                allele=allele,
-                gene=gene,
-                species=species or None,
-                features=features,
-            )
-    except Exception:
-        pass
-    return None
+        if features is None:
+            features = analyze_sequence(seq)
+        chain_token = str(chain or "").strip().lower()
+        chain_hint = None if chain_token in {"", "unknown"} else chain
+        return decompose_domains(
+            seq,
+            mhc_class=nc,
+            chain=chain_hint,
+            allele=allele,
+            gene=gene,
+            species=species or None,
+            features=features,
+        )
+    except (ValueError, mhcgnomes.ParseError):
+        if stats is not None:
+            stats["domain_parse_errors"] += 1
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -981,7 +1012,7 @@ def _try_assemble_overlap(
         consensus = merged
 
     # Verify the assembled sequence produces a valid groove
-    groove = _try_domain_parse(
+    groove = parse_domain_record(
         consensus,
         mhc_class=anchor.get("mhc_class", ""),
         gene=anchor.get("gene", ""),
@@ -997,7 +1028,7 @@ def _try_assemble_overlap(
 
 def _groove_signature(row: dict) -> Optional[Tuple[str, str]]:
     """Compute groove signature for a raw record (parses on the fly)."""
-    groove = _try_domain_parse(
+    groove = parse_domain_record(
         row["sequence"],
         mhc_class=row.get("mhc_class", ""),
         gene=row.get("gene", ""),
@@ -1105,7 +1136,7 @@ def _classify_group(
     for r in sorted_by_len:
         try:
             two_field_check = normalize_allele_name(r["allele_normalized"])
-        except Exception:
+        except (ValueError, mhcgnomes.ParseError):
             two_field_check = r.get("two_field_allele", "")
         conflict_alleles.append(
             {
@@ -1273,7 +1304,10 @@ def _emit_full_row(
         groove_status = ""
 
     suffix = allele_suffix_flags(representative.get("allele_normalized", ""))
-    is_functional = groove_status in FUNCTIONAL_GROOVE_STATUSES and not suffix["is_null"] and not suffix["is_pseudogene"]
+    is_null = suffix["is_null"] or representative.get("is_null") == "True"
+    is_questionable = suffix["is_questionable"] or representative.get("is_questionable") == "True"
+    is_pseudogene = suffix["is_pseudogene"] or representative.get("is_pseudogene") == "True"
+    is_functional = groove_status in FUNCTIONAL_GROOVE_STATUSES and not is_null and not is_pseudogene
     return {
         "two_field_allele": group_key,
         "representative_allele": representative.get("allele_normalized", ""),
@@ -1304,9 +1338,9 @@ def _emit_full_row(
         "groove_status": groove_status,
         "groove_flags": ",".join(aligned_groove.flags) if aligned_groove and aligned_groove.flags else "",
         "anchor_type": aligned_groove.anchor_type if aligned_groove else "",
-        "is_null": str(suffix["is_null"]),
-        "is_questionable": str(suffix["is_questionable"]),
-        "is_pseudogene": str(suffix["is_pseudogene"]),
+        "is_null": str(is_null),
+        "is_questionable": str(is_questionable),
+        "is_pseudogene": str(is_pseudogene),
         "is_functional": str(is_functional),
     }
 
@@ -1339,6 +1373,7 @@ def _write_merge_report(
     lines.append(f"  longest_no_groove:                  {stats['policy_longest_no_groove']}")
     lines.append(f"  excluded_all_null:                  {stats['excluded_all_null']}")
     lines.append(f"  excluded_all_short (<{MIN_MHC_SEQUENCE_LEN} aa):       {stats['excluded_all_short']}")
+    lines.append(f"  domain_parse_errors:                {stats['domain_parse_errors']}")
     lines.append(f"  with_representative:                {stats['with_representative']}")
     lines.append("")
 
@@ -1442,6 +1477,7 @@ def build_full_seqs(
         policy_conflict_same_length=0,
         policy_conflict_non_nested=0,
         policy_longest_no_groove=0,
+        domain_parse_errors=0,
     )
 
     # Report data
@@ -1469,13 +1505,14 @@ def build_full_seqs(
         if rep is not None:
             # Use the assembled sequence if available, otherwise the rep's own
             seq = assembled_seq if assembled_seq else rep["sequence"]
-            groove = _try_domain_parse(
+            groove = parse_domain_record(
                 seq,
                 mhc_class=rep.get("mhc_class", ""),
                 gene=rep.get("gene", ""),
                 allele=rep.get("allele_normalized", ""),
                 chain=rep.get("chain", ""),
                 species=rep.get("species", ""),
+                stats=stats,
             )
             stats["with_representative"] += 1
             stats[f"policy_{policy}"] += 1
@@ -1485,13 +1522,14 @@ def build_full_seqs(
             sorted_members = sorted(members, key=lambda r: -len(r["sequence"]))
             fallback = sorted_members[0]
             seq = fallback["sequence"]
-            groove = _try_domain_parse(
+            groove = parse_domain_record(
                 seq,
                 mhc_class=fallback.get("mhc_class", ""),
                 gene=fallback.get("gene", ""),
                 allele=fallback.get("allele_normalized", ""),
                 chain=fallback.get("chain", ""),
                 species=fallback.get("species", ""),
+                stats=stats,
             )
             if groove and groove.ok:
                 stats["with_representative"] += 1

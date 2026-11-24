@@ -34,7 +34,17 @@ from .alleles import (
     normalize_mhc_class,
     parse_allele_name,
 )
-from .datafiles import FULL_SEQS_CSV, MERGE_REPORT, RAW_CSV, VALIDATION_REPORT, fasta_dir, resolve_data_dir
+from .datafiles import (
+    FULL_SEQS_CSV,
+    MERGE_REPORT,
+    RAW_CSV,
+    VALIDATION_REPORT,
+    build_query_candidates,
+    fasta_dir,
+    find_csv,
+    match_allele_row,
+    resolve_data_dir,
+)
 from .domain_parsing import (
     NON_GROOVE_GENES,
     AlleleRecord,
@@ -88,19 +98,11 @@ from .pipeline import (
     build_raw_index,
 )
 from .species import (
-    CANONICAL_MHC_PREFIXES,
-    ESTABLISHED_MHC_PREFIX_SOURCES,
-    ESTABLISHED_MHC_PREFIXES,
     LATIN_NAMES,
     MHC_SPECIES_CATEGORIES,
-    MhcPrefixAlias,
-    find_mhc_prefix_aliases,
     full_species_name_alias,
     get_canonical_prefix,
-    get_established_mhc_prefix,
-    get_established_mhc_prefixes,
     get_latin_name,
-    get_mhc_prefix_registry,
     normalize_mhc_species,
     normalize_species,
 )
@@ -155,10 +157,11 @@ def build(
     ----------
     output_dir : str, optional
         Directory for the built CSVs and reports. Defaults to
-        :func:`default_data_dir` (``$MHCSEQS_DATA`` or ``~/.cache/mhcseqs``).
+        :func:`default_data_dir` (``$MHCSEQS_DATA`` or the resolved cache dir).
     data_dir : str, optional
         Directory for the downloaded IMGT/HLA and IPD-MHC FASTA files.
-        Defaults to the ``fasta/`` subdirectory of the output directory.
+        Defaults to the ``fasta/`` subdirectory of :func:`default_data_dir`,
+        matching ``mhcseqs build --output-dir``.
     force_download : bool, optional
         Re-fetch the source FASTA files even when a cached copy exists.
 
@@ -177,14 +180,9 @@ def build(
 
     from .validate import format_validation_report, validate_build
 
-    if output_dir is None:
-        out = Path(default_data_dir())
-    else:
-        out = Path(output_dir)
-    if data_dir is None:
-        dd = fasta_dir(out)
-    else:
-        dd = Path(data_dir)
+    dd_root = Path(default_data_dir())
+    out = dd_root if output_dir is None else Path(output_dir)
+    dd = fasta_dir(dd_root) if data_dir is None else Path(data_dir)
 
     paths = download_all(dd, force=force_download)
     fasta_inputs = [
@@ -212,30 +210,6 @@ def build(
     )
 
 
-def _find_csv(name: str, search_dir: str | None = None) -> str:
-    """Locate a built CSV file.
-
-    Search order: *search_dir* (if given), current directory,
-    :func:`default_data_dir`, package parent directory.
-    """
-    from pathlib import Path
-
-    candidates = []
-    if search_dir:
-        candidates.append(Path(search_dir) / name)
-    candidates.extend(
-        [
-            Path(".") / name,
-            Path(default_data_dir()) / name,
-            Path(__file__).resolve().parent.parent / name,
-        ]
-    )
-    for p in candidates:
-        if p.exists():
-            return str(p)
-    raise FileNotFoundError(f"{name} not found. Run mhcseqs.build() or 'mhcseqs build' first.")
-
-
 def load_raw_dict(path: str | None = None) -> list[dict]:
     """Load the raw sequence CSV as a list of dicts.
 
@@ -245,9 +219,9 @@ def load_raw_dict(path: str | None = None) -> list[dict]:
     Parameters
     ----------
     path : str, optional
-        CSV to read. By default ``mhc-seqs-raw.csv`` is searched for in the
-        current directory, then :func:`default_data_dir`, then the directory
-        containing the ``mhcseqs`` package.
+        CSV to read. By default ``mhc-seqs-raw.csv`` is located via
+        :func:`find_csv` (current directory, then resolved data directory,
+        then package parent directory).
 
     Returns
     -------
@@ -261,7 +235,7 @@ def load_raw_dict(path: str | None = None) -> list[dict]:
     """
     import csv as _csv
 
-    p = path or _find_csv(RAW_CSV)
+    p = path or find_csv(RAW_CSV)
     with open(p, "r", encoding="utf-8") as f:
         return list(_csv.DictReader(f))
 
@@ -288,7 +262,7 @@ def load_raw_dataframe(path: str | None = None):
     """
     import pandas as pd
 
-    p = path or _find_csv(RAW_CSV)
+    p = path or find_csv(RAW_CSV)
     return pd.read_csv(p)
 
 
@@ -302,9 +276,9 @@ def load_sequences_dict(path: str | None = None) -> list[dict]:
     Parameters
     ----------
     path : str, optional
-        CSV to read. By default ``mhc-full-seqs.csv`` is searched for in the
-        current directory, then :func:`default_data_dir`, then the directory
-        containing the ``mhcseqs`` package.
+        CSV to read. By default ``mhc-full-seqs.csv`` is located via
+        :func:`find_csv` (current directory, then resolved data directory,
+        then package parent directory).
 
     Returns
     -------
@@ -318,7 +292,7 @@ def load_sequences_dict(path: str | None = None) -> list[dict]:
     """
     import csv as _csv
 
-    p = path or _find_csv(FULL_SEQS_CSV)
+    p = path or find_csv(FULL_SEQS_CSV)
     with open(p, "r", encoding="utf-8") as f:
         return list(_csv.DictReader(f))
 
@@ -348,7 +322,7 @@ def load_sequences_dataframe(path: str | None = None):
     """
     import pandas as pd
 
-    p = path or _find_csv(FULL_SEQS_CSV)
+    p = path or find_csv(FULL_SEQS_CSV)
     return pd.read_csv(p)
 
 
@@ -406,24 +380,13 @@ def lookup(
     from dataclasses import replace
 
     query = allele.strip()
-    query_upper = query.upper()
-    try:
-        query_normalized = normalize_allele_name(query)
-    except Exception:
-        query_normalized = query
+    query_candidates = build_query_candidates(query)
 
-    def _match(row: dict) -> bool:
-        for f in ("two_field_allele", "representative_allele"):
-            val = row.get(f, "").strip()
-            if val and (val == query or val.upper() == query_upper or val == query_normalized):
-                return True
-        return False
-
-    p = _find_csv(FULL_SEQS_CSV, search_dir=search_dir)
+    p = find_csv(FULL_SEQS_CSV, search_dir=search_dir)
     hit: dict | None = None
     with open(p, "r", encoding="utf-8") as f:
         for row in _csv.DictReader(f):
-            if _match(row):
+            if match_allele_row(row, query, query_candidates=query_candidates):
                 hit = row
                 break
 
@@ -464,6 +427,7 @@ __all__ = [
     "__version__",
     "BuildPaths",
     "default_data_dir",
+    "find_csv",
     "build",
     "load_raw_dict",
     "load_raw_dataframe",
@@ -512,16 +476,8 @@ __all__ = [
     "get_latin_name",
     "full_species_name_alias",
     "get_canonical_prefix",
-    "get_established_mhc_prefix",
-    "get_established_mhc_prefixes",
-    "get_mhc_prefix_registry",
-    "find_mhc_prefix_aliases",
-    "MhcPrefixAlias",
     "MHC_SPECIES_CATEGORIES",
     "LATIN_NAMES",
-    "CANONICAL_MHC_PREFIXES",
-    "ESTABLISHED_MHC_PREFIXES",
-    "ESTABLISHED_MHC_PREFIX_SOURCES",
     "download_all",
     "SOURCES",
     "RAW_FIELDS",

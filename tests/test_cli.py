@@ -1,4 +1,5 @@
 import csv
+import json
 import re
 import sys
 from types import SimpleNamespace
@@ -243,11 +244,229 @@ def test_lookup_no_csv(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
         mhcseqs,
-        "_find_csv",
+        "find_csv",
         lambda name, **kw: (_ for _ in ()).throw(FileNotFoundError(f"{name} not found. Run mhcseqs.build() or 'mhcseqs build' first.")),
     )
     with pytest.raises(FileNotFoundError, match="build"):
         mhcseqs.lookup("HLA-A*02:01")
+
+
+def _write_raw_seqs_csv(path, rows):
+    """Write a minimal raw-seqs CSV for testing."""
+    from mhcseqs.pipeline import RAW_FIELDS
+
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=RAW_FIELDS)
+        writer.writeheader()
+        for row in rows:
+            full = {k: "" for k in RAW_FIELDS}
+            full.update(row)
+            writer.writerow(full)
+
+
+def test_cli_lookup_text_prints_full_sequences(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("mhcseqs.__main__.default_data_dir", lambda: str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    mature = _A0201_SEQ[24:]
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
+        [
+            {
+                "two_field_allele": "HomoSapiens-A*02:01",
+                "representative_allele": "HomoSapiens-A*02:01:01:01",
+                "gene": "A",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Homo sapiens",
+                "sequence": _A0201_SEQ,
+                "mature_sequence": mature,
+            },
+        ],
+    )
+    main(["lookup", "HLA-A*02:01", "--output-dir", str(tmp_path)])
+    captured = capsys.readouterr()
+    assert f"  sequence: {_A0201_SEQ}" in captured.out
+    assert f"  mature_sequence: {mature}" in captured.out
+    assert "... (" not in captured.out
+    assert captured.err == ""
+
+
+def test_cli_lookup_formats_and_all_and_output(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("mhcseqs.__main__.default_data_dir", lambda: str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
+        [
+            {
+                "two_field_allele": "HomoSapiens-A*02:01",
+                "representative_allele": "HomoSapiens-A*02:01:01:01",
+                "gene": "A",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Homo sapiens",
+                "sequence": _A0201_SEQ,
+                "mature_sequence": _A0201_SEQ[24:],
+            },
+        ],
+    )
+    _write_raw_seqs_csv(
+        tmp_path / "mhc-seqs-raw.csv",
+        [
+            {
+                "allele_raw": "A*02:01:01:01",
+                "allele_normalized": "HomoSapiens-A*02:01:01:01",
+                "two_field_allele": "HomoSapiens-A*02:01",
+                "gene": "A",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Homo sapiens",
+                "sequence": _A0201_SEQ,
+            },
+            {
+                "allele_raw": "A*02:01:01:02",
+                "allele_normalized": "HomoSapiens-A*02:01:01:02",
+                "two_field_allele": "HomoSapiens-A*02:01",
+                "gene": "A",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Homo sapiens",
+                "sequence": _A0201_SEQ,
+            },
+        ],
+    )
+
+    # Default (without --all): 1 match per CSV -> 2 rows in JSON
+    main(["lookup", "HLA-A*02:01", "--output-dir", str(tmp_path), "--format", "json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert len(payload) == 2
+    assert [row["csv"] for row in payload] == ["mhc-full-seqs.csv", "mhc-seqs-raw.csv"]
+    assert payload[0]["sequence"] == _A0201_SEQ
+
+    # With --all: 1 full + 2 raw -> 3 rows in JSON
+    main(["lookup", "HLA-A*02:01", "--output-dir", str(tmp_path), "--format", "json", "--all"])
+    all_payload = json.loads(capsys.readouterr().out)
+    assert len(all_payload) == 3
+
+    # CSV and TSV
+    for fmt, delim in (("csv", ","), ("tsv", "\t")):
+        main(["lookup", "HLA-A*02:01", "--output-dir", str(tmp_path), "--format", fmt, "--all"])
+        out = capsys.readouterr().out
+        rows = list(csv.DictReader(out.splitlines(), delimiter=delim))
+        assert len(rows) == 3
+        assert rows[0]["sequence"] == _A0201_SEQ
+
+    # FASTA written to --output
+    out_fasta = tmp_path / "out" / "a0201.fasta"
+    main(["lookup", "HLA-A*02:01", "--output-dir", str(tmp_path), "--format", "fasta", "--output", str(out_fasta)])
+    assert capsys.readouterr().out == ""
+    fasta_lines = out_fasta.read_text(encoding="utf-8").strip().splitlines()
+    assert fasta_lines[0].startswith(">HomoSapiens-A*02:01:01:01 csv=mhc-full-seqs.csv")
+    assert fasta_lines[1] == _A0201_SEQ
+
+
+def test_cli_lookup_no_match_goes_to_stderr(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr("mhcseqs.__main__.default_data_dir", lambda: str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
+        [{"two_field_allele": "HomoSapiens-A*02:01", "sequence": _A0201_SEQ}],
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        main(["lookup", "HLA-B*07:02", "--output-dir", str(tmp_path)])
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "No match found for 'HLA-B*07:02'" in captured.err
+
+
+def test_cli_and_api_build_use_same_fasta_dir_when_output_dir_is_set(tmp_path, monkeypatch):
+    data_dir = tmp_path / "cache"
+    out_cli = tmp_path / "out-cli"
+    out_api = tmp_path / "out-api"
+    monkeypatch.setenv("MHCSEQS_DATA", str(data_dir))
+    seen_dirs = []
+
+    def fake_download(dest_dir, force=False):
+        seen_dirs.append(dest_dir)
+        return {"imgt_hla": dest_dir / "hla_prot.fasta", "ipd_mhc": dest_dir / "ipd_mhc_prot.fasta"}
+
+    monkeypatch.setattr("mhcseqs.__main__.download_all", fake_download)
+    monkeypatch.setattr("mhcseqs.__main__.build_raw_index", lambda inputs, raw_csv: {"parsed": 0})
+    monkeypatch.setattr("mhcseqs.__main__.build_full_seqs", lambda raw_csv, full_csv, report_path=None: {"total_groups": 0})
+    monkeypatch.setattr("mhcseqs.__main__.validate_build", lambda raw_csv, full_csv: ([], {}))
+    monkeypatch.setattr("mhcseqs.__main__.format_validation_report", lambda w, s: "ok")
+    out_cli.mkdir()
+    main(["build", "--output-dir", str(out_cli)])
+
+    monkeypatch.setattr("mhcseqs.download_all", fake_download)
+    monkeypatch.setattr("mhcseqs.build_raw_index", lambda inputs, raw_csv: {"parsed": 0})
+    monkeypatch.setattr("mhcseqs.build_full_seqs", lambda raw_csv, full_csv, report_path=None: {"total_groups": 0})
+    monkeypatch.setattr("mhcseqs.validate.validate_build", lambda raw_csv, full_csv: ([], {}))
+    monkeypatch.setattr("mhcseqs.validate.format_validation_report", lambda w, s: "ok")
+    out_api.mkdir()
+    mhcseqs.build(output_dir=str(out_api))
+
+    assert seen_dirs == [data_dir / "fasta", data_dir / "fasta"]
+
+
+def test_cli_and_api_lookup_share_csv_search_order(capsys, tmp_path, monkeypatch):
+    cwd_dir = tmp_path / "cwd"
+    data_dir = tmp_path / "cache"
+    cwd_dir.mkdir()
+    data_dir.mkdir()
+    monkeypatch.setenv("MHCSEQS_DATA", str(data_dir))
+    monkeypatch.chdir(cwd_dir)
+
+    _write_full_seqs_csv(
+        cwd_dir / "mhc-full-seqs.csv",
+        [
+            {
+                "two_field_allele": "HomoSapiens-A*02:01",
+                "representative_allele": "HomoSapiens-A*02:01:01:01",
+                "source_id": "FROM_CWD",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "sequence": _A0201_SEQ,
+            },
+        ],
+    )
+    _write_full_seqs_csv(
+        data_dir / "mhc-full-seqs.csv",
+        [
+            {
+                "two_field_allele": "HomoSapiens-A*02:01",
+                "representative_allele": "HomoSapiens-A*02:01:01:01",
+                "source_id": "FROM_CACHE",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "sequence": _A0201_SEQ,
+            },
+        ],
+    )
+
+    rec = mhcseqs.lookup("HLA-A*02:01")
+    main(["lookup", "HLA-A*02:01", "--format", "json"])
+    cli_rows = json.loads(capsys.readouterr().out)
+    assert rec.source_id == "FROM_CWD"
+    assert cli_rows[0]["source_id"] == "FROM_CWD"
+
+
+def test_validate_signal_peptides_uses_resolved_data_dir(capsys, tmp_path, monkeypatch):
+    from scripts import validate_signal_peptides
+
+    monkeypatch.setenv("MHCSEQS_DATA", str(tmp_path))
+    with pytest.raises(SystemExit) as exc_info:
+        validate_signal_peptides.main([])
+    assert exc_info.value.code == 1
+    err = capsys.readouterr().err
+    assert str(tmp_path / "mhc-seqs-raw.csv") in err
+    assert "mhcseqs build" in err
+
+    custom = tmp_path / "custom-raw.csv"
+    with pytest.raises(SystemExit) as exc_info:
+        validate_signal_peptides.main(["--raw-csv", str(custom)])
+    assert exc_info.value.code == 1
+    assert str(custom) in capsys.readouterr().err
 
 
 def test_main_accepts_explicit_argv(capsys):
