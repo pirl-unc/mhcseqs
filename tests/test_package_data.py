@@ -21,7 +21,12 @@ import pytest
 import mhcseqs
 from mhcseqs.domain_grammar import SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH
 from mhcseqs.domain_parsing import _load_sp_boundary_model, _load_sp_sequence_cue_model
-from mhcseqs.imgt import IMGT_CLASS_I_PROFILE_PATH, _load_class_i_profile
+from mhcseqs.imgt import (
+    IMGT_CLASS_I_PROFILE_PATH,
+    IMGT_CLASS_II_PROFILE_PATH,
+    _load_class_i_profile,
+    _load_class_ii_profile,
+)
 from mhcseqs.pipeline import (
     _CURATED_UNIPROT_ALLELES_CSV,
     _GENBANK_SAHA_CSV,
@@ -37,6 +42,7 @@ RUNTIME_DATA_PATHS = (
     SP_BOUNDARY_MODEL_PATH,
     SP_SEQUENCE_CUE_MODEL_PATH,
     IMGT_CLASS_I_PROFILE_PATH,
+    IMGT_CLASS_II_PROFILE_PATH,
     _GENBANK_SAHA_CSV,
     _CURATED_UNIPROT_ALLELES_CSV,
 )
@@ -86,6 +92,8 @@ def test_fail_soft_loaders_actually_loaded_something():
     assert _load_curated_uniprot_allele_map(), "Curated UniProt allele map did not load; named non-IPD alleles would be dropped"
     profile = _load_class_i_profile()
     assert profile.get("domains", {}).get("G-ALPHA1") and profile.get("domains", {}).get("G-ALPHA2"), "IMGT Class I profile did not load"
+    c2_profile = _load_class_ii_profile()
+    assert c2_profile.get("domains", {}).get("G-ALPHA") and c2_profile.get("domains", {}).get("G-BETA"), "IMGT Class II profile did not load"
 
 
 def test_shipped_data_files_are_parseable():
