@@ -997,3 +997,116 @@ def test_trace_parse_class_i_hla_a0201():
     summary = trace.summary()
     assert "groove" in summary.lower()
     assert "junction" in summary.lower()
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for Class I truncated SP, Ig-only / partial fragments, and
+# mutated-Cys junction salvage (issues #113, #114, #115)
+# ---------------------------------------------------------------------------
+
+
+def test_class_i_truncated_signal_peptide_without_met_is_cleaved():
+    """Partial Class I sequences starting mid-SP cleave the leader tail (#113)."""
+    # Real IPD-MHC Caja-G*11:04 (9 aa truncated SP 'ALALTETGA' + 90 aa α1 + 92 aa α2)
+    caja_g1104 = (
+        "ALALTETGAGSHSMRYFSTAMSRPGRGEPRYIEVGYVDDTQFVRFDSDAASPRMEPRAPWVEQEGPEYWDEETRKAK"
+        "THAQTFRVNLRTALGYYNQSDAGSHTIQLMYGCYLGPDGRLLRGYRQDAYDGKDYIALNEDLRSWTAADVAAQITQR"
+        "KWEATNEAEEWRAYLEGTCVEWLRRYLENGKETLQRA"
+    )
+    res_caja = decompose_class_i(caja_g1104, allele="Caja-G*11:04")
+    assert res_caja.status == "ok"
+    assert res_caja.mature_start == 9
+    assert res_caja.groove1_len == 90
+    assert res_caja.groove1.startswith("GSHSMRYF")
+    assert res_caja.groove2_len == 92
+
+    # Full-length mature HLA-A*02:01 with 8 aa truncated SP 'LVLTETRA' (as in BoLA-3*001:02)
+    trunc_full = "LVLTETRA" + HLA_A0201_MATURE
+    res_full = decompose_class_i(trunc_full, allele="BoLA-3*001:02-like")
+    assert res_full.status == "ok"
+    assert res_full.mature_start == 8
+    assert res_full.groove1_len == 90
+    assert res_full.groove1.startswith("GSHSMRYF")
+    assert res_full.groove2_len == 93
+
+
+def test_class_i_ig_only_fragment_is_not_alpha2_only():
+    """Pure α3 (Ig) + TM/tail fragments must not be mislabeled alpha2_only (#114)."""
+    # Real IPD-MHC BoLA-NC6*001:01 (α3 Cys19-Cys75 sep=56 + TM + cytoplasmic tail)
+    bola_nc6 = (
+        "PPKAHVTHHPISDYEVTLRCWALGFYPEEISLTWQHNGEDQTQDMELVETRPSGDGTFQKWAALVVPSGEEQRYMCR"
+        "VQHEGLQEPLTLRWEPPQPSFLTMGIIVGLVLLVSAVVAGAVIWMKTCSGEKGRPTRRLQAVTVPRALMCLSRFLKC"
+    )
+    res = decompose_class_i(bola_nc6, allele="BoLA-NC6*001:01")
+    assert not res.ok
+    assert res.status == "missing_groove"
+    assert res.groove1 == ""
+    assert res.groove2 == ""
+    assert res.ig_domain.startswith("PPKAHVTHHP")
+    assert res.ig_domain_len == 95
+    assert res.tail_len == 59
+    assert "ig_only_fragment" in res.flags
+
+
+def test_class_i_partial_alpha1_plus_alpha2_fragment_splits_at_junction():
+    """Partial-α1 + full-α2 fragments split α1, α2, and trailing α3 cleanly (#114)."""
+    # Real IPD-MHC Patr-B*15:01 (55 aa partial α1 + 92 aa α2)
+    patr_b1501 = (
+        "FDSDAASPREEPRAPWIEQEGPEYWDRETQISKTNAQTYRESLRTLRGYYNQSEAGSHIIQRMYGCDMGPDGRLLRG"
+        "YEQYAYDGKDYIALNQDLSSWTAADTAAQITQRKWEAARWAEQLRAYLEGTCVEWLRRYLENGKETLQRA"
+    )
+    res_patr = decompose_class_i(patr_b1501, allele="Patr-B*15:01")
+    assert res_patr.status == "ok"
+    assert res_patr.groove1_len == 55
+    assert res_patr.groove2_len == 92
+    assert res_patr.groove1.startswith("FDSDAASP")
+    assert res_patr.groove2.startswith("GSHIIQRM")
+    assert "truncated_alpha1" in res_patr.flags
+
+    # Real IPD-MHC Aotr-E*03:01 (24 aa partial α1 + 93 aa α2 + 27 aa partial α3)
+    aotr_e0301 = (
+        "ARDTAQSFRVNLRTLLRYYNQSEAGSHTLQWMHGCDVGPDGRLFRGYEQFAYDGTDYLALNEDLRSWTAADTAAQIS"
+        "QRKAEEACEAEHQRAYLEGKCVEWLRRYLENGKETLQRADPPKTYVSHHPLSDHEATLRCWALGFYP"
+    )
+    res_aotr = decompose_class_i(aotr_e0301, allele="Aotr-E*03:01")
+    assert res_aotr.groove1_len == 24
+    assert res_aotr.groove2_len == 93
+    assert res_aotr.ig_domain_len == 27
+    assert res_aotr.groove1.startswith("ARDTAQSF")
+    assert res_aotr.groove2.startswith("GSHTLQWM")
+    assert res_aotr.ig_domain.startswith("PPKTYVSHHP")
+
+
+def test_class_i_junction_salvage_recovers_mutated_alpha2_cys():
+    """Class I α1+α2 sequences missing Cys101 or Cys164 split at the junction (#115)."""
+    # Real IPD-IMGT/HLA HLA-A*30:14L (181 aa: 89 aa α1 + 92 aa α2 with C164S)
+    hla_a3014l = (
+        "SHSMRYFSTSVSRPGSGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAPWIEQERPEYWDQETRNVKAQSQTDRVDL"
+        "GTLRGYYNQSEAGSHTIQIMYGCDVGSDGRFLRGYEQHAYDGKDYIALNEDLRSWTAADMAAQITQRKWEAARWAEQ"
+        "LRAYLEGTSVEWLRRYLENGKETLQRT"
+    )
+    res_hla = decompose_class_i(hla_a3014l, allele="HLA-A*30:14L")
+    assert res_hla.status == "ok"
+    assert res_hla.groove1_len == 89
+    assert res_hla.groove2_len == 92
+    assert res_hla.groove1.startswith("SHSMRYFS")
+    assert res_hla.groove2.startswith("GSHTIQIM")
+    assert "inferred_from_junction" in res_hla.flags
+
+    # Real IPD-MHC Chae-G*02:01 (123 aa: 80 aa partial α1 + 43 aa partial α2 before Cys164)
+    chae_g0201 = "AVSRPGRGEPRFIPVGYVDDTQFVRLDSDTASPRMEPRARSVEQEWPEYWEEETRNTKAHAQTDRVNLRTLRSYYNQSQVGSHTLQWMIGCDLGPDGRLLRRCEQFAYDGKDYLALNEDLCSX"
+    res_chae = decompose_class_i(chae_g0201, allele="Chae-G*02:01")
+    assert res_chae.status == "ok"
+    assert res_chae.groove1_len == 80
+    assert res_chae.groove2_len == 43
+    assert res_chae.groove2.startswith("GSHTLQWM")
+    assert "inferred_from_junction" in res_chae.flags
+
+    # Full-length α1+α2+α3 with C101S (as in Mafa-B*202:01)
+    c101s_seq = HLA_A0201_MATURE[:100] + "S" + HLA_A0201_MATURE[101:210]
+    res_c101s = decompose_class_i(c101s_seq, allele="HLA-A*02:01-C101S")
+    assert res_c101s.status == "ok"
+    assert res_c101s.groove1_len == 90
+    assert res_c101s.groove2_len == 93
+    assert res_c101s.groove2.startswith("GSHTVQRM")
+    assert "inferred_from_junction" in res_c101s.flags

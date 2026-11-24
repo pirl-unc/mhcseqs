@@ -670,6 +670,37 @@ class SequenceFeatures:
     between_cys_scores: dict[tuple[int, int], float]
 
 
+def _is_truncated_class_i_sp(
+    seq: str,
+    mature_start: int,
+    groove_boundary: int,
+    *,
+    cleavage_score: float,
+    mature_nterm_score: float,
+) -> bool:
+    """Return whether ``seq[:mature_start]`` is a truncated Class I SP tail.
+
+    Partial Class I deposits sometimes start mid-signal-peptide (without the
+    initiator Met, leaving 5–16 aa of hydrophobic/C-region leader upstream of
+    the canonical mature N-terminus). Recognizing these prevents the full-length
+    SP length/Met penalties from leaving leader residues glued onto ``groove1``.
+    """
+    if seq[:1] == "M":
+        return False
+    if not (5 <= mature_start <= 16):
+        return False
+    if groove_boundary < 95:
+        return False
+    alpha1_len = groove_boundary - mature_start
+    if not (86 <= alpha1_len <= 94):
+        return False
+    if cleavage_score < 5.0 or mature_nterm_score < 4.0:
+        return False
+    hydro_prefix = seq[: max(3, mature_start - 4)]
+    hydro_frac = sum(1 for aa in hydro_prefix if aa in _SP_HYDROPHOBIC) / len(hydro_prefix)
+    return hydro_frac >= 0.60
+
+
 @dataclass(frozen=True)
 class ParseScaffold:
     """Reusable parse-scoring scaffold for a fixed anchor configuration.
@@ -701,15 +732,25 @@ class ParseScaffold:
         """Score a candidate mature start against this fixed scaffold."""
         sp = 0.0
         if mature_start > 0:
+            cleavage_score = _score_sp_cleavage(
+                self.seq,
+                mature_start,
+                h_region=self.h_region,
+                features=self.features,
+            )
+            sp_len_score = _score_sp_length(mature_start)
+            mature_nterm_score = _score_mature_nterm(self.seq, mature_start, self.grammar.mhc_class)
+            truncated_class_i_sp = self.grammar.mhc_class == "I" and _is_truncated_class_i_sp(
+                self.seq,
+                mature_start,
+                self.groove_boundary,
+                cleavage_score=cleavage_score,
+                mature_nterm_score=mature_nterm_score,
+            )
             sp = (
-                _score_sp_cleavage(
-                    self.seq,
-                    mature_start,
-                    h_region=self.h_region,
-                    features=self.features,
-                )
-                + _score_sp_length(mature_start)
-                + _score_mature_nterm(self.seq, mature_start, self.grammar.mhc_class)
+                cleavage_score
+                + (max(0.0, sp_len_score) if truncated_class_i_sp else sp_len_score)
+                + mature_nterm_score
                 + _score_nterm_lexical_state(self.seq, mature_start)
             )
 
@@ -737,7 +778,9 @@ class ParseScaffold:
 
             cleavage_after_h = h_end > h_start and mature_start > h_end
 
-            if not starts_met and h_frac < 0.55:
+            if truncated_class_i_sp:
+                pass
+            elif not starts_met and h_frac < 0.55:
                 sp -= 5.0  # no Met + no real h-region = almost certainly no SP
             elif not starts_met and h_frac < 0.65:
                 sp -= 3.0  # no Met + weak h-region = very suspicious
@@ -748,7 +791,7 @@ class ParseScaffold:
             elif h_frac < 0.65:
                 sp -= 0.5  # Met but borderline h-region
 
-            if not cleavage_after_h and h_end > h_start:
+            if not cleavage_after_h and h_end > h_start and not truncated_class_i_sp:
                 sp -= 1.5  # cleavage before h-region = structurally wrong
 
         groove = self.fixed_groove
@@ -4297,24 +4340,186 @@ def _class_ii_chain_from_name(
     return None
 
 
+def _build_class_i_junction_salvage_result(
+    *,
+    seq: str,
+    allele: str,
+    gene: str,
+    features: Optional[SequenceFeatures] = None,
+) -> Optional[AlleleRecord]:
+    """Recover a Class I α1/α2 split from a conserved junction when an α2 Cys is lost.
+
+    Handles alleles such as ``HLA-A*30:14L`` (C164S), ``Mafa-B*202:01`` (C101S),
+    ``BoLA-NC9*001:01``, and ``Chae-G*02:01`` that retain the canonical
+    ``[YF]NQS..|GSHT..`` α1/α2 boundary plus at least one surviving α2 Cys
+    landmark (Cys101 near ``junction+10`` or Cys164 near ``junction+73``).
+    """
+    cleaned = features.seq if features else _clean_seq(seq)
+    n = len(cleaned)
+    if n < 60:
+        return None
+
+    best_jpos = -1
+    best_jscore = -999.0
+    for pos in range(25, n - 18):
+        upstream = cleaned[pos - 6 : pos]
+        if upstream[0] not in "YF" or upstream[1:4] != "NQS":
+            continue
+        jscore = _score_junction(cleaned, pos)
+        if jscore < 8.0:
+            continue
+        has_cys101 = any(cleaned[p] == "C" and p > 0 and cleaned[p - 1] in "GSA" for p in range(pos + 8, min(n, pos + 14)))
+        has_cys164 = any(cleaned[p] == "C" and any(cleaned[p + d] in "WL" for d in (3, 4) if p + d < n) for p in range(pos + 69, min(n, pos + 78)))
+        if not (has_cys101 or has_cys164):
+            continue
+        if jscore > best_jscore:
+            best_jscore = jscore
+            best_jpos = pos
+
+    if best_jpos < 0:
+        return None
+
+    mature_start = 0
+    if best_jpos > 94:
+        h_region = features.h_region if features is not None else detect_h_region(cleaned)
+        sp_pos, _sp_conf = infer_signal_peptide(cleaned, h_region=h_region)
+        if sp_pos > 0 and 82 <= (best_jpos - sp_pos) <= 96:
+            mature_start = sp_pos
+        else:
+            # Check for a truncated Class I SP tail upstream of canonical 90-aa α1.
+            best_trunc_pos = 0
+            best_trunc_score = -999.0
+            for cand in range(max(5, best_jpos - 94), min(17, best_jpos - 85)):
+                cl = _score_sp_cleavage(cleaned, cand, h_region=h_region, features=features)
+                mn = _score_mature_nterm(cleaned, cand, "I")
+                if _is_truncated_class_i_sp(cleaned, cand, best_jpos, cleavage_score=cl, mature_nterm_score=mn):
+                    total_s = cl + mn
+                    if total_s > best_trunc_score:
+                        best_trunc_score = total_s
+                        best_trunc_pos = cand
+            mature_start = best_trunc_pos
+
+    if n <= best_jpos + 96:
+        alpha2_end = n
+    else:
+        alpha2_end = min(n, best_jpos + 93)
+        best_bscore = -999.0
+        for bpos in range(best_jpos + 88, min(n, best_jpos + 98)):
+            bscore = _score_groove_ig_boundary(cleaned, bpos, "I", "alpha")
+            if bscore > best_bscore:
+                best_bscore = bscore
+                alpha2_end = bpos
+
+    half_1 = _slice_or_empty(cleaned, mature_start, best_jpos)
+    half_2 = _slice_or_empty(cleaned, best_jpos, alpha2_end)
+    ig_end = min(n, alpha2_end + 95) if alpha2_end < n else n
+    ig = _slice_or_empty(cleaned, alpha2_end, ig_end)
+    tail = cleaned[ig_end:]
+
+    flags = ["inferred_from_junction"]
+    if not ig:
+        flags.append("missing_support_anchor")
+    if len(half_1) < 80:
+        flags.append(f"alpha1_short({len(half_1)})")
+    if len(half_2) < 80:
+        flags.append(f"alpha2_short({len(half_2)})")
+
+    return _attach_parse_candidate(
+        AlleleRecord(
+            allele=allele,
+            gene=gene,
+            mhc_class="I",
+            chain="alpha",
+            sequence=cleaned,
+            seq_len=n,
+            mature_start=mature_start,
+            groove_seq=half_1 + half_2,
+            groove1=half_1,
+            groove2=half_2,
+            groove1_len=len(half_1),
+            groove2_len=len(half_2),
+            ig_domain=ig,
+            ig_domain_len=len(ig),
+            tail=tail,
+            tail_len=len(tail),
+            parse_score=best_jscore + 10.0,
+            status="ok",
+            anchor_type="junction",
+            flags=_flags_to_tuple(flags),
+        ),
+        seq=cleaned,
+        h_region=(features.h_region if features is not None else None),
+        sp_estimate=(features.sp_estimate if features is not None else None),
+        features=features,
+    )
+
+
 def _class_i_fragment_result(
     *,
     seq: str,
     allele: str,
     gene: str,
+    annotated: Optional[Sequence[CysPairAnnotation]] = None,
+    features: Optional[SequenceFeatures] = None,
 ) -> AlleleRecord:
-    """Return an alpha1_only or alpha2_only record for class I single-exon fragments.
+    """Return an alpha1_only, alpha2_only, partial α1+α2, or missing_groove record.
 
-    Distinguishes which groove half the fragment represents by checking for
-    the α2 Ig-fold Cys pair (separation ~55–72):
-      - Present → exon 3 / α2 domain → groove2
-      - Absent  → exon 2 / α1 domain → groove1
+    Classifies candidate Cys pairs with ``classify_cys_pair`` rather than
+    relying on raw separation alone:
+      - Strong Ig-only Cys pair (α3 + TM/tail fragment) → ``missing_groove``
+        with ``ig_only_fragment`` (never mislabeled ``alpha2_only``).
+      - Strong α2 groove Cys pair with an upstream α1/α2 junction → split into
+        partial ``groove1``, ``groove2``, and any trailing ``ig_domain``.
+      - Strong α2 groove Cys pair starting at α2 → ``alpha2_only``.
+      - No α2 groove Cys pair → try junction salvage before ``alpha1_only``.
     """
     cleaned = _clean_seq(seq)
-    pairs = find_cys_pairs(cleaned)
-    has_alpha2_pair = any(55 <= sep <= 72 for _, _, sep in pairs)
+    if annotated is None:
+        pairs = find_cys_pairs(cleaned)
+        annotated = [classify_cys_pair(cleaned, c1, c2) for c1, c2, _sep in pairs]
 
-    if has_alpha2_pair:
+    groove_pairs = [ann for ann in annotated if 55 <= ann.separation <= 72 and ann.domain_type == "groove" and ann.groove_score >= 4.0]
+    ig_pairs = [ann for ann in annotated if ann.domain_type == "ig" and ann.ig_score >= 4.0 and ann.ig_score > ann.groove_score + 2.0]
+
+    if groove_pairs:
+        best_groove = max(groove_pairs, key=lambda a: a.groove_score)
+        jpos, jscore = _find_junction(cleaned, best_groove.c1)
+        if jpos >= 5 and jscore >= 6.0:
+            alpha2_end = min(len(cleaned), best_groove.c2 + 20)
+            half_1 = _slice_or_empty(cleaned, 0, jpos)
+            half_2 = _slice_or_empty(cleaned, jpos, alpha2_end)
+            ig = cleaned[alpha2_end:]
+            flags = ["truncated_alpha1"]
+            if not ig:
+                flags.append("missing_support_anchor")
+            return _attach_parse_candidate(
+                AlleleRecord(
+                    allele=allele,
+                    gene=gene,
+                    mhc_class="I",
+                    chain="alpha",
+                    sequence=cleaned,
+                    seq_len=len(cleaned),
+                    mature_start=0,
+                    groove_seq=half_1 + half_2,
+                    groove1=half_1,
+                    groove2=half_2,
+                    groove1_len=len(half_1),
+                    groove2_len=len(half_2),
+                    ig_domain=ig,
+                    ig_domain_len=len(ig),
+                    parse_score=best_groove.groove_score + jscore,
+                    status="ok",
+                    anchor_type="alpha2_cys",
+                    anchor_cys1=best_groove.c1,
+                    anchor_cys2=best_groove.c2,
+                    flags=_flags_to_tuple(flags),
+                ),
+                seq=cleaned,
+                h_region=(features.h_region if features is not None else None),
+                sp_estimate=(features.sp_estimate if features is not None else None),
+                features=features,
+            )
         return _attach_parse_candidate(
             AlleleRecord(
                 allele=allele,
@@ -4331,9 +4536,42 @@ def _class_i_fragment_result(
                 groove2_len=len(cleaned),
                 status="alpha2_only",
                 anchor_type="raw_fragment",
+                anchor_cys1=best_groove.c1,
+                anchor_cys2=best_groove.c2,
                 flags=("single_exon_fragment",),
             )
         )
+
+    if ig_pairs:
+        best_ig = max(ig_pairs, key=lambda a: a.ig_score)
+        ig_end = min(len(cleaned), best_ig.c2 + IG_DOMAIN_END_AFTER_CYS2)
+        ig = cleaned[:ig_end]
+        tail = cleaned[ig_end:]
+        return _attach_parse_candidate(
+            AlleleRecord(
+                allele=allele,
+                gene=gene,
+                mhc_class="I",
+                chain="alpha",
+                sequence=cleaned,
+                seq_len=len(cleaned),
+                mature_start=0,
+                ig_domain=ig,
+                ig_domain_len=len(ig),
+                tail=tail,
+                tail_len=len(tail),
+                status="missing_groove",
+                anchor_type="alpha3_cys",
+                anchor_cys1=best_ig.c1,
+                anchor_cys2=best_ig.c2,
+                flags=("ig_only_fragment",),
+            )
+        )
+
+    junction_salvage = _build_class_i_junction_salvage_result(seq=cleaned, allele=allele, gene=gene, features=features)
+    if junction_salvage is not None:
+        return junction_salvage
+
     return _attach_parse_candidate(
         AlleleRecord(
             allele=allele,
@@ -4491,9 +4729,19 @@ def _prepare_parse_inputs(
 
     pairs = list(features.cys_pairs) if features else find_cys_pairs(cleaned)
     if not pairs:
+        if grammar.mhc_class == "I":
+            junction_salvage = _build_class_i_junction_salvage_result(seq=cleaned, allele=allele, gene=gene, features=features)
+            if junction_salvage is not None:
+                return junction_salvage, cleaned, [], [], 0
         if len(cleaned) <= grammar.fragment_max_len:
             if grammar.mhc_class == "I":
-                return _class_i_fragment_result(seq=cleaned, allele=allele, gene=gene), cleaned, [], [], 0
+                return (
+                    _class_i_fragment_result(seq=cleaned, allele=allele, gene=gene, annotated=(), features=features),
+                    cleaned,
+                    [],
+                    [],
+                    0,
+                )
             return (
                 _class_ii_fragment_result(seq=cleaned, allele=allele, gene=gene, chain=grammar.chain),
                 cleaned,
@@ -5439,7 +5687,13 @@ def decompose_class_i(
     if len(cleaned) <= grammar.fragment_max_len:
         _append_record_candidate(
             candidates,
-            _class_i_fragment_result(seq=cleaned, allele=allele, gene=gene),
+            _class_i_fragment_result(seq=cleaned, allele=allele, gene=gene, annotated=annotated, features=features),
+        )
+
+    if best_record is None or best_record.status != "ok":
+        _append_record_candidate(
+            candidates,
+            _build_class_i_junction_salvage_result(seq=cleaned, allele=allele, gene=gene, features=features),
         )
 
     alpha3_ann = (
