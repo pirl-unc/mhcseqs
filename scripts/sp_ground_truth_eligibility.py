@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mhcseqs.alleles import is_non_mhc_gene, parse_allele_name, parse_gene_class
-from scripts.curate_diverse_mhc import _infer_class_ii_chain, classify_mhc
+from scripts.curate_diverse_mhc import classify_mhc, infer_class_ii_chain
 
 ROOT = Path(__file__).resolve().parent.parent
 GT_LABEL_CURATION_CSV = ROOT / "data" / "sp_ground_truth_label_curation.csv"
@@ -127,7 +127,7 @@ def _classify_from_parsed_names(protein_name: str, gene_names: str) -> tuple[str
         if parsed_class in {"I", "Ia", "Ib"}:
             labels.add(("I", "alpha"))
         if parsed_class.startswith("II"):
-            chain = _infer_class_ii_chain(token, "")
+            chain = infer_class_ii_chain(token, "")
             if chain in {"alpha", "beta"}:
                 labels.add(("II", chain))
     if len(labels) == 1:

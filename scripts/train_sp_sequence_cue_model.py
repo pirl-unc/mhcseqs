@@ -34,7 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.evaluate_sp_ground_truth import GT_CSV, NEGATIVE_CONTROL_CSV, _row_benchmark_stratum
+from scripts.evaluate_sp_ground_truth import GT_CSV, NEGATIVE_CONTROL_CSV, row_benchmark_stratum
 
 OUT_JSON = ROOT / "mhcseqs" / "sp_sequence_cue_model.json"
 ALPHA = 1.0
@@ -153,8 +153,8 @@ def _best_window_scores(
 
 def train() -> dict[str, object]:
     source_rows = _read_csv(GT_CSV)
-    strata = Counter(_row_benchmark_stratum(row) for row in source_rows)
-    pos_rows = [row for row in source_rows if _row_benchmark_stratum(row) == "curated/gold"]
+    strata = Counter(row_benchmark_stratum(row) for row in source_rows)
+    pos_rows = [row for row in source_rows if row_benchmark_stratum(row) == "curated/gold"]
     neg_rows = _read_csv(NEGATIVE_CONTROL_CSV)
 
     pos_nterm_prefix3: Counter[str] = Counter()

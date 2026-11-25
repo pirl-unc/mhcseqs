@@ -20,18 +20,18 @@ import pytest
 
 import mhcseqs
 from mhcseqs.domain_grammar import SP_BOUNDARY_MODEL_PATH, SP_SEQUENCE_CUE_MODEL_PATH
-from mhcseqs.domain_parsing import _load_sp_boundary_model, _load_sp_sequence_cue_model
+from mhcseqs.domain_parsing import load_sp_boundary_model, load_sp_sequence_cue_model
 from mhcseqs.imgt import (
     IMGT_CLASS_I_PROFILE_PATH,
     IMGT_CLASS_II_PROFILE_PATH,
-    _load_class_i_profile,
-    _load_class_ii_profile,
+    load_class_i_profile,
+    load_class_ii_profile,
 )
 from mhcseqs.pipeline import (
-    _CURATED_UNIPROT_ALLELES_CSV,
-    _GENBANK_SAHA_CSV,
-    _load_curated_uniprot_allele_map,
-    _load_genbank_saha_references,
+    CURATED_UNIPROT_ALLELES_CSV,
+    GENBANK_SAHA_CSV,
+    load_curated_uniprot_allele_map,
+    load_genbank_saha_references,
 )
 
 PACKAGE_DIR = Path(mhcseqs.__file__).resolve().parent
@@ -43,8 +43,8 @@ RUNTIME_DATA_PATHS = (
     SP_SEQUENCE_CUE_MODEL_PATH,
     IMGT_CLASS_I_PROFILE_PATH,
     IMGT_CLASS_II_PROFILE_PATH,
-    _GENBANK_SAHA_CSV,
-    _CURATED_UNIPROT_ALLELES_CSV,
+    GENBANK_SAHA_CSV,
+    CURATED_UNIPROT_ALLELES_CSV,
 )
 
 
@@ -86,13 +86,13 @@ def test_runtime_data_files_are_declared():
 
 def test_fail_soft_loaders_actually_loaded_something():
     """Each loader swallows a missing file, so assert on loaded content, not existence."""
-    assert _load_sp_boundary_model().get("groups"), "SP boundary model did not load; scoring would degrade to 0.0"
-    assert _load_sp_sequence_cue_model(), "SP sequence-cue model did not load; cue scores would degrade to 0.0"
-    assert _load_genbank_saha_references(), "GenBank SahaI references did not load; devil alleles would be dropped"
-    assert _load_curated_uniprot_allele_map(), "Curated UniProt allele map did not load; named non-IPD alleles would be dropped"
-    profile = _load_class_i_profile()
+    assert load_sp_boundary_model().get("groups"), "SP boundary model did not load; scoring would degrade to 0.0"
+    assert load_sp_sequence_cue_model(), "SP sequence-cue model did not load; cue scores would degrade to 0.0"
+    assert load_genbank_saha_references(), "GenBank SahaI references did not load; devil alleles would be dropped"
+    assert load_curated_uniprot_allele_map(), "Curated UniProt allele map did not load; named non-IPD alleles would be dropped"
+    profile = load_class_i_profile()
     assert profile.get("domains", {}).get("G-ALPHA1") and profile.get("domains", {}).get("G-ALPHA2"), "IMGT Class I profile did not load"
-    c2_profile = _load_class_ii_profile()
+    c2_profile = load_class_ii_profile()
     assert c2_profile.get("domains", {}).get("G-ALPHA") and c2_profile.get("domains", {}).get("G-BETA"), "IMGT Class II profile did not load"
 
 

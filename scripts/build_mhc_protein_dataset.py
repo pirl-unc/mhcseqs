@@ -40,7 +40,7 @@ from mhcseqs.mhc_protein_dataset import (
     validate_asset_file,
 )
 from mhcseqs.version import __version__
-from scripts.enrich_sp_ground_truth import _classify_from_names
+from scripts.enrich_sp_ground_truth import classify_from_names
 from scripts.sp_corpus_artifacts import (
     load_corpus_artifact,
     load_deleted_artifact,
@@ -346,7 +346,7 @@ def prepare_record(
     protein_name = artifact.get("Protein names", "").strip()
     gene_names = artifact.get("Gene Names", "").strip()
     label = resolve_mhc_protein_label({**artifact, "Organism": organism}, curation)
-    classified = _classify_from_names(organism=organism, protein_name=protein_name, gene_names=gene_names)
+    classified = classify_from_names(organism=organism, protein_name=protein_name, gene_names=gene_names)
     inferred_gene = classified["gene"]
     archived = bool(artifact.get("Archive source URL", "").strip())
     source_url = artifact.get("Archive source URL", "").strip() if archived else f"https://rest.uniprot.org/uniprotkb/{accession}"

@@ -107,12 +107,7 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def _load_label_curation(path: Path = GT_LABEL_CURATION_CSV) -> dict[str, dict[str, str]]:
-    """Load accession-level benchmark label decisions and provenance."""
-    return load_label_curation(path)
-
-
-def _apply_label_curation(
+def apply_label_curation(
     row: dict[str, str],
     curation: dict[str, dict[str, str]],
 ) -> dict[str, str]:
@@ -158,7 +153,7 @@ def _load_artifact_metadata(data_dir: Path | None = None) -> dict[str, dict[str,
     return result
 
 
-def _gene_from_protein_name(protein_name: str, organism: str, mhc_class: str, chain: str) -> tuple[str, str]:
+def gene_from_protein_name(protein_name: str, organism: str, mhc_class: str, chain: str) -> tuple[str, str]:
     """Recover a gene-like token from UniProt protein names when gene_names are missing.
 
     This is intentionally conservative: it only translates explicit tokens in
@@ -204,7 +199,7 @@ def _gene_from_protein_name(protein_name: str, organism: str, mhc_class: str, ch
     return bare, "protein_name_token"
 
 
-def _classify_from_names(
+def classify_from_names(
     *,
     organism: str,
     protein_name: str,
@@ -216,7 +211,7 @@ def _classify_from_names(
     gene, raw_gene_label, gene_status = resolve_gene_annotation(gene_names, protein_name, prefix)
 
     if not gene and mhc_class in {"I", "II"}:
-        gene, fallback_status = _gene_from_protein_name(protein_name, organism, mhc_class, chain)
+        gene, fallback_status = gene_from_protein_name(protein_name, organism, mhc_class, chain)
         if gene:
             raw_gene_label = raw_gene_label or gene
             gene_status = fallback_status
@@ -261,7 +256,7 @@ def _merge_row(
     label = resolve_mhc_label(artifact, label_curation)
     if not label.eligible:
         raise ValueError(f"Ineligible accession {accession} reached enriched ground truth")
-    classified = _classify_from_names(
+    classified = classify_from_names(
         organism=organism,
         protein_name=protein_name,
         gene_names=gene_names,
@@ -289,7 +284,7 @@ def _merge_row(
         "raw_gene_label": classified["raw_gene_label"],
     }
 
-    return _apply_label_curation(merged, label_curation)
+    return apply_label_curation(merged, label_curation)
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) -> None:
@@ -300,7 +295,7 @@ def _write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) ->
         writer.writerows(rows)
 
 
-def _build_controls(rows: list[dict[str, str]], *, include_fragment_controls: bool = False) -> list[dict[str, str]]:
+def build_controls(rows: list[dict[str, str]], *, include_fragment_controls: bool = False) -> list[dict[str, str]]:
     controls: list[dict[str, str]] = []
     for row in rows:
         mhc_class = row.get("mhc_class", "")
@@ -406,7 +401,7 @@ def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
 
     gt_rows = _read_csv(args.raw)
-    label_curation = _load_label_curation(args.label_curation)
+    label_curation = load_label_curation(args.label_curation)
     artifacts = _load_artifact_metadata(args.data_dir)
     taxonomy = taxonomy_by_id(args.data_dir)
 
@@ -419,7 +414,7 @@ def main(argv: list[str] | None = None) -> None:
         )
         for row in gt_rows
     ]
-    controls = _build_controls(enriched, include_fragment_controls=args.include_fragment_controls)
+    controls = build_controls(enriched, include_fragment_controls=args.include_fragment_controls)
 
     _write_csv(args.output, enriched, ENRICHED_FIELDS)
     _write_csv(args.controls, controls, CONTROL_FIELDS)

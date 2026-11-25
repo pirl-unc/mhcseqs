@@ -63,7 +63,7 @@ HYDROPHOBIC = set("AILMFVW")
 # ---------------------------------------------------------------------------
 
 
-def _check_valid_aa(seq: str, label: str) -> List[str]:
+def check_valid_aa(seq: str, label: str) -> List[str]:
     """Check for invalid amino acid characters."""
     invalid = set(seq.upper()) - VALID_AA
     if invalid:
@@ -71,7 +71,7 @@ def _check_valid_aa(seq: str, label: str) -> List[str]:
     return []
 
 
-def _check_signal_peptide(row: dict) -> List[str]:
+def check_signal_peptide(row: dict) -> List[str]:
     """Validate signal peptide properties for a raw CSV row."""
     warnings = []
     sp_len = int(row.get("signal_peptide_len", "0") or "0")
@@ -110,7 +110,7 @@ def _check_signal_peptide(row: dict) -> List[str]:
     return warnings
 
 
-def _check_b2m(row: dict) -> List[str]:
+def check_b2m(row: dict) -> List[str]:
     """Validate B2M sequence properties."""
     warnings = []
     seq = row.get("sequence", "")
@@ -137,7 +137,7 @@ def _check_b2m(row: dict) -> List[str]:
     return warnings
 
 
-def _check_groove_row(row: dict) -> List[str]:
+def check_groove_row(row: dict) -> List[str]:
     """Validate groove extraction results."""
     warnings = []
     allele = row.get("two_field_allele", "?")
@@ -172,12 +172,12 @@ def _check_groove_row(row: dict) -> List[str]:
     # Check for invalid characters in groove sequences
     for label, groove_seq in [("h1", h1), ("h2", h2)]:
         if groove_seq:
-            warnings.extend(_check_valid_aa(groove_seq, f"GROOVE({allele}).{label}"))
+            warnings.extend(check_valid_aa(groove_seq, f"GROOVE({allele}).{label}"))
 
     return warnings
 
 
-def _check_mature_sequence(row: dict) -> List[str]:
+def check_mature_sequence(row: dict) -> List[str]:
     """Validate mature protein properties for a full-seqs row."""
     warnings = []
     allele = row.get("two_field_allele", "?")
@@ -189,7 +189,7 @@ def _check_mature_sequence(row: dict) -> List[str]:
         return []
 
     # Check sequence content
-    warnings.extend(_check_valid_aa(mature, f"MATURE({allele})"))
+    warnings.extend(check_valid_aa(mature, f"MATURE({allele})"))
 
     # Check excessive X content
     x_count = mature.upper().count("X")
@@ -344,10 +344,10 @@ def validate_build(
     for row in raw_rows:
         # Sequence content
         seq = row.get("sequence", "")
-        warnings.extend(_check_valid_aa(seq, f"RAW({row.get('allele_normalized', '?')})"))
+        warnings.extend(check_valid_aa(seq, f"RAW({row.get('allele_normalized', '?')})"))
 
         # Signal peptide checks
-        sp_warnings = _check_signal_peptide(row)
+        sp_warnings = check_signal_peptide(row)
         warnings.extend(sp_warnings)
         if row.get("has_signal_peptide") == "True":
             stats["raw_with_sp"] += 1
@@ -358,7 +358,7 @@ def validate_build(
         # B2M checks
         if row.get("gene", "").upper() == "B2M":
             b2m_rows.append(row)
-            warnings.extend(_check_b2m(row))
+            warnings.extend(check_b2m(row))
 
     stats["raw_b2m"] = len(b2m_rows)
 
@@ -413,7 +413,7 @@ def validate_build(
                 unparseable_alleles += 1
                 warnings.append(f"ALLELE_ROUNDTRIP({allele}): two_field_allele failed parse_allele_name() round-trip (source={source})")
 
-        mature_warnings = _check_mature_sequence(row)
+        mature_warnings = check_mature_sequence(row)
         warnings.extend(mature_warnings)
 
         mature = row.get("mature_sequence", "")
@@ -428,7 +428,7 @@ def validate_build(
                 mature_by_class["II_beta"].append(mature)
 
         # Groove checks (groove columns are now in full-seqs)
-        groove_warnings = _check_groove_row(row)
+        groove_warnings = check_groove_row(row)
         warnings.extend(groove_warnings)
         if row.get("groove_status") == "ok":
             groove_ok += 1

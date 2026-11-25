@@ -32,7 +32,7 @@ NEGATIVE_CONTROL_CSV = ROOT / "data" / "sp_negative_controls.csv"
 GT_CSV = GT_ENRICHED_CSV if GT_ENRICHED_CSV.exists() else GT_RAW_CSV
 
 
-def _parse_cli_args(argv: list[str]) -> dict[str, bool]:
+def parse_cli_args(argv: list[str]) -> dict[str, bool]:
     """Return simple evaluator options from argv."""
     return {
         "use_early_shortcuts": "--no-early-shortcuts" not in argv,
@@ -46,7 +46,7 @@ def load_ground_truth_rows(prefer_enriched: bool = True) -> tuple[Path, list[dic
         return path, list(csv.DictReader(handle))
 
 
-def _row_species_category(row: dict[str, str]) -> str:
+def row_species_category(row: dict[str, str]) -> str:
     return row.get("species_category", "") or _species_category(
         row["organism"],
         row.get("taxon_id", ""),
@@ -54,17 +54,17 @@ def _row_species_category(row: dict[str, str]) -> str:
     )
 
 
-def _row_dispatch_metadata(row: dict[str, str]) -> tuple[str, str, str]:
+def row_dispatch_metadata(row: dict[str, str]) -> tuple[str, str, str]:
     mhc_class = str(row.get("mhc_class", "") or "").strip().upper()
     chain = str(row.get("chain", "") or "").strip().lower()
     gene = str(row.get("gene", "") or "").strip()
     return mhc_class, chain, gene
 
 
-def _row_benchmark_stratum(row: dict[str, str]) -> str:
+def row_benchmark_stratum(row: dict[str, str]) -> str:
     """Return the source-confidence stratum used in benchmark denominators."""
     label_status = str(row.get("label_status", "") or "").strip().lower()
-    mhc_class, chain, _gene = _row_dispatch_metadata(row)
+    mhc_class, chain, _gene = row_dispatch_metadata(row)
     if label_status.startswith("excluded_"):
         return "excluded"
     if label_status in {"gold", "curated"} and mhc_class in {"I", "II"} and chain in {"alpha", "beta"}:
@@ -72,7 +72,7 @@ def _row_benchmark_stratum(row: dict[str, str]) -> str:
     return "unresolved/inferred"
 
 
-def _parser_name_for_dispatch(mhc_class: str, chain: str) -> str:
+def parser_name_for_dispatch(mhc_class: str, chain: str) -> str:
     if mhc_class == "I":
         return "class_I"
     if mhc_class == "II" and chain == "alpha":
@@ -82,7 +82,7 @@ def _parser_name_for_dispatch(mhc_class: str, chain: str) -> str:
     return ""
 
 
-def _try_parse(seq: str, *, features=None, use_early_shortcuts: bool = True) -> tuple[int, str]:
+def try_parse(seq: str, *, features=None, use_early_shortcuts: bool = True) -> tuple[int, str]:
     """Run the production classless whole-parse competition.
 
     Returns ``(mature_start, parser_used)`` or ``(0, "")`` on failure.
@@ -99,7 +99,7 @@ def _try_parse(seq: str, *, features=None, use_early_shortcuts: bool = True) -> 
     )
     if not result.ok or result.mature_start <= 0:
         return 0, ""
-    return int(result.mature_start), _parser_name_for_dispatch(result.mhc_class, result.chain)
+    return int(result.mature_start), parser_name_for_dispatch(result.mhc_class, result.chain)
 
 
 def predict_sp_for_row(
@@ -110,7 +110,7 @@ def predict_sp_for_row(
     """Predict SP length for a GT row, using gold dispatch when available."""
     from mhcseqs.domain_parsing import analyze_sequence, decompose_domains, refine_signal_peptide
 
-    if _row_benchmark_stratum(row) == "excluded":
+    if row_benchmark_stratum(row) == "excluded":
         return {
             "ok": False,
             "dispatch_mode": "excluded",
@@ -124,13 +124,13 @@ def predict_sp_for_row(
         }
 
     seq = row["sequence"]
-    category = _row_species_category(row)
-    mhc_class, chain, gene = _row_dispatch_metadata(row)
+    category = row_species_category(row)
+    mhc_class, chain, gene = row_dispatch_metadata(row)
     features = analyze_sequence(seq)
 
     has_complete_dispatch = mhc_class == "I" or (mhc_class == "II" and chain in {"alpha", "beta"})
     if has_complete_dispatch:
-        parser_name = _parser_name_for_dispatch(mhc_class, chain)
+        parser_name = parser_name_for_dispatch(mhc_class, chain)
         try:
             result = decompose_domains(
                 seq,
@@ -157,7 +157,7 @@ def predict_sp_for_row(
         resolved_chain = str(result.chain or chain or "")
         resolved_class = str(result.mhc_class or mhc_class or "")
         if not parser_name:
-            parser_name = _parser_name_for_dispatch(resolved_class, resolved_chain)
+            parser_name = parser_name_for_dispatch(resolved_class, resolved_chain)
 
         if not result.ok or result.mature_start <= 0:
             return {
@@ -222,7 +222,7 @@ def predict_sp_for_row(
         return {
             "ok": False,
             "dispatch_mode": "inferred",
-            "parser": _parser_name_for_dispatch(result.mhc_class, result.chain),
+            "parser": parser_name_for_dispatch(result.mhc_class, result.chain),
             "mhc_class": str(result.mhc_class or ""),
             "chain": str(result.chain or ""),
             "gene": gene,
@@ -233,7 +233,7 @@ def predict_sp_for_row(
 
     inferred_class = str(result.mhc_class or inferred_class_hint or "")
     inferred_chain = str(result.chain or "")
-    parser_name = _parser_name_for_dispatch(inferred_class, inferred_chain)
+    parser_name = parser_name_for_dispatch(inferred_class, inferred_chain)
     groove_anchor = (int(result.anchor_cys1), int(result.anchor_cys2)) if result.anchor_cys1 is not None and result.anchor_cys2 is not None else None
     refined = refine_signal_peptide(
         seq,
@@ -289,7 +289,7 @@ def evaluate(*, use_early_shortcuts: bool = True):
     mismatches_gt3: list[dict] = []
 
     for row in rows:
-        stratum = _row_benchmark_stratum(row)
+        stratum = row_benchmark_stratum(row)
         if stratum == "excluded":
             excluded += 1
             continue
@@ -310,7 +310,7 @@ def evaluate(*, use_early_shortcuts: bool = True):
         parsed += 1
         by_stratum[stratum]["parsed"] += 1
 
-        cat = _row_species_category(row)
+        cat = row_species_category(row)
         refined = int(prediction["predicted_sp"])
 
         delta = refined - gt_sp_len
@@ -490,5 +490,5 @@ def evaluate(*, use_early_shortcuts: bool = True):
 
 
 if __name__ == "__main__":
-    options = _parse_cli_args(sys.argv[1:])
+    options = parse_cli_args(sys.argv[1:])
     evaluate(use_early_shortcuts=options["use_early_shortcuts"])

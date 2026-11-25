@@ -538,13 +538,13 @@ def _load_profile_file(path: Path) -> dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def _load_class_i_profile() -> dict[str, Any]:
+def load_class_i_profile() -> dict[str, Any]:
     """Load the shipped multi-clade Class I IMGT structural PSSM + loop gap profile."""
     return _load_profile_file(IMGT_CLASS_I_PROFILE_PATH)
 
 
 @lru_cache(maxsize=1)
-def _load_class_ii_profile() -> dict[str, Any]:
+def load_class_ii_profile() -> dict[str, Any]:
     """Load the shipped multi-clade Class II IMGT structural PSSM + loop gap profile."""
     return _load_profile_file(IMGT_CLASS_II_PROFILE_PATH)
 
@@ -1094,7 +1094,7 @@ def _align_groove_domain(ref: str, qry: str, domain: str) -> tuple[float, str, s
     else:
         anchor_bonus = None
 
-    profile = _load_class_i_profile() if domain in ("G-ALPHA1", "G-ALPHA2") else _load_class_ii_profile()
+    profile = load_class_i_profile() if domain in ("G-ALPHA1", "G-ALPHA2") else load_class_ii_profile()
     dom_profile = profile.get("domains", {}).get(domain) if profile else None
     if dom_profile is not None:
         return _profile_gotoh(

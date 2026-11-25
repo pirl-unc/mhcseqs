@@ -27,12 +27,12 @@ from mhcseqs.imgt import (
     AlignedResidue,
     DomainAlignment,
     GrooveAlignment,
-    _load_class_i_profile,
-    _load_class_ii_profile,
     align_domain_to_imgt,
     align_groove_to_imgt,
     imgt_to_mature,
     imgt_to_mature_class_i,
+    load_class_i_profile,
+    load_class_ii_profile,
     map_class_ii_groove_positions,
     map_groove_positions,
     mature_to_imgt,
@@ -513,7 +513,7 @@ def test_align_groove_to_imgt_accepts_dict_record_and_strings():
 
 
 def test_multiclade_profile_loaded_with_loop_hotspots():
-    profile = _load_class_i_profile()
+    profile = load_class_i_profile()
     assert profile["version"] == "1"
     g1 = profile["domains"]["G-ALPHA1"]
     g2 = profile["domains"]["G-ALPHA2"]
@@ -720,7 +720,7 @@ def test_multiclade_profile_verified_clades_and_training_metadata():
     import csv
     from pathlib import Path
 
-    profile = _load_class_i_profile()
+    profile = load_class_i_profile()
     src = profile["training_source"]
     assert src["release"] == "v2.9.0"
     assert len(src["sha256"]) == 64
@@ -786,7 +786,7 @@ def test_class_ii_profile_loaded_with_verified_clades():
     import csv
     from pathlib import Path
 
-    profile = _load_class_ii_profile()
+    profile = load_class_ii_profile()
     assert profile["version"] == "1"
     assert profile["training_source"]["release"] == "v2.9.0"
     assert len(profile["training_source"]["sha256"]) == 64
