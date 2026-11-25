@@ -1110,3 +1110,45 @@ def test_class_i_junction_salvage_recovers_mutated_alpha2_cys():
     assert res_c101s.groove2_len == 93
     assert res_c101s.groove2.startswith("GSHTVQRM")
     assert "inferred_from_junction" in res_c101s.flags
+
+
+def test_class_i_rejects_ig_domain_as_alpha2_and_splits_alpha2_plus_alpha3():
+    """Issue #138: N-truncated Class I (α2+α3+TM) must not shift α3 into groove2."""
+    # Mature HLA-A*02:01 starting at α2 (missing α1): 251 aa (α2 + α3 + TM/tail)
+    alpha2_plus_alpha3 = HLA_A0201_MATURE[90:]
+    res = decompose_class_i(alpha2_plus_alpha3, allele="HLA-A*02:01-no-alpha1")
+    assert res.status == "alpha2_only"
+    assert res.groove1 == ""
+    assert res.groove2.startswith("GSHTVQRM")
+    assert 88 <= res.groove2_len <= 95
+    assert res.ig_domain_len >= 85
+    assert "CWALSFYP" in res.ig_domain
+    assert "CWALSFYP" not in res.groove2
+    assert "missing_alpha1" in res.flags
+
+
+def test_class_i_rejects_class_ii_beta_ig_domain_as_alpha2():
+    """Issue #138: Class II β chain passed to decompose_class_i must not get status='ok' using β2 Ig as groove2."""
+    # Real rodent Class II β sequence (A0A091CXW4, Fukomys damarensis)
+    class_ii_beta_seq = (
+        "MGSGWVGWVLVPLVSLTRLESSTTEGRESPEDFVIQAKADCYFTNGTEKVQFVVRFIFNLEEFVRFDSDVGEYRAVT"
+        "ELGRPDAEYWNSQKDFLERTRAEVDTVCRHNYGVGEPFTVQRRVEPKVTLYPSKTQPLQHHNLLVCSVTGFYPGDIK"
+        "IQWFRNGQEERAGVVSSGLIQNGDWTFQTLVMLETVPQSGEVYTCQVEHPSLTSPLTVEWRARSESAQSKMLSGVGG"
+        "FVLGLIFLGLGLIIHRRSQKGLLH"
+    )
+    res = decompose_class_i(class_ii_beta_seq, allele="A0A091CXW4")
+    assert res.status != "ok"
+
+
+def test_class_i_junction_salvage_rejects_runaway_alpha1_and_downgrades_short_fragments():
+    """Issue #138: severe both-half truncation -> 'short'; runaway >120 aa groove1 -> rejected."""
+    # Real 105-aa Felis catus partial exon2+3 fragment (59 aa α1 + 46 aa α2, no Cys164)
+    cat_frag = "QFVRFDSDAPNPRYEPRAPWVEQVGPEYWDEQTRIAKNHAQISRVDLNTMRGYYNQSEAGSHNIQRMYGCDVEPDGRLLRGYSQDSYDGKDYIALNEDLRSWTAA"
+    res_frag = decompose_class_i(cat_frag, allele="A0A6F8WZY5")
+    assert res_frag.status == "short"
+    assert "inferred_from_junction" in res_frag.flags
+
+    # Chimeric sequence with 160-aa N-terminal extension before C164S α1+α2 junction
+    runaway_seq = "A" * 160 + HLA_A0201_MATURE[:163] + "S" + HLA_A0201_MATURE[164:200]
+    res_run = decompose_class_i(runaway_seq, allele="SYNTH-runaway")
+    assert res_run.status != "ok"
