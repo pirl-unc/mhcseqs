@@ -1126,6 +1126,12 @@ def test_class_i_rejects_ig_domain_as_alpha2_and_splits_alpha2_plus_alpha3():
     assert "CWALSFYP" not in res.groove2
     assert "missing_alpha1" in res.flags
 
+    # Long protein (>200 aa) with an N-terminal Cys pair but NO downstream α3 Ig domain
+    # must NOT dump the entire sequence into groove2 as single_exon_fragment.
+    long_no_ig = HLA_A0201_MATURE[90:183] + "A" * 300
+    res_long = decompose_class_i(long_no_ig, allele="SYNTH-long-no-ig")
+    assert res_long.groove2_len <= 200
+
 
 def test_class_i_rejects_class_ii_beta_ig_domain_as_alpha2():
     """Issue #138: Class II β chain passed to decompose_class_i must not get status='ok' using β2 Ig as groove2."""
