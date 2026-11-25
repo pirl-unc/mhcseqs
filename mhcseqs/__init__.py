@@ -23,122 +23,264 @@ Quick start::
     df = mhcseqs.load_sequences_dataframe()
 """
 
-from dataclasses import dataclass
-from typing import Sequence
+from __future__ import annotations
 
-from .alleles import (
-    infer_gene,
-    infer_mhc_class,
-    infer_species,
-    normalize_allele_name,
-    normalize_mhc_class,
-    parse_allele_name,
-)
-from .datafiles import (
-    FULL_SEQS_CSV,
-    MERGE_REPORT,
-    RAW_CSV,
-    VALIDATION_REPORT,
-    build_query_candidates,
-    fasta_dir,
-    find_csv,
-    match_allele_row,
-    resolve_data_dir,
-)
-from .domain_parsing import (
-    NON_GROOVE_GENES,
-    AlleleRecord,
-    RawAllele,
-    SequenceFeatures,
-    StructuralDomain,
-    analyze_sequence,
-    apply_mutations,
-    decompose_class_i,
-    decompose_class_ii_alpha,
-    decompose_class_ii_beta,
-    decompose_domains,
-    extract_groove,
-    find_cys_pairs,
-    infer_structural_domains,
-    parse_class_i,
-    parse_class_ii_alpha,
-    parse_class_ii_beta,
-)
-from .download import SOURCES, download_all
-from .imgt import (
-    CONSERVED_CYS_POSITIONS,
-    FIXED_FRAME_ALPHABET,
-    GALPHA1_POSITIONS,
-    GALPHA2_GAP_POSITIONS,
-    GALPHA2_POSITIONS,
-    GALPHA_GAP_POSITIONS,
-    GALPHA_POSITIONS,
-    GBETA_GAP_POSITIONS,
-    GBETA_POSITIONS,
-    HELIX_INSERTIONS,
-    HLA_A0201_GALPHA1,
-    HLA_A0201_GALPHA2,
-    HLA_DRA0101_GALPHA,
-    HLA_DRB1_0101_GBETA,
-    IMGT_CLASS_I_GROOVE_SLOTS,
-    IMGT_CLASS_I_PROFILE_PATH,
-    IMGT_CLASS_II_GROOVE_SLOTS,
-    IMGT_CLASS_II_PROFILE_PATH,
-    IMGT_GALPHA1_SLOTS,
-    IMGT_GALPHA2_SLOTS,
-    IMGT_GALPHA_SLOTS,
-    IMGT_GBETA_SLOTS,
-    IMGT_PAN_CLASS_GROOVE_SLOTS,
-    IMGT_PAN_HALF1_SLOTS,
-    IMGT_PAN_HALF2_SLOTS,
-    STRUCTURAL_ELEMENTS,
-    AlignedResidue,
-    DomainAlignment,
-    GrooveAlignment,
-    GrooveDeletion,
-    GrooveInsertion,
-    align_domain_to_imgt,
-    align_groove_to_imgt,
-    imgt_to_mature,
-    imgt_to_mature_class_i,
-    map_class_ii_groove_positions,
-    map_groove_positions,
-    mature_to_imgt,
-    mature_to_imgt_class_i,
-    structural_element,
-)
-from .mhc_protein_dataset import (
-    ProteinDatasetError,
-    ProteinDatasetPaths,
-    ProteinSourceBundlePaths,
-    available_mhc_protein_dataset_versions,
-    default_mhc_protein_dataset_version,
-    install_mhc_protein_dataset,
-    install_mhc_protein_source_bundle,
-    iter_mhc_protein_records,
-    load_mhc_protein_dataframe,
-    load_mhc_protein_records,
-    mhc_protein_dataset_paths,
-    validate_mhc_protein_dataset,
-)
-from .pipeline import (
-    FULL_FIELDS,
-    RAW_FIELDS,
-    build_full_seqs,
-    build_raw_index,
-)
-from .species import (
-    LATIN_NAMES,
-    MHC_SPECIES_CATEGORIES,
-    full_species_name_alias,
-    get_canonical_prefix,
-    get_latin_name,
-    get_ncbi_taxid,
-    get_species_clade,
-    normalize_mhc_species,
-    normalize_species,
-)
+import importlib
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Sequence
+
 from .version import __version__
+
+if TYPE_CHECKING:
+    from .alleles import (
+        infer_gene,
+        infer_mhc_class,
+        infer_species,
+        normalize_allele_name,
+        normalize_mhc_class,
+        parse_allele_name,
+    )
+    from .datafiles import find_csv
+    from .domain_parsing import (
+        NON_GROOVE_GENES,
+        AlleleRecord,
+        RawAllele,
+        SequenceFeatures,
+        StructuralDomain,
+        analyze_sequence,
+        apply_mutations,
+        decompose_class_i,
+        decompose_class_ii_alpha,
+        decompose_class_ii_beta,
+        decompose_domains,
+        extract_groove,
+        find_cys_pairs,
+        infer_structural_domains,
+        parse_class_i,
+        parse_class_ii_alpha,
+        parse_class_ii_beta,
+    )
+    from .download import SOURCES, download_all
+    from .imgt import (
+        CONSERVED_CYS_POSITIONS,
+        FIXED_FRAME_ALPHABET,
+        GALPHA1_POSITIONS,
+        GALPHA2_GAP_POSITIONS,
+        GALPHA2_POSITIONS,
+        GALPHA_GAP_POSITIONS,
+        GALPHA_POSITIONS,
+        GBETA_GAP_POSITIONS,
+        GBETA_POSITIONS,
+        HELIX_INSERTIONS,
+        HLA_A0201_GALPHA1,
+        HLA_A0201_GALPHA2,
+        HLA_DRA0101_GALPHA,
+        HLA_DRB1_0101_GBETA,
+        IMGT_CLASS_I_GROOVE_SLOTS,
+        IMGT_CLASS_I_PROFILE_PATH,
+        IMGT_CLASS_II_GROOVE_SLOTS,
+        IMGT_CLASS_II_PROFILE_PATH,
+        IMGT_GALPHA1_SLOTS,
+        IMGT_GALPHA2_SLOTS,
+        IMGT_GALPHA_SLOTS,
+        IMGT_GBETA_SLOTS,
+        IMGT_PAN_CLASS_GROOVE_SLOTS,
+        IMGT_PAN_HALF1_SLOTS,
+        IMGT_PAN_HALF2_SLOTS,
+        STRUCTURAL_ELEMENTS,
+        AlignedResidue,
+        DomainAlignment,
+        GrooveAlignment,
+        GrooveDeletion,
+        GrooveInsertion,
+        align_domain_to_imgt,
+        align_groove_to_imgt,
+        imgt_to_mature,
+        imgt_to_mature_class_i,
+        map_class_ii_groove_positions,
+        map_groove_positions,
+        mature_to_imgt,
+        mature_to_imgt_class_i,
+        structural_element,
+    )
+    from .mhc_protein_dataset import (
+        ProteinDatasetError,
+        ProteinDatasetPaths,
+        ProteinSourceBundlePaths,
+        available_mhc_protein_dataset_versions,
+        default_mhc_protein_dataset_version,
+        install_mhc_protein_dataset,
+        install_mhc_protein_source_bundle,
+        iter_mhc_protein_records,
+        load_mhc_protein_dataframe,
+        load_mhc_protein_records,
+        mhc_protein_dataset_paths,
+        validate_mhc_protein_dataset,
+    )
+    from .pipeline import FULL_FIELDS, RAW_FIELDS, build_full_seqs, build_raw_index
+    from .species import (
+        LATIN_NAMES,
+        MHC_SPECIES_CATEGORIES,
+        full_species_name_alias,
+        get_canonical_prefix,
+        get_latin_name,
+        get_ncbi_taxid,
+        get_species_clade,
+        normalize_mhc_species,
+        normalize_species,
+    )
+
+_LAZY_EXPORTS: dict[str, tuple[str, str]] = {
+    # alleles
+    "infer_gene": (".alleles", "infer_gene"),
+    "infer_mhc_class": (".alleles", "infer_mhc_class"),
+    "infer_species": (".alleles", "infer_species"),
+    "normalize_allele_name": (".alleles", "normalize_allele_name"),
+    "normalize_mhc_class": (".alleles", "normalize_mhc_class"),
+    "parse_allele_name": (".alleles", "parse_allele_name"),
+    # datafiles
+    "FULL_SEQS_CSV": (".datafiles", "FULL_SEQS_CSV"),
+    "MERGE_REPORT": (".datafiles", "MERGE_REPORT"),
+    "RAW_CSV": (".datafiles", "RAW_CSV"),
+    "VALIDATION_REPORT": (".datafiles", "VALIDATION_REPORT"),
+    "build_query_candidates": (".datafiles", "build_query_candidates"),
+    "fasta_dir": (".datafiles", "fasta_dir"),
+    "find_csv": (".datafiles", "find_csv"),
+    "match_allele_row": (".datafiles", "match_allele_row"),
+    "resolve_data_dir": (".datafiles", "resolve_data_dir"),
+    # domain_parsing
+    "NON_GROOVE_GENES": (".domain_parsing", "NON_GROOVE_GENES"),
+    "AlleleRecord": (".domain_parsing", "AlleleRecord"),
+    "RawAllele": (".domain_parsing", "RawAllele"),
+    "SequenceFeatures": (".domain_parsing", "SequenceFeatures"),
+    "StructuralDomain": (".domain_parsing", "StructuralDomain"),
+    "analyze_sequence": (".domain_parsing", "analyze_sequence"),
+    "apply_mutations": (".domain_parsing", "apply_mutations"),
+    "decompose_class_i": (".domain_parsing", "decompose_class_i"),
+    "decompose_class_ii_alpha": (".domain_parsing", "decompose_class_ii_alpha"),
+    "decompose_class_ii_beta": (".domain_parsing", "decompose_class_ii_beta"),
+    "decompose_domains": (".domain_parsing", "decompose_domains"),
+    "extract_groove": (".domain_parsing", "extract_groove"),
+    "find_cys_pairs": (".domain_parsing", "find_cys_pairs"),
+    "infer_structural_domains": (".domain_parsing", "infer_structural_domains"),
+    "parse_class_i": (".domain_parsing", "parse_class_i"),
+    "parse_class_ii_alpha": (".domain_parsing", "parse_class_ii_alpha"),
+    "parse_class_ii_beta": (".domain_parsing", "parse_class_ii_beta"),
+    # download
+    "SOURCES": (".download", "SOURCES"),
+    "download_all": (".download", "download_all"),
+    # imgt
+    "CONSERVED_CYS_POSITIONS": (".imgt", "CONSERVED_CYS_POSITIONS"),
+    "FIXED_FRAME_ALPHABET": (".imgt", "FIXED_FRAME_ALPHABET"),
+    "GALPHA1_POSITIONS": (".imgt", "GALPHA1_POSITIONS"),
+    "GALPHA2_GAP_POSITIONS": (".imgt", "GALPHA2_GAP_POSITIONS"),
+    "GALPHA2_POSITIONS": (".imgt", "GALPHA2_POSITIONS"),
+    "GALPHA_GAP_POSITIONS": (".imgt", "GALPHA_GAP_POSITIONS"),
+    "GALPHA_POSITIONS": (".imgt", "GALPHA_POSITIONS"),
+    "GBETA_GAP_POSITIONS": (".imgt", "GBETA_GAP_POSITIONS"),
+    "GBETA_POSITIONS": (".imgt", "GBETA_POSITIONS"),
+    "HELIX_INSERTIONS": (".imgt", "HELIX_INSERTIONS"),
+    "HLA_A0201_GALPHA1": (".imgt", "HLA_A0201_GALPHA1"),
+    "HLA_A0201_GALPHA2": (".imgt", "HLA_A0201_GALPHA2"),
+    "HLA_DRA0101_GALPHA": (".imgt", "HLA_DRA0101_GALPHA"),
+    "HLA_DRB1_0101_GBETA": (".imgt", "HLA_DRB1_0101_GBETA"),
+    "IMGT_CLASS_I_GROOVE_SLOTS": (".imgt", "IMGT_CLASS_I_GROOVE_SLOTS"),
+    "IMGT_CLASS_I_PROFILE_PATH": (".imgt", "IMGT_CLASS_I_PROFILE_PATH"),
+    "IMGT_CLASS_II_GROOVE_SLOTS": (".imgt", "IMGT_CLASS_II_GROOVE_SLOTS"),
+    "IMGT_CLASS_II_PROFILE_PATH": (".imgt", "IMGT_CLASS_II_PROFILE_PATH"),
+    "IMGT_GALPHA1_SLOTS": (".imgt", "IMGT_GALPHA1_SLOTS"),
+    "IMGT_GALPHA2_SLOTS": (".imgt", "IMGT_GALPHA2_SLOTS"),
+    "IMGT_GALPHA_SLOTS": (".imgt", "IMGT_GALPHA_SLOTS"),
+    "IMGT_GBETA_SLOTS": (".imgt", "IMGT_GBETA_SLOTS"),
+    "IMGT_PAN_CLASS_GROOVE_SLOTS": (".imgt", "IMGT_PAN_CLASS_GROOVE_SLOTS"),
+    "IMGT_PAN_HALF1_SLOTS": (".imgt", "IMGT_PAN_HALF1_SLOTS"),
+    "IMGT_PAN_HALF2_SLOTS": (".imgt", "IMGT_PAN_HALF2_SLOTS"),
+    "STRUCTURAL_ELEMENTS": (".imgt", "STRUCTURAL_ELEMENTS"),
+    "AlignedResidue": (".imgt", "AlignedResidue"),
+    "DomainAlignment": (".imgt", "DomainAlignment"),
+    "GrooveAlignment": (".imgt", "GrooveAlignment"),
+    "GrooveDeletion": (".imgt", "GrooveDeletion"),
+    "GrooveInsertion": (".imgt", "GrooveInsertion"),
+    "align_domain_to_imgt": (".imgt", "align_domain_to_imgt"),
+    "align_groove_to_imgt": (".imgt", "align_groove_to_imgt"),
+    "imgt_to_mature": (".imgt", "imgt_to_mature"),
+    "imgt_to_mature_class_i": (".imgt", "imgt_to_mature_class_i"),
+    "map_class_ii_groove_positions": (".imgt", "map_class_ii_groove_positions"),
+    "map_groove_positions": (".imgt", "map_groove_positions"),
+    "mature_to_imgt": (".imgt", "mature_to_imgt"),
+    "mature_to_imgt_class_i": (".imgt", "mature_to_imgt_class_i"),
+    "structural_element": (".imgt", "structural_element"),
+    # mhc_protein_dataset
+    "ProteinDatasetError": (".mhc_protein_dataset", "ProteinDatasetError"),
+    "ProteinDatasetPaths": (".mhc_protein_dataset", "ProteinDatasetPaths"),
+    "ProteinSourceBundlePaths": (".mhc_protein_dataset", "ProteinSourceBundlePaths"),
+    "available_mhc_protein_dataset_versions": (".mhc_protein_dataset", "available_mhc_protein_dataset_versions"),
+    "default_mhc_protein_dataset_version": (".mhc_protein_dataset", "default_mhc_protein_dataset_version"),
+    "install_mhc_protein_dataset": (".mhc_protein_dataset", "install_mhc_protein_dataset"),
+    "install_mhc_protein_source_bundle": (".mhc_protein_dataset", "install_mhc_protein_source_bundle"),
+    "iter_mhc_protein_records": (".mhc_protein_dataset", "iter_mhc_protein_records"),
+    "load_mhc_protein_dataframe": (".mhc_protein_dataset", "load_mhc_protein_dataframe"),
+    "load_mhc_protein_records": (".mhc_protein_dataset", "load_mhc_protein_records"),
+    "mhc_protein_dataset_paths": (".mhc_protein_dataset", "mhc_protein_dataset_paths"),
+    "validate_mhc_protein_dataset": (".mhc_protein_dataset", "validate_mhc_protein_dataset"),
+    # pipeline
+    "FULL_FIELDS": (".pipeline", "FULL_FIELDS"),
+    "RAW_FIELDS": (".pipeline", "RAW_FIELDS"),
+    "build_full_seqs": (".pipeline", "build_full_seqs"),
+    "build_raw_index": (".pipeline", "build_raw_index"),
+    # species
+    "LATIN_NAMES": (".species", "LATIN_NAMES"),
+    "MHC_SPECIES_CATEGORIES": (".species", "MHC_SPECIES_CATEGORIES"),
+    "full_species_name_alias": (".species", "full_species_name_alias"),
+    "get_canonical_prefix": (".species", "get_canonical_prefix"),
+    "get_latin_name": (".species", "get_latin_name"),
+    "get_ncbi_taxid": (".species", "get_ncbi_taxid"),
+    "get_species_clade": (".species", "get_species_clade"),
+    "normalize_mhc_species": (".species", "normalize_mhc_species"),
+    "normalize_species": (".species", "normalize_species"),
+}
+
+_LAZY_SUBMODULES: frozenset[str] = frozenset(
+    {
+        "alleles",
+        "cli_help",
+        "datafiles",
+        "domain_grammar",
+        "domain_parsing",
+        "download",
+        "imgt",
+        "mhc_protein_dataset",
+        "pipeline",
+        "species",
+        "validate",
+        "version",
+    }
+)
+
+
+def _resolve(name: str) -> Any:
+    """Resolve a lazily exported attribute, honoring monkeypatches in globals."""
+    if name in globals():
+        return globals()[name]
+    return __getattr__(name)
+
+
+def __getattr__(name: str) -> Any:
+    if name in _LAZY_EXPORTS:
+        module_name, attr_name = _LAZY_EXPORTS[name]
+        module = importlib.import_module(module_name, __name__)
+        value = getattr(module, attr_name)
+        globals()[name] = value
+        return value
+    if name in _LAZY_SUBMODULES:
+        module = importlib.import_module(f".{name}", __name__)
+        globals()[name] = module
+        return module
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(__all__) | set(_LAZY_SUBMODULES))
 
 
 @dataclass(frozen=True)
@@ -173,7 +315,7 @@ def default_data_dir() -> str:
     ``~/.cache/mhcseqs`` (resolved by :func:`mhcseqs.datafiles.resolve_data_dir`).
     The directory is created on first use.
     """
-    d = resolve_data_dir()
+    d = _resolve("resolve_data_dir")()
     d.mkdir(parents=True, exist_ok=True)
     return str(d)
 
@@ -214,23 +356,24 @@ def build(
 
     dd_root = Path(default_data_dir())
     out = dd_root if output_dir is None else Path(output_dir)
-    dd = fasta_dir(dd_root) if data_dir is None else Path(data_dir)
+    dd = _resolve("fasta_dir")(dd_root) if data_dir is None else Path(data_dir)
 
-    paths = download_all(dd, force=force_download)
+    paths = _resolve("download_all")(dd, force=force_download)
+    sources = _resolve("SOURCES")
     fasta_inputs = [
-        (paths["imgt_hla"], SOURCES["imgt_hla"]["label"]),
-        (paths["ipd_mhc"], SOURCES["ipd_mhc"]["label"]),
+        (paths["imgt_hla"], sources["imgt_hla"]["label"]),
+        (paths["ipd_mhc"], sources["ipd_mhc"]["label"]),
     ]
 
-    raw_csv = out / RAW_CSV
-    build_raw_index(fasta_inputs, raw_csv)
+    raw_csv = out / _resolve("RAW_CSV")
+    _resolve("build_raw_index")(fasta_inputs, raw_csv)
 
-    full_csv = out / FULL_SEQS_CSV
-    report_path = out / MERGE_REPORT
-    build_full_seqs(raw_csv, full_csv, report_path=report_path)
+    full_csv = out / _resolve("FULL_SEQS_CSV")
+    report_path = out / _resolve("MERGE_REPORT")
+    _resolve("build_full_seqs")(raw_csv, full_csv, report_path=report_path)
 
     warnings, stats = validate_build(raw_csv, full_csv)
-    validation_path = out / VALIDATION_REPORT
+    validation_path = out / _resolve("VALIDATION_REPORT")
     with open(validation_path, "w", encoding="utf-8") as f:
         f.write(format_validation_report(warnings, stats) + "\n")
 
@@ -267,7 +410,7 @@ def load_raw_dict(path: str | None = None) -> list[dict]:
     """
     import csv as _csv
 
-    p = path or find_csv(RAW_CSV)
+    p = path or _resolve("find_csv")(_resolve("RAW_CSV"))
     with open(p, "r", encoding="utf-8") as f:
         return list(_csv.DictReader(f))
 
@@ -292,7 +435,7 @@ def load_raw_dataframe(path: str | None = None):
     """
     import pandas as pd
 
-    p = path or find_csv(RAW_CSV)
+    p = path or _resolve("find_csv")(_resolve("RAW_CSV"))
     return pd.read_csv(p)
 
 
@@ -322,7 +465,7 @@ def load_sequences_dict(path: str | None = None) -> list[dict]:
     """
     import csv as _csv
 
-    p = path or find_csv(FULL_SEQS_CSV)
+    p = path or _resolve("find_csv")(_resolve("FULL_SEQS_CSV"))
     with open(p, "r", encoding="utf-8") as f:
         return list(_csv.DictReader(f))
 
@@ -350,7 +493,7 @@ def load_sequences_dataframe(path: str | None = None):
     """
     import pandas as pd
 
-    p = path or find_csv(FULL_SEQS_CSV)
+    p = path or _resolve("find_csv")(_resolve("FULL_SEQS_CSV"))
     return pd.read_csv(p)
 
 
@@ -408,13 +551,14 @@ def lookup(
     from dataclasses import replace
 
     query = allele.strip()
-    query_candidates = build_query_candidates(query)
+    query_candidates = _resolve("build_query_candidates")(query)
+    match_row = _resolve("match_allele_row")
 
-    p = find_csv(FULL_SEQS_CSV, search_dir=search_dir)
+    p = _resolve("find_csv")(_resolve("FULL_SEQS_CSV"), search_dir=search_dir)
     hit: dict | None = None
     with open(p, "r", encoding="utf-8") as f:
         for row in _csv.DictReader(f):
-            if match_allele_row(row, query, query_candidates=query_candidates):
+            if match_row(row, query, query_candidates=query_candidates):
                 hit = row
                 break
 
@@ -428,7 +572,7 @@ def lookup(
     allele_name = hit.get("two_field_allele", "")
     full_allele_name = hit.get("representative_allele", "")
 
-    result = decompose_domains(
+    result = _resolve("decompose_domains")(
         seq,
         mhc_class=mhc_class,
         chain=chain,

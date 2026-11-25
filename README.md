@@ -24,7 +24,7 @@ pip install mhcseqs
 
 Requires Python 3.11 or later. Runtime dependencies are
 [mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.78.1, pandas 3,
-datacache, and biotite.
+datacache, biotite, and argcomplete.
 
 ## Quick start
 
@@ -67,6 +67,18 @@ mhcseqs data install mhc-proteins  # versioned UniProt record dataset
 `mhcseqs <command> --help` lists every option; the
 [command-line guide](https://pirl-unc.github.io/mhcseqs/cli/) shows the output
 of each.
+
+To enable shell tab completion across all OpenVax tools once:
+
+```bash
+activate-global-python-argcomplete
+```
+
+Or enable it for `mhcseqs` alone in the current shell:
+
+```bash
+eval "$(register-python-argcomplete mhcseqs)"
+```
 
 ## Documentation
 
