@@ -24,8 +24,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from mhcseqs.domain_parsing import _refinement_group
-from scripts.evaluate_sp_ground_truth import GT_CSV, _row_benchmark_stratum, _row_species_category
+from mhcseqs.domain_parsing import refinement_group
+from scripts.evaluate_sp_ground_truth import GT_CSV, row_benchmark_stratum, row_species_category
 
 OUT_JSON = ROOT / "mhcseqs" / "sp_boundary_model.json"
 AA_ORDER = tuple("ACDEFGHIKLMNPQRSTVWY")
@@ -122,8 +122,8 @@ def train(path: Path = GT_CSV) -> dict[str, object]:
     """Train only from source-backed curated/gold MHC alpha/beta rows."""
     with path.open("r", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    strata = Counter(_row_benchmark_stratum(row) for row in rows)
-    eligible_rows = [row for row in rows if _row_benchmark_stratum(row) == "curated/gold"]
+    strata = Counter(row_benchmark_stratum(row) for row in rows)
+    eligible_rows = [row for row in rows if row_benchmark_stratum(row) == "curated/gold"]
 
     counts = defaultdict(_new_group_counts)
     counts["global"] = _new_group_counts()
@@ -136,7 +136,7 @@ def train(path: Path = GT_CSV) -> dict[str, object]:
             continue
         used_rows += 1
 
-        species_group = _refinement_group(_row_species_category(row))
+        species_group = refinement_group(row_species_category(row))
         for key in ("global", species_group):
             _observe_boundary(seq, boundary, counts[key], positive=True)
 

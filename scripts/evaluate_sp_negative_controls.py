@@ -12,7 +12,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from evaluate_sp_ground_truth import NEGATIVE_CONTROL_CSV, _parse_cli_args, _row_species_category
+from evaluate_sp_ground_truth import NEGATIVE_CONTROL_CSV, parse_cli_args, row_species_category
 
 
 def main(*, use_early_shortcuts: bool = True) -> None:
@@ -31,7 +31,7 @@ def main(*, use_early_shortcuts: bool = True) -> None:
         mhc_class = row.get("mhc_class", "")
         chain = row.get("chain", "")
         gene = row.get("gene", "")
-        category = _row_species_category(row)
+        category = row_species_category(row)
         kind = row.get("control_type", "unknown")
         totals["total"] += 1
         by_kind_cat[(kind, category)]["total"] += 1
@@ -93,5 +93,5 @@ def main(*, use_early_shortcuts: bool = True) -> None:
 
 
 if __name__ == "__main__":
-    options = _parse_cli_args(sys.argv[1:])
+    options = parse_cli_args(sys.argv[1:])
     main(use_early_shortcuts=options["use_early_shortcuts"])

@@ -76,22 +76,22 @@ def test_normalize_gene_detects_paper_specific_names():
 
 
 def test_ortholog_transferred_detection():
-    from scripts.curate_diverse_mhc import _detect_ortholog_transfer
+    from scripts.curate_diverse_mhc import detect_ortholog_transfer
 
     # H2 names on non-mouse species → returns mhcgnomes prefix "H2"
-    assert _detect_ortholog_transfer("Asme-H2-AA", "Asme") == "H2"
-    assert _detect_ortholog_transfer("Mepo-H2-K1_0", "Mepo") == "H2"
-    assert _detect_ortholog_transfer("Lost-H2-EB1", "Lost") == "H2"
+    assert detect_ortholog_transfer("Asme-H2-AA", "Asme") == "H2"
+    assert detect_ortholog_transfer("Mepo-H2-K1_0", "Mepo") == "H2"
+    assert detect_ortholog_transfer("Lost-H2-EB1", "Lost") == "H2"
     # RT1 names on non-rat species
-    assert _detect_ortholog_transfer("Opha-RT1-B", "Opha") == "RT1"
-    assert _detect_ortholog_transfer("RT1-HA", "Caca") == "RT1"
+    assert detect_ortholog_transfer("Opha-RT1-B", "Opha") == "RT1"
+    assert detect_ortholog_transfer("RT1-HA", "Caca") == "RT1"
     # Legitimate on actual mouse/rat (any species in genus) → None
-    assert _detect_ortholog_transfer("H2-K1", "Mumu") is None
-    assert _detect_ortholog_transfer("RT1-Ba", "Rano") is None
-    assert _detect_ortholog_transfer("H2-Eb", "Musp") is None
-    assert _detect_ortholog_transfer("H2-Eb", "Muco") is None  # Mus cookii
-    assert _detect_ortholog_transfer("RT1.Ba", "Rafu") is None  # Rattus fuscipes
-    assert _detect_ortholog_transfer("RT1.Ba", "Rale") is None  # Rattus leucopus
+    assert detect_ortholog_transfer("H2-K1", "Mumu") is None
+    assert detect_ortholog_transfer("RT1-Ba", "Rano") is None
+    assert detect_ortholog_transfer("H2-Eb", "Musp") is None
+    assert detect_ortholog_transfer("H2-Eb", "Muco") is None  # Mus cookii
+    assert detect_ortholog_transfer("RT1.Ba", "Rafu") is None  # Rattus fuscipes
+    assert detect_ortholog_transfer("RT1.Ba", "Rale") is None  # Rattus leucopus
 
 
 def test_canonicalize_gene_uses_full_binomial_but_preserves_gene_body():

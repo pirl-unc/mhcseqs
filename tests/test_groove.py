@@ -8,9 +8,6 @@ from mhcseqs.domain_parsing import (
     MIN_FUNCTIONAL_GROOVE_HALF_LEN,
     NON_GROOVE_GENES,
     AlleleRecord,
-    _find_junction,
-    _score_groove_ig_boundary,
-    _score_junction,
     classify_cys_pair,
     classify_domain_fold,
     decompose_class_i,
@@ -21,8 +18,11 @@ from mhcseqs.domain_parsing import (
     estimate_sp_from_h_region,
     fast_sp_triage,
     find_cys_pairs,
+    find_junction,
     refine_signal_peptide,
     score_cys_flanking_properties,
+    score_groove_ig_boundary,
+    score_junction,
     sp_boundary_excluded,
     trace_parse_class_i,
 )
@@ -39,8 +39,8 @@ HLA_A0201_MATURE = (
 def test_primary_candidate_materializes_whole_parse_score():
     """The score used to form the beam must survive final record ranking."""
     features = domain_parsing.analyze_sequence(HLA_A0201_MATURE)
-    grammar = domain_parsing._grammar_spec("I", "alpha")
-    early_result, cleaned, _pairs, annotated, sp_estimate = domain_parsing._prepare_parse_inputs(
+    grammar = domain_parsing.grammar_spec("I", "alpha")
+    early_result, cleaned, _pairs, annotated, sp_estimate = domain_parsing.prepare_parse_inputs(
         HLA_A0201_MATURE,
         grammar=grammar,
         allele="HLA-A*02:01",
@@ -49,17 +49,17 @@ def test_primary_candidate_materializes_whole_parse_score():
         use_early_shortcuts=False,
     )
     assert early_result is None
-    selections = domain_parsing._collect_primary_parse_candidates(
+    selections = domain_parsing.collect_primary_parse_candidates(
         cleaned,
         grammar=grammar,
         annotated=annotated,
         sp_estimate=sp_estimate,
         features=features,
-        secondary_resolver=domain_parsing._build_class_i_secondary_resolver(cleaned, annotated, features),
+        secondary_resolver=domain_parsing.build_class_i_secondary_resolver(cleaned, annotated, features),
     )
     assert selections
 
-    record = domain_parsing._build_primary_result(
+    record = domain_parsing.build_primary_result(
         allele="HLA-A*02:01",
         gene="A",
         seq=cleaned,
@@ -75,6 +75,8 @@ def test_primary_candidate_materializes_whole_parse_score():
 
 def test_primary_candidate_beam_keeps_four_distinct_architectures(monkeypatch):
     """Issue #15 calls for a small 3-5 candidate whole-parse beam."""
+    import mhcseqs.domain_scoring as domain_scoring
+
     annotations = tuple(
         domain_parsing.CysPairAnnotation(
             c1=c1,
@@ -87,24 +89,24 @@ def test_primary_candidate_beam_keeps_four_distinct_architectures(monkeypatch):
         for c1 in (10, 20, 30, 40, 50)
     )
     monkeypatch.setattr(
-        domain_parsing,
+        domain_scoring,
         "_build_parse_scaffold",
         lambda _seq, c1, *_args, **_kwargs: SimpleNamespace(c1=c1),
     )
     monkeypatch.setattr(
-        domain_parsing,
+        domain_scoring,
         "_enumerate_mature_starts",
         lambda scaffold, **_kwargs: scaffold.c1 // 10,
     )
     monkeypatch.setattr(
-        domain_parsing,
+        domain_scoring,
         "_score_primary_candidate_selection",
         lambda _seq, *, scaffold, **_kwargs: float(scaffold.c1),
     )
 
-    selections = domain_parsing._collect_primary_parse_candidates(
+    selections = domain_parsing.collect_primary_parse_candidates(
         "A" * 200,
-        grammar=domain_parsing._grammar_spec("II", "alpha"),
+        grammar=domain_parsing.grammar_spec("II", "alpha"),
         annotated=annotations,
         sp_estimate=0,
     )
@@ -932,7 +934,7 @@ def test_refine_signal_peptide_rejects_reptile_mature_only_controls():
     real vertebrate SPs (including cores with a single charged interruption)
     are preserved.
     """
-    from mhcseqs.domain_parsing import _has_plausible_sp_core, analyze_sequence, refine_signal_peptide
+    from mhcseqs.domain_parsing import analyze_sequence, has_plausible_sp_core, refine_signal_peptide
 
     # Mature-only reptile/vertebrate controls that previously leaked false-positive SPs:
     mature_only_cases = [
@@ -952,10 +954,10 @@ def test_refine_signal_peptide_rejects_reptile_mature_only_controls():
         assert refine_signal_peptide(seq, init_start, "other_vertebrate", mhc_class) == 0
 
     # Real vertebrate SPs including single-charged-residue hydrophobic cores must pass:
-    assert _has_plausible_sp_core("MRVMAPRTLLLQLSEALALTETWA" + HLA_A0201_MATURE, 24)
-    assert _has_plausible_sp_core("MSLARTTGLLLLTRLLLLEPGKT" + HLA_A0201_MATURE, 23)
-    assert _has_plausible_sp_core("MSLPSHTARLLWKILLLIEAWNILG" + HLA_A0201_MATURE, 25)
-    assert _has_plausible_sp_core("WGGVLGKGLLLLRLLFLLERQCSS" + HLA_A0201_MATURE, 24)
+    assert has_plausible_sp_core("MRVMAPRTLLLQLSEALALTETWA" + HLA_A0201_MATURE, 24)
+    assert has_plausible_sp_core("MSLARTTGLLLLTRLLLLEPGKT" + HLA_A0201_MATURE, 23)
+    assert has_plausible_sp_core("MSLPSHTARLLWKILLLIEAWNILG" + HLA_A0201_MATURE, 25)
+    assert has_plausible_sp_core("WGGVLGKGLLLLRLLFLLERQCSS" + HLA_A0201_MATURE, 24)
 
 
 def test_estimate_sp_from_h_region():
@@ -969,17 +971,17 @@ def test_junction_score_hla_a0201():
     """The α1/α2 junction in HLA-A*02:01 should score well at the correct position."""
     # In the mature protein, the junction is at position 90 (first α2 residue)
     # The canonical motif is G-S-H at positions 0, +1, +2 and Q at +5
-    junction_score = _score_junction(HLA_A0201_MATURE, 90)
+    junction_score = score_junction(HLA_A0201_MATURE, 90)
     assert junction_score > 5.0, f"Junction at pos 90 should score > 5, got {junction_score:.1f}"
 
     # Nearby positions should score lower
     for offset in [-3, -2, -1, 1, 2, 3]:
-        alt_score = _score_junction(HLA_A0201_MATURE, 90 + offset)
+        alt_score = score_junction(HLA_A0201_MATURE, 90 + offset)
         assert junction_score > alt_score, f"True junction (90, score={junction_score:.1f}) should beat pos {90 + offset} (score={alt_score:.1f})"
 
 
 def test_find_junction_hla_a0201():
-    """_find_junction should locate the α1/α2 boundary in HLA-A*02:01."""
+    """find_junction should locate the α1/α2 boundary in HLA-A*02:01."""
     # In the mature protein, the α2 Cys pair is around positions 100-163.
     # The junction is ~10 before Cys1, so around position 90.
     pairs = find_cys_pairs(HLA_A0201_MATURE)
@@ -987,7 +989,7 @@ def test_find_junction_hla_a0201():
         [p for p in pairs if 50 <= p[0] <= 150],
         key=lambda p: abs(p[2] - 63),
     )
-    junction_pos, junction_score = _find_junction(HLA_A0201_MATURE, alpha2_pair[0])
+    junction_pos, junction_score = find_junction(HLA_A0201_MATURE, alpha2_pair[0])
     assert junction_pos == 90, f"Expected junction at 90, got {junction_pos}"
     assert junction_score > 5.0
 
@@ -1001,7 +1003,7 @@ def test_groove_ig_boundary_class_i():
         key=lambda p: abs(p[2] - 63),
     )
     boundary_pos = alpha2_pair[1] + 20
-    score = _score_groove_ig_boundary(HLA_A0201_MATURE, boundary_pos, "I")
+    score = score_groove_ig_boundary(HLA_A0201_MATURE, boundary_pos, "I")
     assert score > 0.0, f"Groove/Ig boundary should score > 0, got {score:.1f}"
 
 

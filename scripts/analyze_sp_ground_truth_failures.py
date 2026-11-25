@@ -21,11 +21,11 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from evaluate_sp_ground_truth import (
     GT_CSV,
-    _row_benchmark_stratum,
-    _row_dispatch_metadata,
-    _row_species_category,
     load_ground_truth_rows,
     predict_sp_for_row,
+    row_benchmark_stratum,
+    row_dispatch_metadata,
+    row_species_category,
 )
 
 
@@ -135,18 +135,18 @@ def main() -> None:
     excluded = 0
 
     for row in rows:
-        if _row_benchmark_stratum(row) == "excluded":
+        if row_benchmark_stratum(row) == "excluded":
             excluded += 1
             continue
         seq = row["sequence"]
         gt_sp = int(row["sp_length"])
-        cat = _row_species_category(row)
+        cat = row_species_category(row)
         prediction = predict_sp_for_row(row)
         by_dispatch[str(prediction["dispatch_mode"])] += 1
         runs: dict[str, dict] = {}
 
         if not prediction["ok"]:
-            mhc_class, chain, _gene = _row_dispatch_metadata(row)
+            mhc_class, chain, _gene = row_dispatch_metadata(row)
             if mhc_class:
                 signature = f"gold:{mhc_class}:{chain or 'na'}:{prediction['status']}"
             else:

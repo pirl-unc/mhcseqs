@@ -6,23 +6,23 @@ from importlib.resources import files
 import pytest
 
 from mhcseqs.domain_parsing import analyze_sequence, decompose_domains
-from scripts.audit_sp_ground_truth_taxonomy import _apply_audit
+from scripts.audit_sp_ground_truth_taxonomy import apply_audit
 from scripts.enrich_sp_ground_truth import (
     GT_ENRICHED_CSV,
     NEGATIVE_CONTROL_CSV,
-    _apply_label_curation,
-    _build_controls,
-    _gene_from_protein_name,
-    _load_label_curation,
+    apply_label_curation,
+    build_controls,
+    gene_from_protein_name,
+    load_label_curation,
 )
 from scripts.evaluate_sp_ground_truth import (
     GT_RAW_CSV,
-    _parser_name_for_dispatch,
-    _row_benchmark_stratum,
-    _row_dispatch_metadata,
     _species_category,
-    _try_parse,
+    parser_name_for_dispatch,
     predict_sp_for_row,
+    row_benchmark_stratum,
+    row_dispatch_metadata,
+    try_parse,
 )
 from scripts.fetch_sp_ground_truth import UNLABELLED_OUTPUT
 from scripts.sp_ground_truth_taxonomy import (
@@ -113,15 +113,15 @@ def test_apply_audit_rejects_source_clade_drift():
     audit = {"9606": {"source_clade": "Mammalia", "species_category": "human"}}
     rows = [{"taxon_id": "9606", "source_clade": "Aves", "species_category": "bird"}]
     with pytest.raises(ValueError, match="Source clade drift"):
-        _apply_audit(rows, audit)
+        apply_audit(rows, audit)
 
 
 def test_apply_audit_fills_fields_without_touching_labels():
     audit = {"9606": {"source_clade": "Mammalia", "species_category": "human"}}
     raw_row = {"taxon_id": "9606", "organism": "Homo sapiens", "sp_length": "21", "source_clade": ""}
     enriched_row = {"taxon_id": "9606", "organism": "Homo sapiens", "source_clade": "", "species_category": "stale", "mhc_class": "I"}
-    _apply_audit([raw_row], audit)
-    _apply_audit([enriched_row], audit)
+    apply_audit([raw_row], audit)
+    apply_audit([enriched_row], audit)
     assert raw_row["source_clade"] == "Mammalia"
     assert "species_category" not in raw_row  # raw rows carry no category column
     assert raw_row["organism"] == "Homo sapiens" and raw_row["sp_length"] == "21"
@@ -131,7 +131,7 @@ def test_apply_audit_fills_fields_without_touching_labels():
 
 def test_apply_audit_requires_every_taxon():
     with pytest.raises(ValueError, match="Missing taxonomy audit"):
-        _apply_audit([{"taxon_id": "9999", "source_clade": ""}], {})
+        apply_audit([{"taxon_id": "9999", "source_clade": ""}], {})
 
 
 def test_source_clade_roots_are_mutually_exclusive():
@@ -288,17 +288,17 @@ def test_boundary_model_training_excludes_non_mhc_and_unresolved_rows(tmp_path):
 
 def test_row_dispatch_metadata_reads_enriched_fields():
     row = {"mhc_class": "II", "chain": "beta", "gene": "DRB1"}
-    assert _row_dispatch_metadata(row) == ("II", "beta", "DRB1")
+    assert row_dispatch_metadata(row) == ("II", "beta", "DRB1")
 
 
 def test_parser_name_for_dispatch_maps_class_and_chain():
-    assert _parser_name_for_dispatch("I", "alpha") == "class_I"
-    assert _parser_name_for_dispatch("II", "alpha") == "class_II_alpha"
-    assert _parser_name_for_dispatch("II", "beta") == "class_II_beta"
+    assert parser_name_for_dispatch("I", "alpha") == "class_I"
+    assert parser_name_for_dispatch("II", "alpha") == "class_II_alpha"
+    assert parser_name_for_dispatch("II", "beta") == "class_II_beta"
 
 
 def test_label_curation_audits_every_incomplete_row():
-    curation = _load_label_curation()
+    curation = load_label_curation()
     assert len(curation) == 283
     assert sum(row["label_status"] == "curated" for row in curation.values()) == 266
     assert sum(row["label_status"] == "excluded_non_mhc" for row in curation.values()) == 16
@@ -313,7 +313,7 @@ def test_label_curation_audits_every_incomplete_row():
 
 
 def test_enriched_ground_truth_contains_every_curation_decision():
-    curation = _load_label_curation()
+    curation = load_label_curation()
     with GT_ENRICHED_CSV.open() as handle:
         enriched = {row["accession"]: row for row in csv.DictReader(handle)}
     for accession in curation.keys() & enriched.keys():
@@ -351,9 +351,9 @@ def test_enriched_ground_truth_contains_every_curation_decision():
 def test_controls_only_use_complete_curated_or_gold_labels():
     with GT_ENRICHED_CSV.open() as handle:
         rows = list(csv.DictReader(handle))
-    controls = _build_controls(rows)
+    controls = build_controls(rows)
     assert len(controls) == 14721
-    eligible = {row["accession"] for row in rows if _row_benchmark_stratum(row) == "curated/gold"}
+    eligible = {row["accession"] for row in rows if row_benchmark_stratum(row) == "curated/gold"}
     assert {row["source_accession"] for row in controls} <= eligible
     with NEGATIVE_CONTROL_CSV.open() as handle:
         stored_controls = list(csv.DictReader(handle))
@@ -366,31 +366,31 @@ def test_controls_only_use_complete_curated_or_gold_labels():
 
 
 def test_apply_label_curation_uses_source_backed_decision():
-    decision = _load_label_curation()["A0A8D0CD71"]
+    decision = load_label_curation()["A0A8D0CD71"]
     row = {
         "accession": "A0A8D0CD71",
         "mhc_class": "",
         "chain": "",
         "label_status": "unresolved",
     }
-    result = _apply_label_curation(row, {"A0A8D0CD71": decision})
-    assert _row_dispatch_metadata(result)[:2] == ("II", "alpha")
-    assert _row_benchmark_stratum(result) == "curated/gold"
+    result = apply_label_curation(row, {"A0A8D0CD71": decision})
+    assert row_dispatch_metadata(result)[:2] == ("II", "alpha")
+    assert row_benchmark_stratum(result) == "curated/gold"
     assert "IPR001003" in decision["evidence"]
     assert "UniProtKB entry" in decision["source_version"]
 
 
 def test_excluded_non_mhc_rows_do_not_enter_benchmark_denominators():
-    row = _apply_label_curation(
+    row = apply_label_curation(
         {
             "accession": "Q08334",
             "mhc_class": "",
             "chain": "",
             "label_status": "unresolved",
         },
-        _load_label_curation(),
+        load_label_curation(),
     )
-    assert _row_benchmark_stratum(row) == "excluded"
+    assert row_benchmark_stratum(row) == "excluded"
     row["sequence"] = "NOT_A_SEQUENCE"
     assert predict_sp_for_row(row)["dispatch_mode"] == "excluded"
 
@@ -400,9 +400,9 @@ def test_classless_evaluator_delegates_to_production_whole_parse():
         row = next(row for row in csv.DictReader(handle) if row["accession"] == "A0A8D0CD71")
     features = analyze_sequence(row["sequence"])
     production = decompose_domains(row["sequence"], mhc_class="", features=features)
-    mature_start, parser_name = _try_parse(row["sequence"], features=features)
+    mature_start, parser_name = try_parse(row["sequence"], features=features)
     assert mature_start == production.mature_start
-    assert parser_name == _parser_name_for_dispatch(production.mhc_class, production.chain)
+    assert parser_name == parser_name_for_dispatch(production.mhc_class, production.chain)
 
 
 def test_source_indeterminate_row_is_not_in_the_labelled_corpus():
@@ -412,7 +412,7 @@ def test_source_indeterminate_row_is_not_in_the_labelled_corpus():
 
 
 def test_gene_from_protein_name_handles_class_ii_arm_tokens():
-    gene, status = _gene_from_protein_name(
+    gene, status = gene_from_protein_name(
         "HLA class II histocompatibility antigen, DR alpha chain-like",
         "Naja naja",
         "II",
@@ -423,7 +423,7 @@ def test_gene_from_protein_name_handles_class_ii_arm_tokens():
 
 
 def test_gene_from_protein_name_canonicalizes_hla_parenthetical_names():
-    gene, status = _gene_from_protein_name(
+    gene, status = gene_from_protein_name(
         "HLA class II histocompatibility antigen, DR alpha chain (MHC class II antigen HLA-DRA)",
         "Homo sapiens",
         "II",

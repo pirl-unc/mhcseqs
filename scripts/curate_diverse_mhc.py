@@ -88,7 +88,7 @@ def classify_mhc(protein_name: str, gene_names: str) -> tuple[str, str] | None:
 
     # mhc2/MHCII tokens are MHC-specific and always reliable class II indicators.
     if re.search(r"\bmhc2|MHCII", combined, re.IGNORECASE):
-        chain = _infer_class_ii_chain(gene_names, protein_name)
+        chain = infer_class_ii_chain(gene_names, protein_name)
         return ("II", chain)
 
     # Bare "class II" needs MHC context — otherwise non-MHC labels like
@@ -98,14 +98,14 @@ def classify_mhc(protein_name: str, gene_names: str) -> tuple[str, str] | None:
         combined,
         re.IGNORECASE,
     ):
-        chain = _infer_class_ii_chain(gene_names, protein_name)
+        chain = infer_class_ii_chain(gene_names, protein_name)
         return ("II", chain)
 
     # Generic histocompatibility / MHC (with or without "major")
     if re.search(r"(histocompat|MHC\b)", combined, re.IGNORECASE):
         # Check for class II indicators first
         if re.search(r"\bII\b|class\s*2\b|DP\s*beta|DQ\s*beta|DR\s*beta", combined, re.IGNORECASE):
-            chain = _infer_class_ii_chain(gene_names, protein_name)
+            chain = infer_class_ii_chain(gene_names, protein_name)
             return ("II", chain)
         if re.search(r"alpha.*chain|alpha 1.*alpha 2", combined, re.IGNORECASE):
             return ("I", "alpha")
@@ -116,7 +116,7 @@ def classify_mhc(protein_name: str, gene_names: str) -> tuple[str, str] | None:
     return None
 
 
-def _infer_class_ii_chain(gene_names: str, protein_name: str) -> str:
+def infer_class_ii_chain(gene_names: str, protein_name: str) -> str:
     """Infer alpha vs beta for class II from gene/protein names."""
     combined_text = f"{protein_name} {gene_names}"
     if re.search(r"\balpha\d*\b", combined_text, re.IGNORECASE):
@@ -451,7 +451,7 @@ _ORTHOLOG_NOMENCLATURE = [
 ]
 
 
-def _detect_ortholog_transfer(gene: str, organism_prefix: str) -> str | None:
+def detect_ortholog_transfer(gene: str, organism_prefix: str) -> str | None:
     """Detect gene names from another species' nomenclature system.
 
     Returns the mhcgnomes source prefix (e.g. "H2" for H-2 genes)
@@ -557,7 +557,7 @@ def curate_row(row: dict, min_length: int = 80) -> tuple[dict | None, Counter]:
     # species ortholog by automated annotation (e.g. H2-K1 on a fish).
     # Format: ~ortho:Species|SourcePrefix:ortholog_gene
     if gene and gene_status in ("ok", "paper_specific"):
-        source_prefix = _detect_ortholog_transfer(gene, prefix)
+        source_prefix = detect_ortholog_transfer(gene, prefix)
         if source_prefix:
             ortholog_name = gene.split("-", 1)[1] if "-" in gene else gene
             gene = f"~ortho:{species_tag}|{source_prefix}:{ortholog_name}"

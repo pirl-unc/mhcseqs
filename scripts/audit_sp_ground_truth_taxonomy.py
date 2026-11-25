@@ -80,7 +80,7 @@ def _write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) ->
         writer.writerows(rows)
 
 
-def _apply_audit(rows: list[dict[str, str]], audit: dict[str, dict[str, str]]) -> None:
+def apply_audit(rows: list[dict[str, str]], audit: dict[str, dict[str, str]]) -> None:
     """Reconcile taxonomy fields against the audit, leaving labels untouched.
 
     A stored source clade that disagrees with the lineage-derived one means the
@@ -152,9 +152,9 @@ def main(argv: list[str] | None = None) -> None:
 
     enriched_rows = _read_csv(args.enriched)
     control_rows = _read_csv(args.controls)
-    _apply_audit(raw_rows, audit_by_taxon)
-    _apply_audit(enriched_rows, audit_by_taxon)
-    _apply_audit(control_rows, audit_by_taxon)
+    apply_audit(raw_rows, audit_by_taxon)
+    apply_audit(enriched_rows, audit_by_taxon)
+    apply_audit(control_rows, audit_by_taxon)
 
     if not args.reuse_audit:
         _write_csv(args.output, audit_rows, AUDIT_FIELDS)

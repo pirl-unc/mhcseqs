@@ -48,10 +48,10 @@ _MOUSE_H2_CSV = Path(__file__).resolve().parent / "mouse_h2_sequences.csv"
 # underrepresented taxa outside the IMGT/IPD downloads.
 _DIVERSE_MHC_CSV = Path(__file__).resolve().parent / "diverse_mhc_sequences.csv"
 # Verified UniProt accession -> canonical allele name mappings (PDB/GenBank/literature).
-_CURATED_UNIPROT_ALLELES_CSV = Path(__file__).resolve().parent / "curated_uniprot_alleles.csv"
+CURATED_UNIPROT_ALLELES_CSV = Path(__file__).resolve().parent / "curated_uniprot_alleles.csv"
 # Tasmanian devil SahaI alleles from GenBank (Siddle/Cheng et al. 2010-2015),
 # including the DFT2-relevant alleles from Caldwell et al. 2018.
-_GENBANK_SAHA_CSV = Path(__file__).resolve().parent / "genbank_saha_sequences.csv"
+GENBANK_SAHA_CSV = Path(__file__).resolve().parent / "genbank_saha_sequences.csv"
 
 # Curated source groups that provide a reliable broad taxonomy when the
 # species-name normalizer has no entry for the organism's genus.
@@ -163,7 +163,7 @@ def _iter_fasta(path: Path) -> Iterator[Tuple[str, str]]:
             yield header.strip(), seq.replace("?", "X")
 
 
-def _looks_like_nucleotide(sequence: str) -> bool:
+def looks_like_nucleotide(sequence: str) -> bool:
     seq = re.sub(r"\s+", "", str(sequence or "").strip().upper())
     if not seq:
         return False
@@ -172,7 +172,7 @@ def _looks_like_nucleotide(sequence: str) -> bool:
     return bool(chars) and chars <= _NUCLEOTIDE_LIKE_CHARS and len(nucleotide_chars) >= 3
 
 
-def _extract_source_id(header: str, source_label: str) -> str:
+def extract_source_id(header: str, source_label: str) -> str:
     """Extract database accession from a FASTA header.
 
     IMGT/HLA headers start with ``HLA:HLA00001``.
@@ -281,7 +281,7 @@ def resolve_header_allele(header: str) -> ResolvedHeaderAllele:
     )
 
 
-def _load_b2m_references() -> List[dict]:
+def load_b2m_references() -> List[dict]:
     """Load curated B2M reference sequences from data/b2m_sequences.csv."""
     from .species import get_canonical_prefix
 
@@ -324,7 +324,7 @@ def _load_b2m_references() -> List[dict]:
     return rows
 
 
-def _load_mouse_h2_references() -> List[dict]:
+def load_mouse_h2_references() -> List[dict]:
     """Load curated mouse H-2 sequences from mouse_h2_sequences.csv.
 
     These are SwissProt-reviewed reference sequences covering the major
@@ -390,7 +390,7 @@ def _load_mouse_h2_references() -> List[dict]:
     return rows
 
 
-def _infer_chain(gene: str, mhc_class: str) -> str:
+def infer_chain(gene: str, mhc_class: str) -> str:
     """Infer chain type from gene name and MHC class."""
     mc = normalize_mhc_class(mhc_class)
     if mc == "I":
@@ -548,12 +548,12 @@ def _signal_peptide_fields(
     return refined_start, has_sp, sp_seq
 
 
-def _load_curated_uniprot_allele_map() -> Dict[str, dict]:
+def load_curated_uniprot_allele_map() -> Dict[str, dict]:
     """Load verified UniProt accession -> canonical allele metadata mappings."""
-    if not _CURATED_UNIPROT_ALLELES_CSV.exists():
+    if not CURATED_UNIPROT_ALLELES_CSV.exists():
         return {}
     mapping: Dict[str, dict] = {}
-    with open(_CURATED_UNIPROT_ALLELES_CSV, "r", encoding="utf-8") as f:
+    with open(CURATED_UNIPROT_ALLELES_CSV, "r", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             acc = (row.get("uniprot_accession") or "").strip()
             if acc:
@@ -576,7 +576,7 @@ def _resolve_uniprot_species_prefix(organism: str) -> str:
     return full_species_name_alias(latin or organism)
 
 
-def _load_genbank_saha_references() -> List[dict]:
+def load_genbank_saha_references() -> List[dict]:
     """Load Tasmanian devil SahaI alleles from NCBI GenBank.
 
     These are partial class I alpha-chain sequences (mostly alpha-1 domain)
@@ -586,10 +586,10 @@ def _load_genbank_saha_references() -> List[dict]:
     names (e.g. ``SarcophilusHarrisii-I*27``) so ``mhcseqs.lookup()`` resolves
     ``SahaI*27``, ``Saha-I*27``, and ``SarcophilusHarrisii-I*27``.
     """
-    if not _GENBANK_SAHA_CSV.exists():
+    if not GENBANK_SAHA_CSV.exists():
         return []
     rows = []
-    with open(_GENBANK_SAHA_CSV, "r", encoding="utf-8") as f:
+    with open(GENBANK_SAHA_CSV, "r", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             seq = row.get("sequence", "")
             if not seq or len(seq) < MIN_MHC_SEQUENCE_LEN:
@@ -647,7 +647,7 @@ def _load_genbank_saha_references() -> List[dict]:
     return rows
 
 
-def _parse_diverse_gene_class(gene: str, *, species: str) -> Optional[dict]:
+def parse_diverse_gene_class(gene: str, *, species: str) -> Optional[dict]:
     """Resolve MHC class and chain for a diverse-bundle gene label.
 
     Unwraps synthetic ``~ortho:Species|Prefix:Gene`` and
@@ -684,7 +684,7 @@ def _parse_diverse_gene_class(gene: str, *, species: str) -> Optional[dict]:
     return parse_gene_class(token, species=species)
 
 
-def _load_diverse_mhc_references() -> List[dict]:
+def load_diverse_mhc_references() -> List[dict]:
     """Load curated supplemental UniProt MHC sequences.
 
     The CSV keeps its historical ``diverse_mhc_sequences.csv`` filename, but
@@ -700,7 +700,7 @@ def _load_diverse_mhc_references() -> List[dict]:
     """
     if not _DIVERSE_MHC_CSV.exists():
         return []
-    curated_alleles = _load_curated_uniprot_allele_map()
+    curated_alleles = load_curated_uniprot_allele_map()
     species_prefix_cache: Dict[str, str] = {}
     rows = []
     with open(_DIVERSE_MHC_CSV, "r", encoding="utf-8") as f:
@@ -761,7 +761,7 @@ def _load_diverse_mhc_references() -> List[dict]:
                 # Override mhc_class from mhcgnomes when the CSV value is
                 # wrong or unknown — UniProt annotations frequently misclassify
                 # RT1/H-2 class II genes (DOb, Ba, Eb, DQA, etc.) as class I.
-                pgc = _parse_diverse_gene_class(gene, species=extract_latin_binomial(organism))
+                pgc = parse_diverse_gene_class(gene, species=extract_latin_binomial(organism))
                 if pgc and pgc.get("mhc_class") in ("I", "II"):
                     mhc_class = pgc["mhc_class"]
                     if pgc.get("chain"):
@@ -846,11 +846,11 @@ def build_raw_index(
     for path, source_label in fasta_paths:
         for header, seq in _iter_fasta(path):
             stats["total"] += 1
-            if _looks_like_nucleotide(seq):
+            if looks_like_nucleotide(seq):
                 stats["skipped_nucleotide"] += 1
                 continue
             # Allow even very short/empty for the raw CSV — but skip nucleotide
-            source_id = _extract_source_id(header, source_label)
+            source_id = extract_source_id(header, source_label)
             try:
                 resolved = resolve_header_allele(header)
             except (ValueError, mhcgnomes.ParseError):
@@ -869,7 +869,7 @@ def build_raw_index(
                 stats["skipped_non_mhc"] += 1
                 continue
 
-            chain = _infer_chain(gene, mhc_class)
+            chain = infer_chain(gene, mhc_class)
             species_fine = species_raw
             species_category = normalize_mhc_species(species_fine) or ""
             species_prefix = resolved.species_prefix
@@ -924,7 +924,7 @@ def build_raw_index(
             # Dedup: prefer IMGT, prefer protein, prefer longer
             if normalized in records:
                 existing = records[normalized]
-                if _looks_like_nucleotide(existing["sequence"]):
+                if looks_like_nucleotide(existing["sequence"]):
                     records[normalized] = row
                     stats["replaced"] += 1
                 elif existing["source"] != "imgt" and source_label == "imgt":
@@ -938,7 +938,7 @@ def build_raw_index(
             stats["parsed"] += 1
 
     # Inject curated B2M reference sequences
-    b2m_rows = _load_b2m_references()
+    b2m_rows = load_b2m_references()
     for b2m in b2m_rows:
         key = b2m["allele_normalized"]
         if key not in records:
@@ -947,7 +947,7 @@ def build_raw_index(
             stats["b2m_references"] = stats.get("b2m_references", 0) + 1
 
     # Inject curated mouse H-2 reference sequences
-    h2_rows = _load_mouse_h2_references()
+    h2_rows = load_mouse_h2_references()
     for h2 in h2_rows:
         key = h2["allele_normalized"]
         if key not in records:
@@ -956,7 +956,7 @@ def build_raw_index(
             stats["h2_references"] = stats.get("h2_references", 0) + 1
 
     # Inject curated supplemental UniProt MHC sequences for underrepresented taxa.
-    diverse_rows = _load_diverse_mhc_references()
+    diverse_rows = load_diverse_mhc_references()
     for dr in diverse_rows:
         key = dr["allele_normalized"]
         if key not in records:
@@ -965,7 +965,7 @@ def build_raw_index(
             stats["diverse_references"] = stats.get("diverse_references", 0) + 1
 
     # Inject Tasmanian devil SahaI alleles from GenBank (non-IPD).
-    saha_rows = _load_genbank_saha_references()
+    saha_rows = load_genbank_saha_references()
     for sr in saha_rows:
         key = sr["allele_normalized"]
         if key not in records:
@@ -1320,7 +1320,7 @@ def _classify_group(
     return None, None, "conflict_non_nested", details
 
 
-def _emit_full_row(
+def emit_full_row(
     group_key: str,
     representative: dict,
     policy: str,
@@ -1575,7 +1575,7 @@ def build_full_seqs(
         seq = row.get("sequence", "")
         if len(seq) < min_seq_len:
             continue
-        if _looks_like_nucleotide(seq):
+        if looks_like_nucleotide(seq):
             continue
         key = row.get("two_field_allele", "")
         if not key:
@@ -1636,7 +1636,7 @@ def build_full_seqs(
             )
             stats["with_representative"] += 1
             stats[f"policy_{policy}"] += 1
-            full_rows.append(_emit_full_row(group_key, rep, policy, seq, groove))
+            full_rows.append(emit_full_row(group_key, rep, policy, seq, groove))
         else:
             # Conflict — use longest as fallback anyway
             sorted_members = sorted(members, key=lambda r: -len(r["sequence"]))
@@ -1654,12 +1654,12 @@ def build_full_seqs(
             if groove and groove.ok:
                 stats["with_representative"] += 1
                 stats[f"policy_{policy}"] += 1
-                full_rows.append(_emit_full_row(group_key, fallback, policy, seq, groove))
+                full_rows.append(emit_full_row(group_key, fallback, policy, seq, groove))
             else:
                 # True failure: no valid groove even on longest
                 stats["with_representative"] += 1
                 stats["policy_longest_no_groove"] += 1
-                full_rows.append(_emit_full_row(group_key, fallback, "longest_no_groove", seq, groove))
+                full_rows.append(emit_full_row(group_key, fallback, "longest_no_groove", seq, groove))
 
     # Count groups excluded because all entries were too short
     all_keys_in_raw = set()

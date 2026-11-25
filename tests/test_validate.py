@@ -3,11 +3,11 @@ import csv
 from mhcseqs.validate import (
     MIN_RELEASE_ARTIFACT_COUNTS,
     VALID_AA,
-    _check_b2m,
-    _check_groove_row,
-    _check_mature_sequence,
-    _check_signal_peptide,
-    _check_valid_aa,
+    check_b2m,
+    check_groove_row,
+    check_mature_sequence,
+    check_signal_peptide,
+    check_valid_aa,
     format_validation_report,
     validate_release_artifact_counts,
 )
@@ -25,19 +25,19 @@ def test_valid_aa_set():
 
 
 def test_check_valid_aa_clean():
-    warnings = _check_valid_aa("ACDEFGHIKLMNPQRSTVWY", "test")
+    warnings = check_valid_aa("ACDEFGHIKLMNPQRSTVWY", "test")
     assert warnings == []
 
 
 def test_check_valid_aa_invalid():
-    warnings = _check_valid_aa("ACDEFJ", "test")
+    warnings = check_valid_aa("ACDEFJ", "test")
     assert len(warnings) == 1
     assert "invalid characters" in warnings[0]
 
 
 def test_check_signal_peptide_no_sp():
     row = {"has_signal_peptide": "False", "signal_peptide_len": "0"}
-    assert _check_signal_peptide(row) == []
+    assert check_signal_peptide(row) == []
 
 
 def test_check_signal_peptide_valid():
@@ -49,7 +49,7 @@ def test_check_signal_peptide_valid():
         "mhc_class": "I",
         "chain": "alpha",
     }
-    warnings = _check_signal_peptide(row)
+    warnings = check_signal_peptide(row)
     assert warnings == []
 
 
@@ -62,7 +62,7 @@ def test_check_signal_peptide_no_met():
         "mhc_class": "I",
         "chain": "alpha",
     }
-    warnings = _check_signal_peptide(row)
+    warnings = check_signal_peptide(row)
     assert any("does not start with M" in w for w in warnings)
 
 
@@ -75,7 +75,7 @@ def test_check_signal_peptide_unusual_length():
         "mhc_class": "I",
         "chain": "alpha",
     }
-    warnings = _check_signal_peptide(row)
+    warnings = check_signal_peptide(row)
     assert any("unusual SP length" in w for w in warnings)
 
 
@@ -84,24 +84,24 @@ def test_check_b2m_valid():
         "sequence": "M" + "A" * 20 + "CC" + "A" * 77,  # 100 aa, 2 Cys
         "allele_normalized": "B2M_human",
     }
-    assert _check_b2m(row) == []
+    assert check_b2m(row) == []
 
 
 def test_check_b2m_empty():
     row = {"sequence": "", "allele_normalized": "B2M_test"}
-    warnings = _check_b2m(row)
+    warnings = check_b2m(row)
     assert any("empty sequence" in w for w in warnings)
 
 
 def test_check_b2m_unusual_length():
     row = {"sequence": "M" + "CC" + "A" * 7, "allele_normalized": "B2M_test"}
-    warnings = _check_b2m(row)
+    warnings = check_b2m(row)
     assert any("unusual length" in w for w in warnings)
 
 
 def test_check_groove_row_not_applicable():
     row = {"groove_status": "not_applicable", "two_field_allele": "MICA"}
-    assert _check_groove_row(row) == []
+    assert check_groove_row(row) == []
 
 
 def test_check_groove_row_ok_class_i():
@@ -113,7 +113,7 @@ def test_check_groove_row_ok_class_i():
         "groove1": "A" * 90,
         "groove2": "A" * 93,
     }
-    assert _check_groove_row(row) == []
+    assert check_groove_row(row) == []
 
 
 def test_check_groove_row_unusual_length():
@@ -125,7 +125,7 @@ def test_check_groove_row_unusual_length():
         "groove1": "A" * 50,  # too short
         "groove2": "A" * 93,
     }
-    warnings = _check_groove_row(row)
+    warnings = check_groove_row(row)
     assert any("alpha1 half length" in w for w in warnings)
 
 
@@ -136,7 +136,7 @@ def test_check_mature_sequence_valid():
         "mhc_class": "I",
         "chain": "alpha",
     }
-    assert _check_mature_sequence(row) == []
+    assert check_mature_sequence(row) == []
 
 
 def test_check_mature_sequence_too_many_x():
@@ -146,7 +146,7 @@ def test_check_mature_sequence_too_many_x():
         "mhc_class": "I",
         "chain": "alpha",
     }
-    warnings = _check_mature_sequence(row)
+    warnings = check_mature_sequence(row)
     assert any("unknown residues" in w for w in warnings)
 
 

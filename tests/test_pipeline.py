@@ -8,48 +8,48 @@ from mhcseqs.pipeline import (
     FUNCTIONAL_GROOVE_STATUSES,
     RAW_FIELDS,
     ResolvedHeaderAllele,
-    _emit_full_row,
-    _extract_source_id,
-    _infer_chain,
-    _load_b2m_references,
-    _load_curated_uniprot_allele_map,
-    _load_diverse_mhc_references,
-    _load_genbank_saha_references,
-    _load_mouse_h2_references,
-    _looks_like_nucleotide,
-    _parse_diverse_gene_class,
     build_raw_index,
+    emit_full_row,
+    extract_source_id,
     header_tokens,
+    infer_chain,
+    load_b2m_references,
+    load_curated_uniprot_allele_map,
+    load_diverse_mhc_references,
+    load_genbank_saha_references,
+    load_mouse_h2_references,
+    looks_like_nucleotide,
+    parse_diverse_gene_class,
     parse_domain_record,
     resolve_header_allele,
 )
 
 
 def test_looks_like_nucleotide_dna():
-    assert _looks_like_nucleotide("ACGTACGTACGT") is True
+    assert looks_like_nucleotide("ACGTACGTACGT") is True
 
 
 def test_looks_like_nucleotide_rna():
-    assert _looks_like_nucleotide("ACGUACGUACGU") is True
+    assert looks_like_nucleotide("ACGUACGUACGU") is True
 
 
 def test_looks_like_nucleotide_protein():
-    assert _looks_like_nucleotide("MKVLWAALLVTFLAGCQA") is False
+    assert looks_like_nucleotide("MKVLWAALLVTFLAGCQA") is False
 
 
 def test_looks_like_nucleotide_ambiguous():
     # Pure ACGT with ambiguity codes
-    assert _looks_like_nucleotide("ACGTNWSMKRY") is True
+    assert looks_like_nucleotide("ACGTNWSMKRY") is True
 
 
 def test_looks_like_nucleotide_empty():
-    assert _looks_like_nucleotide("") is False
-    assert _looks_like_nucleotide(None) is False
+    assert looks_like_nucleotide("") is False
+    assert looks_like_nucleotide(None) is False
 
 
 def test_looks_like_nucleotide_short_protein():
     # Short sequence with some overlap chars (A, C, G) but also protein-only chars
-    assert _looks_like_nucleotide("ACDEFGHIKLM") is False
+    assert looks_like_nucleotide("ACDEFGHIKLM") is False
 
 
 def test_header_tokens_splits_delimiters():
@@ -82,29 +82,29 @@ def test_resolve_header_allele_raises_value_error_when_unparseable():
 
 
 def test_infer_chain_class_i():
-    assert _infer_chain("A", "I") == "alpha"
-    assert _infer_chain("B", "I") == "alpha"
-    assert _infer_chain("C", "I") == "alpha"
+    assert infer_chain("A", "I") == "alpha"
+    assert infer_chain("B", "I") == "alpha"
+    assert infer_chain("C", "I") == "alpha"
 
 
 def test_infer_chain_class_ii_alpha():
-    assert _infer_chain("DRA", "II") == "alpha"
-    assert _infer_chain("DQA1", "II") == "alpha"
-    assert _infer_chain("DPA1", "II") == "alpha"
+    assert infer_chain("DRA", "II") == "alpha"
+    assert infer_chain("DQA1", "II") == "alpha"
+    assert infer_chain("DPA1", "II") == "alpha"
 
 
 def test_infer_chain_class_ii_beta():
-    assert _infer_chain("DRB1", "II") == "beta"
-    assert _infer_chain("DQB1", "II") == "beta"
-    assert _infer_chain("DPB1", "II") == "beta"
+    assert infer_chain("DRB1", "II") == "beta"
+    assert infer_chain("DQB1", "II") == "beta"
+    assert infer_chain("DPB1", "II") == "beta"
 
 
 def test_infer_chain_unknown():
-    assert _infer_chain("", "") == ""
+    assert infer_chain("", "") == ""
 
 
 def test_load_b2m_references():
-    rows = _load_b2m_references()
+    rows = load_b2m_references()
     assert len(rows) > 0
     first = rows[0]
     assert "allele_normalized" in first
@@ -116,14 +116,14 @@ def test_load_b2m_references():
 
 
 def test_load_b2m_has_species():
-    rows = _load_b2m_references()
+    rows = load_b2m_references()
     species_keys = {r["allele_normalized"].replace("B2M_", "") for r in rows}
     assert "human" in species_keys
     assert "mouse" in species_keys
 
 
 def test_load_b2m_preserves_curated_species_metadata():
-    rows = _load_b2m_references()
+    rows = load_b2m_references()
     sturgeon = next(r for r in rows if r["source_id"] == "Q9PRF8")
     assert sturgeon["species"] == "Acipenser baerii"
     assert sturgeon["species_category"] == "fish"
@@ -181,17 +181,17 @@ def test_source_id_in_all_field_lists():
 
 
 def test_extract_source_id_imgt():
-    assert _extract_source_id("HLA:HLA00001 A*01:01:01:01 365 bp", "imgt") == "HLA00001"
-    assert _extract_source_id("HLA:HLA02169 A*01:01:01:02N 200 bp", "imgt") == "HLA02169"
+    assert extract_source_id("HLA:HLA00001 A*01:01:01:01 365 bp", "imgt") == "HLA00001"
+    assert extract_source_id("HLA:HLA02169 A*01:01:01:02N 200 bp", "imgt") == "HLA02169"
 
 
 def test_extract_source_id_ipd():
-    assert _extract_source_id("IPD-MHC:NHP00001 Aona-DQA1*27:01 73 bp", "ipd_mhc") == "NHP00001"
+    assert extract_source_id("IPD-MHC:NHP00001 Aona-DQA1*27:01 73 bp", "ipd_mhc") == "NHP00001"
 
 
 def test_extract_source_id_unknown():
-    assert _extract_source_id("some random header", "imgt") == ""
-    assert _extract_source_id("some random header", "other") == ""
+    assert extract_source_id("some random header", "imgt") == ""
+    assert extract_source_id("some random header", "other") == ""
 
 
 def test_resolve_official_imgt_header_with_bare_hla_allele():
@@ -209,7 +209,7 @@ def test_resolve_official_imgt_header_with_bare_hla_allele():
 
 
 def test_load_mouse_h2_references():
-    rows = _load_mouse_h2_references()
+    rows = load_mouse_h2_references()
     assert len(rows) == 30
     genes = {r["gene"] for r in rows}
     assert "K" in genes
@@ -222,7 +222,7 @@ def test_load_mouse_h2_references():
 
 
 def test_mouse_h2_class_i():
-    rows = _load_mouse_h2_references()
+    rows = load_mouse_h2_references()
     class_i = [r for r in rows if r["mhc_class"] == "I"]
     assert len(class_i) == 10
     assert all(r["chain"] == "alpha" for r in class_i)
@@ -233,7 +233,7 @@ def test_mouse_h2_class_i():
 
 
 def test_mouse_h2_class_ii():
-    rows = _load_mouse_h2_references()
+    rows = load_mouse_h2_references()
     class_ii = [r for r in rows if r["mhc_class"] == "II"]
     assert len(class_ii) == 20
     alpha = [r for r in class_ii if r["chain"] == "alpha"]
@@ -243,7 +243,7 @@ def test_mouse_h2_class_ii():
 
 
 def test_mouse_h2_has_source_id():
-    rows = _load_mouse_h2_references()
+    rows = load_mouse_h2_references()
     assert all(r["source_id"] for r in rows)
     # Spot check known accessions
     by_allele = {r["allele_normalized"]: r for r in rows}
@@ -253,7 +253,7 @@ def test_mouse_h2_has_source_id():
 
 
 def test_mouse_h2_metadata():
-    rows = _load_mouse_h2_references()
+    rows = load_mouse_h2_references()
     for r in rows:
         assert r["species"] == "Mus musculus"
         assert r["species_category"] == "murine"
@@ -262,7 +262,7 @@ def test_mouse_h2_metadata():
 
 
 def test_b2m_has_source_id():
-    rows = _load_b2m_references()
+    rows = load_b2m_references()
     for r in rows:
         assert r.get("source_id"), f"B2M entry {r['allele_normalized']} missing source_id"
     human = [r for r in rows if "human" in r["allele_normalized"]]
@@ -271,7 +271,7 @@ def test_b2m_has_source_id():
 
 @pytest.fixture(scope="module")
 def diverse_mhc_reference_rows():
-    return _load_diverse_mhc_references()
+    return load_diverse_mhc_references()
 
 
 def test_diverse_references_fall_back_to_curated_source_category(diverse_mhc_reference_rows):
@@ -290,7 +290,7 @@ def test_diverse_references_include_felis_catus_and_curated_alleles(diverse_mhc_
     by_source_id = {r["source_id"]: r for r in rows}
 
     # Every curated UniProt accession must be present and mapped to a canonical two-field name
-    curated_map = _load_curated_uniprot_allele_map()
+    curated_map = load_curated_uniprot_allele_map()
     assert len(curated_map) >= 20
     for acc in curated_map:
         assert acc in by_source_id, f"Curated accession {acc} missing from diverse_mhc_sequences.csv"
@@ -333,7 +333,7 @@ def test_diverse_references_include_felis_catus_and_curated_alleles(diverse_mhc_
 
 def test_genbank_saha_references_use_canonical_names():
     """Issue #119: genbank_saha_sequences.csv alleles normalize to SarcophilusHarrisii-I*..."""
-    rows = _load_genbank_saha_references()
+    rows = load_genbank_saha_references()
     assert len(rows) >= 60
     by_raw = {r["allele_raw"]: r for r in rows}
     assert by_raw["SahaI*27"]["two_field_allele"] == "SarcophilusHarrisii-I*27"
@@ -378,7 +378,7 @@ def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, 
             is_pseudogene=False,
         ),
     )
-    monkeypatch.setattr("mhcseqs.pipeline._extract_source_id", lambda header, source_label: "SYN001")
+    monkeypatch.setattr("mhcseqs.pipeline.extract_source_id", lambda header, source_label: "SYN001")
     monkeypatch.setattr(
         "mhcseqs.pipeline.parse_domain_record",
         lambda seq, *, mhc_class, gene, allele, chain="", species="", features=None, stats=None: AlleleRecord(status="ok", mature_start=27),
@@ -387,10 +387,10 @@ def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, 
         "mhcseqs.pipeline.refine_signal_peptide",
         lambda seq, mature_start, species_category, mhc_class="", features=None: 29,
     )
-    monkeypatch.setattr("mhcseqs.pipeline._load_b2m_references", lambda: [])
-    monkeypatch.setattr("mhcseqs.pipeline._load_mouse_h2_references", lambda: [])
-    monkeypatch.setattr("mhcseqs.pipeline._load_diverse_mhc_references", lambda: [])
-    monkeypatch.setattr("mhcseqs.pipeline._load_genbank_saha_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_b2m_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_mouse_h2_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_diverse_mhc_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_genbank_saha_references", lambda: [])
 
     build_raw_index([(fasta_path, "synthetic")], out_csv)
 
@@ -438,7 +438,7 @@ def test_emit_full_row_realigns_domain_fields_after_refinement(monkeypatch):
         lambda seq, mature_start, species_category, mhc_class="": 29,
     )
 
-    row = _emit_full_row("HLA-A*02:01", representative, "unique", seq, groove)
+    row = emit_full_row("HLA-A*02:01", representative, "unique", seq, groove)
 
     assert row["mature_start"] == "29"
     reconstructed = row["groove1"] + row["groove2"] + row["ig_domain"] + row["tail"]
@@ -472,7 +472,7 @@ def test_emit_full_row_marks_gene_level_pseudogene_not_functional():
         groove1_len=90,
         groove2_len=93,
     )
-    row = _emit_full_row("HomoSapiens-H*01:01", representative, "unique", seq, groove)
+    row = emit_full_row("HomoSapiens-H*01:01", representative, "unique", seq, groove)
     assert row["is_pseudogene"] == "True"
     assert row["is_functional"] == "False"
 
@@ -499,7 +499,7 @@ def test_parse_domain_record_counts_value_error_and_propagates_bugs(monkeypatch)
 
 def test_diverse_references_filter_non_mhc_gene_rows():
     """Regression test for #135: non-MHC bystander rows must not leak from diverse_mhc_sequences.csv."""
-    rows = _load_diverse_mhc_references()
+    rows = load_diverse_mhc_references()
     leaked = []
     banned = {"CIITA", "HM13", "H13", "RFX1", "RFX2", "RFX5", "RFXAP", "RFXANK", "PRR3", "HSD17B8", "CFB"}
     for row in rows:
@@ -544,12 +544,12 @@ def test_diverse_references_filter_non_mhc_gene_rows():
 
 def test_parse_diverse_gene_class_unwraps_ortho_and_ref_safely():
     """Issue #137: unwrap ~ortho:/~ref: tags without heuristic false positives on *-like tokens."""
-    assert _parse_diverse_gene_class("~ortho:CastorCanadensis|H2:EB1", species="Castor canadensis")["mhc_class"] == "II"
-    assert _parse_diverse_gene_class("~ortho:CastorCanadensis|H2:EB1", species="Castor canadensis")["chain"] == "beta"
-    assert _parse_diverse_gene_class("~ref:MusMusculus|Q9XRN9:H2-Ea", species="Mus musculus")["mhc_class"] == "II"
-    assert _parse_diverse_gene_class("~ref:MusMusculus|Q9XRN9:H2-Ea", species="Mus musculus")["chain"] == "alpha"
-    assert _parse_diverse_gene_class("~ref:MusMusculus|X1:Q5k-like", species="Mus musculus") is None
-    assert _parse_diverse_gene_class("~ref:MusMusculus|X2:T3-like", species="Mus musculus") is None
+    assert parse_diverse_gene_class("~ortho:CastorCanadensis|H2:EB1", species="Castor canadensis")["mhc_class"] == "II"
+    assert parse_diverse_gene_class("~ortho:CastorCanadensis|H2:EB1", species="Castor canadensis")["chain"] == "beta"
+    assert parse_diverse_gene_class("~ref:MusMusculus|Q9XRN9:H2-Ea", species="Mus musculus")["mhc_class"] == "II"
+    assert parse_diverse_gene_class("~ref:MusMusculus|Q9XRN9:H2-Ea", species="Mus musculus")["chain"] == "alpha"
+    assert parse_diverse_gene_class("~ref:MusMusculus|X1:Q5k-like", species="Mus musculus") is None
+    assert parse_diverse_gene_class("~ref:MusMusculus|X2:T3-like", species="Mus musculus") is None
 
 
 def test_build_raw_index_filters_non_mhc_tap_genes_and_sanitizes_question_marks(tmp_path, monkeypatch):
@@ -565,10 +565,10 @@ def test_build_raw_index_filters_non_mhc_tap_genes_and_sanitizes_question_marks(
         + "GSHTVQRMYGCDVGSDWRFLRGYHQYAYDGKDYIALKEDLRSWTAADMAAQTTKHKWEAAHVAEQLRAYLEGTCVEWLRRYLENGKETLQR\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr("mhcseqs.pipeline._load_b2m_references", lambda: [])
-    monkeypatch.setattr("mhcseqs.pipeline._load_mouse_h2_references", lambda: [])
-    monkeypatch.setattr("mhcseqs.pipeline._load_diverse_mhc_references", lambda: [])
-    monkeypatch.setattr("mhcseqs.pipeline._load_genbank_saha_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_b2m_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_mouse_h2_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_diverse_mhc_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_genbank_saha_references", lambda: [])
 
     out_csv = tmp_path / "raw.csv"
     stats = build_raw_index([(fasta, "ipd_mhc")], out_csv)
@@ -583,7 +583,7 @@ def test_build_raw_index_filters_non_mhc_tap_genes_and_sanitizes_question_marks(
 
 def test_b2m_sequences_are_unique_per_species_and_reasonable_length():
     """Issue #137: b2m_sequences.csv has one canonical entry per species and no >200 aa non-B2M proteins."""
-    rows = _load_b2m_references()
+    rows = load_b2m_references()
     alleles = [r["two_field_allele"] for r in rows]
     assert len(alleles) == len(set(alleles))
     assert all(len(r["sequence"]) <= 200 for r in rows)
