@@ -104,6 +104,21 @@ Code releases and data releases are deliberately independent, so pin a data
 version in automated work. See [datasets and columns](data.md) for what
 `mhc-proteins` contains.
 
+## Tab completion
+
+`mhcseqs` supports shell tab completion via `argcomplete`. Enable it once for
+every OpenVax command-line tool:
+
+```bash
+activate-global-python-argcomplete
+```
+
+Or enable it for `mhcseqs` alone:
+
+```bash
+eval "$(register-python-argcomplete mhcseqs)"
+```
+
 ## Version
 
 ```bash

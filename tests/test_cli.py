@@ -595,3 +595,151 @@ def test_package_all_lists_every_public_export():
     assert all(hasattr(mhcseqs, name) for name in mhcseqs.__all__)
     for name in ("SequenceFeatures", "StructuralDomain", "analyze_sequence", "infer_structural_domains", "lookup", "build"):
         assert name in mhcseqs.__all__
+
+
+# ---------------------------------------------------------------------------
+# CLI tab completion (argcomplete) and help styling (#104)
+# ---------------------------------------------------------------------------
+
+
+def _run_argcomplete(comp_line: str, tmp_path, *, extra_env: dict[str, str] | None = None, cwd=None) -> list[str]:
+    import os
+    import subprocess
+    from pathlib import Path
+
+    repo_root = str(Path(mhcseqs.__file__).resolve().parent.parent)
+    out_file = tmp_path / "argcomplete.out"
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = f"{repo_root}{os.pathsep}{existing_pythonpath}" if existing_pythonpath else repo_root
+    env.update(
+        {
+            "_ARGCOMPLETE": "1",
+            "_ARGCOMPLETE_IFS": "\x0b",
+            "_ARGCOMPLETE_SUPPRESS_SPACE": "1",
+            "_ARGCOMPLETE_STDOUT_FILENAME": str(out_file),
+            "COMP_LINE": comp_line,
+            "COMP_POINT": str(len(comp_line)),
+        }
+    )
+    if extra_env:
+        env.update(extra_env)
+    proc = subprocess.run(
+        [sys.executable, "-m", "mhcseqs"],
+        env=env,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, f"argcomplete failed: stderr={proc.stderr!r}"
+    if not out_file.exists():
+        return []
+    raw = out_file.read_text(encoding="utf-8")
+    return [item for item in raw.split("\x0b") if item]
+
+
+def test_cli_entry_module_has_argcomplete_marker():
+    from pathlib import Path
+
+    entry_path = Path(mhcseqs.__file__).resolve().parent / "__main__.py"
+    header = entry_path.read_bytes()[:1024]
+    assert b"PYTHON_ARGCOMPLETE_OK" in header
+
+
+def test_cli_argcomplete_subcommands_and_flags(tmp_path):
+    top_level = _run_argcomplete("mhcseqs ", tmp_path)
+    for cmd in ("build", "lookup", "data"):
+        assert cmd in top_level
+
+    lookup_flags = _run_argcomplete("mhcseqs lookup HLA-A*02:01 --", tmp_path)
+    assert "--format" in lookup_flags
+    assert "--output-dir" in lookup_flags
+    assert "--all" in lookup_flags
+
+    data_subs = _run_argcomplete("mhcseqs data ", tmp_path)
+    for sub in ("list", "dirs", "verify", "install", "path", "refresh", "clear"):
+        assert sub in data_subs
+
+    refresh_sources = _run_argcomplete("mhcseqs data refresh --source ", tmp_path)
+    assert "imgt_hla" in refresh_sources
+    assert "ipd_mhc" in refresh_sources
+
+
+def test_cli_argcomplete_lookup_allele_completer_is_local(tmp_path):
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
+        [
+            {"two_field_allele": "HLA-A*02:01", "sequence": _A0201_SEQ},
+            {"two_field_allele": "HLA-A*02:06", "sequence": _A0201_SEQ},
+            {"two_field_allele": "HLA-B*07:02", "sequence": _A0201_SEQ},
+        ],
+    )
+    completions = _run_argcomplete(
+        'mhcseqs lookup "HLA-A*02',
+        tmp_path,
+        extra_env={"MHCSEQS_DATA": str(tmp_path)},
+        cwd=tmp_path,
+    )
+    assert completions == ["HLA-A*02:01", "HLA-A*02:06"]
+
+
+def test_cli_parser_import_avoids_heavy_modules():
+    import subprocess
+
+    script = (
+        "import sys, mhcseqs.__main__ as cli; "
+        "cli.build_parser(); "
+        "heavy = [m for m in ('pandas', 'numpy', 'biotite', 'mhcgnomes', 'datacache', 'scipy', 'torch') if m in sys.modules]; "
+        "assert not heavy, f'Unexpected heavy imports: {heavy}'"
+    )
+    proc = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, proc.stderr
+
+
+def test_cli_help_styling_tty_and_no_color(monkeypatch):
+    import io
+
+    from mhcseqs.__main__ import build_parser
+    from mhcseqs.cli_help import style_help, style_status, style_table_header
+
+    class FakeTTY(io.StringIO):
+        def isatty(self) -> bool:
+            return True
+
+    parser, _ = build_parser()
+    plain_help = parser.format_help()
+    assert "\033[" not in plain_help
+
+    # Non-TTY stream stays plain
+    non_tty = io.StringIO()
+    parser.print_help(non_tty)
+    assert non_tty.getvalue() == plain_help
+    assert "\033[" not in non_tty.getvalue()
+
+    # TTY stream gets subtle cyan styling (one hue, no bright codes)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("TERM", "xterm-256color")
+    tty = FakeTTY()
+    parser.print_help(tty)
+    styled = tty.getvalue()
+    assert "\033[1musage:\033[0m" in styled
+    assert "\033[1;36moptions:\033[0m" in styled
+    assert "\033[36m--version\033[0m" in styled
+    assert "\033[9" not in styled
+
+    # NO_COLOR and TERM=dumb disable styling even on TTY
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert style_help(plain_help, tty) == plain_help
+    assert style_table_header("FILE  STATUS\n", tty) == "FILE  STATUS\n"
+    assert style_status("missing", tty, dim=True) == "missing"
+
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("TERM", "dumb")
+    assert style_help(plain_help, tty) == plain_help
+
+    monkeypatch.setenv("TERM", "xterm-256color")
+    assert style_table_header("FILE  STATUS\n", tty) == "\033[1;36mFILE  STATUS\033[0m\n"
+    assert style_status("missing", tty, dim=True) == "\033[2mmissing\033[0m"
+    assert style_status("corrupt", tty, warning=True) == "\033[33mcorrupt\033[0m"
+    assert style_status("present", tty) == "present"

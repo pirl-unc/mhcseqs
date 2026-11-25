@@ -1,3 +1,4 @@
+# PYTHON_ARGCOMPLETE_OK
 """CLI entry point for mhcseqs.
 
 Usage:
@@ -14,80 +15,161 @@ Usage:
 
 from __future__ import annotations
 
-import argparse
 import csv
+import importlib
 import io
 import json
 import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
-from . import default_data_dir
-from . import default_data_dir as _default_data_dir_impl
-from .datafiles import (
-    FULL_SEQS_CSV,
-    MERGE_REPORT,
-    RAW_CSV,
-    VALIDATION_REPORT,
-    build_query_candidates,
-    fasta_dir,
-    find_csv,
-    inventory,
-    match_allele_row,
-    resolve_data_dir,
-    resolve_data_location,
-)
-from .datafiles import clear as clear_data
-from .download import SOURCES, download_all
-from .mhc_protein_dataset import (
-    DATASET_NAME as MHC_PROTEIN_DATASET_NAME,
-)
-from .mhc_protein_dataset import (
-    ProteinDatasetError,
-    ProteinDatasetNotInstalledError,
-    available_mhc_protein_dataset_versions,
-    default_mhc_protein_dataset_version,
-    install_mhc_protein_dataset,
-    install_mhc_protein_source_bundle,
-    validate_mhc_protein_dataset,
-)
-from .pipeline import build_full_seqs, build_raw_index
-from .validate import format_validation_report, validate_build
+import argcomplete
+
+from .cli_help import HelpArgumentParser, style_status, style_table_header
 from .version import __version__
+
+LOOKUP_FORMATS = ("text", "csv", "tsv", "json", "fasta")
+SOURCE_KEYS = ("imgt_hla", "ipd_mhc")
+MHC_PROTEIN_DATASET_NAME = "mhc-proteins"
+_FULL_SEQS_FILENAME = "mhc-full-seqs.csv"
+
+_LAZY_ATTRS: dict[str, tuple[str, str]] = {
+    "default_data_dir": (".", "default_data_dir"),
+    "FULL_SEQS_CSV": (".datafiles", "FULL_SEQS_CSV"),
+    "MERGE_REPORT": (".datafiles", "MERGE_REPORT"),
+    "RAW_CSV": (".datafiles", "RAW_CSV"),
+    "VALIDATION_REPORT": (".datafiles", "VALIDATION_REPORT"),
+    "build_query_candidates": (".datafiles", "build_query_candidates"),
+    "clear_data": (".datafiles", "clear"),
+    "fasta_dir": (".datafiles", "fasta_dir"),
+    "find_csv": (".datafiles", "find_csv"),
+    "inventory": (".datafiles", "inventory"),
+    "match_allele_row": (".datafiles", "match_allele_row"),
+    "resolve_data_dir": (".datafiles", "resolve_data_dir"),
+    "resolve_data_location": (".datafiles", "resolve_data_location"),
+    "SOURCES": (".download", "SOURCES"),
+    "download_all": (".download", "download_all"),
+    "ProteinDatasetError": (".mhc_protein_dataset", "ProteinDatasetError"),
+    "ProteinDatasetNotInstalledError": (".mhc_protein_dataset", "ProteinDatasetNotInstalledError"),
+    "available_mhc_protein_dataset_versions": (".mhc_protein_dataset", "available_mhc_protein_dataset_versions"),
+    "default_mhc_protein_dataset_version": (".mhc_protein_dataset", "default_mhc_protein_dataset_version"),
+    "install_mhc_protein_dataset": (".mhc_protein_dataset", "install_mhc_protein_dataset"),
+    "install_mhc_protein_source_bundle": (".mhc_protein_dataset", "install_mhc_protein_source_bundle"),
+    "validate_mhc_protein_dataset": (".mhc_protein_dataset", "validate_mhc_protein_dataset"),
+    "build_full_seqs": (".pipeline", "build_full_seqs"),
+    "build_raw_index": (".pipeline", "build_raw_index"),
+    "format_validation_report": (".validate", "format_validation_report"),
+    "validate_build": (".validate", "validate_build"),
+}
+
+
+def _resolve(name: str) -> Any:
+    """Resolve a lazily imported symbol while honoring test monkeypatches."""
+    if name in globals():
+        return globals()[name]
+    return __getattr__(name)
+
+
+def __getattr__(name: str) -> Any:
+    if name in _LAZY_ATTRS:
+        module_name, attr_name = _LAZY_ATTRS[name]
+        module = importlib.import_module(module_name, __package__)
+        value = getattr(module, attr_name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _manifest_dataset_versions() -> list[str]:
+    """Read known dataset version strings directly from the packaged JSON manifest."""
+    manifest_path = Path(__file__).with_name("mhc_protein_datasets.json")
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return list(payload.get("versions", ()))
+    except OSError:
+        return []
+
+
+def _find_local_full_seqs_csv(output_dir: Path | None = None) -> Path | None:
+    """Locate a local built mhc-full-seqs.csv without importing heavy dependencies."""
+    candidates: list[Path] = []
+    if output_dir is not None:
+        candidates.append(Path(output_dir) / _FULL_SEQS_FILENAME)
+    candidates.append(Path.cwd() / _FULL_SEQS_FILENAME)
+    env_dir = os.environ.get("MHCSEQS_DATA", "").strip()
+    if env_dir:
+        candidates.append(Path(env_dir).expanduser() / _FULL_SEQS_FILENAME)
+    else:
+        xdg = os.environ.get("XDG_CACHE_HOME", "").strip()
+        base = Path(xdg).expanduser() if xdg else Path.home() / ".cache"
+        candidates.append(base / "mhcseqs" / _FULL_SEQS_FILENAME)
+    for path in candidates:
+        if path.is_file():
+            return path
+    return None
+
+
+def complete_lookup_allele(prefix: str, parsed_args: Any = None, **kwargs: Any) -> list[str]:
+    """Complete allele names locally from a built mhc-full-seqs.csv when available.
+
+    Never touches the network and caps returned matches for snappy Tab completion.
+    """
+    output_dir = getattr(parsed_args, "output_dir", None) if parsed_args is not None else None
+    csv_path = _find_local_full_seqs_csv(output_dir)
+    if csv_path is None:
+        return []
+    needle = prefix.upper()
+    matches: list[str] = []
+    try:
+        with open(csv_path, "r", encoding="utf-8") as handle:
+            header = handle.readline()
+            if not header:
+                return []
+            for line in handle:
+                allele = line.split(",", 1)[0].strip().strip('"')
+                if allele and allele.upper().startswith(needle):
+                    matches.append(allele)
+                    if len(matches) >= 200:
+                        break
+    except OSError:
+        return []
+    return matches
 
 
 def cmd_build(args):
-    dd = Path(default_data_dir())
+    dd = Path(_resolve("default_data_dir")())
     out_dir: Path = args.output_dir or dd
-    data_dir: Path = args.data_dir or fasta_dir(dd)
+    data_dir: Path = args.data_dir or _resolve("fasta_dir")(dd)
+    sources = _resolve("SOURCES")
 
     print("=" * 60)
     print("Step 1/4: Downloading FASTA source files")
     print("=" * 60)
-    paths = download_all(data_dir, force=args.force_download)
+    paths = _resolve("download_all")(data_dir, force=args.force_download)
     print()
 
     fasta_inputs = [
-        (paths["imgt_hla"], SOURCES["imgt_hla"]["label"]),
-        (paths["ipd_mhc"], SOURCES["ipd_mhc"]["label"]),
+        (paths["imgt_hla"], sources["imgt_hla"]["label"]),
+        (paths["ipd_mhc"], sources["ipd_mhc"]["label"]),
     ]
 
-    raw_csv = out_dir / RAW_CSV
+    raw_csv = out_dir / _resolve("RAW_CSV")
     print("=" * 60)
     print("Step 2/4: Building raw sequence index")
     print("=" * 60)
-    raw_stats = build_raw_index(fasta_inputs, raw_csv)
+    raw_stats = _resolve("build_raw_index")(fasta_inputs, raw_csv)
     print(f"  Raw index: {json.dumps(raw_stats, indent=2)}")
     print(f"  -> {raw_csv}")
     print()
 
-    full_csv = out_dir / FULL_SEQS_CSV
-    report_path = out_dir / MERGE_REPORT
+    full_csv = out_dir / _resolve("FULL_SEQS_CSV")
+    report_path = out_dir / _resolve("MERGE_REPORT")
     print("=" * 60)
     print("Step 3/4: Selecting two-field representatives + groove extraction")
     print("=" * 60)
-    full_stats = build_full_seqs(raw_csv, full_csv, report_path=report_path)
+    full_stats = _resolve("build_full_seqs")(raw_csv, full_csv, report_path=report_path)
     print(f"  Full seqs: {json.dumps(full_stats, indent=2)}")
     print(f"  -> {full_csv}")
     print(f"  -> {report_path}")
@@ -96,10 +178,10 @@ def cmd_build(args):
     print("=" * 60)
     print("Step 4/4: Validation sanity checks")
     print("=" * 60)
-    warnings, val_stats = validate_build(raw_csv, full_csv)
-    report = format_validation_report(warnings, val_stats)
+    warnings, val_stats = _resolve("validate_build")(raw_csv, full_csv)
+    report = _resolve("format_validation_report")(warnings, val_stats)
     print(report)
-    validation_path = out_dir / VALIDATION_REPORT
+    validation_path = out_dir / _resolve("VALIDATION_REPORT")
     with open(validation_path, "w", encoding="utf-8") as f:
         f.write(report + "\n")
     print(f"  -> {validation_path}")
@@ -111,9 +193,6 @@ def cmd_build(args):
     print(f"  {full_csv}")
     print(f"  {report_path}")
     print(f"  {validation_path}")
-
-
-LOOKUP_FORMATS = ("text", "csv", "tsv", "json", "fasta")
 
 
 def format_lookup_results(
@@ -179,12 +258,13 @@ def format_lookup_results(
 
 def cmd_lookup(args):
     dd = _cli_data_dir(create=False)
+    find_csv_fn = _resolve("find_csv")
 
     # Locate built CSVs using the same search order as mhcseqs.lookup()
     csv_files: dict[str, Path] = {}
-    for name in (FULL_SEQS_CSV, RAW_CSV):
+    for name in (_resolve("FULL_SEQS_CSV"), _resolve("RAW_CSV")):
         try:
-            csv_files[name] = find_csv(name, search_dir=args.output_dir, data_dir=dd)
+            csv_files[name] = find_csv_fn(name, search_dir=args.output_dir, data_dir=dd)
         except FileNotFoundError:
             continue
 
@@ -193,13 +273,14 @@ def cmd_lookup(args):
         sys.exit(1)
 
     query = args.allele.strip()
-    query_candidates = build_query_candidates(query)
+    query_candidates = _resolve("build_query_candidates")(query)
+    match_row = _resolve("match_allele_row")
 
     matches: list[tuple[str, dict[str, str]]] = []
     for csv_name, csv_path in csv_files.items():
         with open(csv_path, "r", encoding="utf-8") as f:
             for row in csv.DictReader(f):
-                if match_allele_row(row, query, query_candidates=query_candidates):
+                if match_row(row, query, query_candidates=query_candidates):
                     matches.append((csv_name, row))
                     if not getattr(args, "all", False):
                         break
@@ -252,9 +333,13 @@ def _print_file_group(title: str, items, *, details: bool) -> None:
     ]
     headers = ("FILE", "SIZE", "UPDATED", "STATUS")
     widths = [max(len(headers[i]), *(len(row[i]) for row in rows)) for i in range(4)]
-    print("  ".join(header.ljust(widths[i]) for i, header in enumerate(headers)).rstrip())
+    header_line = "  ".join(header.ljust(widths[i]) for i, header in enumerate(headers)).rstrip()
+    print(style_table_header(header_line, sys.stdout))
     for row in rows:
-        print("  ".join(value.ljust(widths[i]) for i, value in enumerate(row)).rstrip())
+        cells = [value.ljust(widths[i]) for i, value in enumerate(row)]
+        if row[3] == "missing":
+            cells[3] = style_status(cells[3].rstrip(), sys.stdout, dim=True)
+        print("  ".join(cells).rstrip())
     if details:
         for item in items:
             print(f"  {item.path.name}: {item.path}")
@@ -295,11 +380,13 @@ def _dir_stats(path: Path) -> tuple[bool, int, int]:
 
 
 def _cli_data_dir(*, create: bool) -> Path:
-    if default_data_dir is not _default_data_dir_impl:
-        return Path(default_data_dir())
+    from . import default_data_dir as _pkg_default_data_dir
+
+    if "default_data_dir" in globals() and globals()["default_data_dir"] is not _pkg_default_data_dir:
+        return Path(globals()["default_data_dir"]())
     if create:
-        return Path(default_data_dir())
-    return resolve_data_dir()
+        return Path(_pkg_default_data_dir())
+    return _resolve("resolve_data_dir")()
 
 
 def cmd_data(args):
@@ -311,7 +398,7 @@ def cmd_data(args):
     json_output = getattr(args, "json", False)
 
     if action == "dirs":
-        loc = resolve_data_location()
+        loc = _resolve("resolve_data_location")()
         # Honor monkeypatched default_data_dir() in tests if it differs from loc.path
         effective_path = dd
         exists, total_bytes, file_count = _dir_stats(effective_path)
@@ -363,9 +450,12 @@ def cmd_data(args):
         return
 
     if action == "verify":
+        protein_error = _resolve("ProteinDatasetError")
+        protein_not_installed = _resolve("ProteinDatasetNotInstalledError")
+        validate_dataset = _resolve("validate_mhc_protein_dataset")
         checks = []
         ok = True
-        for item in inventory(dd):
+        for item in _resolve("inventory")(dd):
             if not item.exists:
                 continue
             status = "ok" if item.size > 0 else "corrupt"
@@ -380,9 +470,9 @@ def cmd_data(args):
                     size_bytes=item.size,
                 )
             )
-        for version in available_mhc_protein_dataset_versions():
+        for version in _resolve("available_mhc_protein_dataset_versions")():
             try:
-                paths = validate_mhc_protein_dataset(version, data_dir=dd)
+                paths = validate_dataset(version, data_dir=dd)
                 checks.append(
                     dict(
                         kind="dataset",
@@ -391,9 +481,9 @@ def cmd_data(args):
                         status="verified",
                     )
                 )
-            except ProteinDatasetNotInstalledError:
+            except protein_not_installed:
                 continue
-            except ProteinDatasetError as exc:
+            except protein_error as exc:
                 ok = False
                 checks.append(
                     dict(
@@ -413,17 +503,23 @@ def cmd_data(args):
             else:
                 for check in checks:
                     extra = f" ({check['error']})" if check.get("error") else ""
-                    print(f"  [{check['status']:<8}] {check['kind']}:{check['name']}{extra}")
+                    status_label = f"{check['status']:<8}"
+                    if check["status"] == "corrupt":
+                        status_label = style_status(status_label, sys.stdout, warning=True)
+                    print(f"  [{status_label}] {check['kind']}:{check['name']}{extra}")
         if not ok:
             sys.exit(1)
         return
 
     if action == "list":
-        items = inventory(dd)
+        protein_error = _resolve("ProteinDatasetError")
+        protein_not_installed = _resolve("ProteinDatasetNotInstalledError")
+        validate_dataset = _resolve("validate_mhc_protein_dataset")
+        items = _resolve("inventory")(dd)
         dataset_rows = []
-        for version in available_mhc_protein_dataset_versions():
+        for version in _resolve("available_mhc_protein_dataset_versions")():
             try:
-                paths = validate_mhc_protein_dataset(version, data_dir=dd)
+                paths = validate_dataset(version, data_dir=dd)
                 dataset_rows.append(
                     dict(
                         dataset=MHC_PROTEIN_DATASET_NAME,
@@ -433,7 +529,7 @@ def cmd_data(args):
                         manifest=str(paths.manifest),
                     )
                 )
-            except ProteinDatasetNotInstalledError:
+            except protein_not_installed:
                 dataset_rows.append(
                     dict(
                         dataset=MHC_PROTEIN_DATASET_NAME,
@@ -441,7 +537,7 @@ def cmd_data(args):
                         status="not installed",
                     )
                 )
-            except ProteinDatasetError:
+            except protein_error:
                 dataset_rows.append(
                     dict(
                         dataset=MHC_PROTEIN_DATASET_NAME,
@@ -476,9 +572,16 @@ def cmd_data(args):
         _print_file_group("Source FASTA files", [item for item in items if item.kind == "source"], details=args.details)
         _print_file_group("Built CSVs and reports", [item for item in items if item.kind == "built"], details=args.details)
         print("\nVersioned datasets")
-        print("DATASET       VERSION             STATUS")
+        print(style_table_header("DATASET       VERSION             STATUS", sys.stdout))
         for row in dataset_rows:
-            print(f"{row['dataset']:<13} {row['version']:<19} {row['status']}")
+            status_text = row["status"]
+            if status_text == "not installed":
+                styled_status = style_status(status_text, sys.stdout, dim=True)
+            elif status_text.startswith("invalid"):
+                styled_status = style_status(status_text, sys.stdout, warning=True)
+            else:
+                styled_status = status_text
+            print(f"{row['dataset']:<13} {row['version']:<19} {styled_status}")
             if args.details and row["status"] == "installed; verified":
                 print(f"  Records: {row['records']}")
                 print(f"  Manifest: {row['manifest']}")
@@ -487,21 +590,22 @@ def cmd_data(args):
         return
 
     if action in ("install", "fetch"):
-        paths = install_mhc_protein_dataset(args.version, data_dir=dd, force=args.force)
+        paths = _resolve("install_mhc_protein_dataset")(args.version, data_dir=dd, force=args.force)
         print(f"Installed {MHC_PROTEIN_DATASET_NAME} {paths.version}")
         print(f"  records: {paths.records}")
         print(f"  manifest: {paths.manifest}")
         if args.with_sources:
-            sources = install_mhc_protein_source_bundle(args.version, data_dir=dd, force=args.force)
+            sources = _resolve("install_mhc_protein_source_bundle")(args.version, data_dir=dd, force=args.force)
             print(f"  source bundle: {sources.root}")
             print(f"  label curation: {sources.label_curation}")
         return
 
     if action == "path":
+        protein_error = _resolve("ProteinDatasetError")
         try:
-            paths = validate_mhc_protein_dataset(args.version, data_dir=dd)
-        except ProteinDatasetError as exc:
-            version = args.version or default_mhc_protein_dataset_version()
+            paths = _resolve("validate_mhc_protein_dataset")(args.version, data_dir=dd)
+        except protein_error as exc:
+            version = args.version or _resolve("default_mhc_protein_dataset_version")()
             print(
                 f"{MHC_PROTEIN_DATASET_NAME} {version} is missing or corrupt: {exc}\n"
                 f"Reinstall it with 'mhcseqs data install {MHC_PROTEIN_DATASET_NAME} --version {version} --force'.",
@@ -527,17 +631,18 @@ def cmd_data(args):
     if action == "refresh":
         from .download import download_fasta
 
-        keys = [args.source] if args.source else list(SOURCES)
+        sources = _resolve("SOURCES")
+        keys = [args.source] if args.source else list(sources)
         print(f"Refreshing source FASTA(s): {', '.join(keys)}", file=sys.stderr)
         for k in keys:
-            download_fasta(k, fasta_dir(dd), force=True)
+            download_fasta(k, _resolve("fasta_dir")(dd), force=True)
         print("Done.", file=sys.stderr)
         return
 
     if action == "clear":
         # Default: clear source FASTAs. --built also/only clears built CSVs.
         keys = [args.source] if args.source else None
-        removed = clear_data(
+        removed = _resolve("clear_data")(
             dd,
             sources=not args.built_only,
             built=args.built or args.built_only,
@@ -552,28 +657,11 @@ def cmd_data(args):
         return
 
 
-def main(argv: list[str] | None = None) -> None:
-    """Run the ``mhcseqs`` command line.
+def build_parser() -> tuple[HelpArgumentParser, HelpArgumentParser]:
+    """Construct the ``mhcseqs`` argument parser without importing heavy modules."""
+    dataset_versions = _manifest_dataset_versions()
 
-    Parameters
-    ----------
-    argv : list of str, optional
-        Arguments after the program name. Defaults to ``sys.argv[1:]``.
-
-    Returns
-    -------
-    None
-
-    Raises
-    ------
-    SystemExit
-        With status 0 after ``--help``/``--version``, 2 on invalid
-        arguments, and 1 when no command (or no ``data`` subcommand) is
-        given, ``lookup`` finds no built CSV or no match, or ``data path``
-        finds the dataset missing or corrupt. Other failures (for example a
-        failed download) propagate as exceptions.
-    """
-    parser = argparse.ArgumentParser(
+    parser = HelpArgumentParser(
         prog="mhcseqs",
         description="MHC sequence curation and binding groove extraction",
     )
@@ -585,25 +673,25 @@ def main(argv: list[str] | None = None) -> None:
     subparsers = parser.add_subparsers(dest="command")
 
     # build
-    build_parser = subparsers.add_parser("build", help="Download sources and build CSVs")
-    build_parser.add_argument(
+    build_parser_sub = subparsers.add_parser("build", help="Download sources and build CSVs")
+    build_parser_sub.add_argument(
         "--output-dir",
         type=Path,
         default=None,
         help="Directory for output CSVs (default: resolved mhcseqs data dir)",
     )
-    build_parser.add_argument(
+    build_parser_sub.add_argument(
         "--data-dir",
         type=Path,
         default=None,
         help="Directory for downloaded FASTA files (default: <data dir>/fasta)",
     )
-    build_parser.add_argument(
+    build_parser_sub.add_argument(
         "--force-download",
         action="store_true",
         help="Re-download source FASTA files even when a cached copy exists",
     )
-    build_parser.add_argument(
+    build_parser_sub.add_argument(
         "--offline",
         action="store_true",
         help="Forbid remote downloads (equivalent to OPENVAX_OFFLINE=1)",
@@ -611,7 +699,8 @@ def main(argv: list[str] | None = None) -> None:
 
     # lookup
     lookup_parser = subparsers.add_parser("lookup", help="Look up an allele from built CSVs")
-    lookup_parser.add_argument("allele", help="Allele name to look up (e.g. HLA-A*02:01)")
+    allele_arg = lookup_parser.add_argument("allele", help="Allele name to look up (e.g. HLA-A*02:01)")
+    allele_arg.completer = complete_lookup_allele
     lookup_parser.add_argument(
         "--output-dir",
         type=Path,
@@ -649,7 +738,7 @@ def main(argv: list[str] | None = None) -> None:
     verify_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     install_parser = data_sub.add_parser("install", aliases=["fetch"], help="Install an immutable versioned dataset")
     install_parser.add_argument("dataset", choices=[MHC_PROTEIN_DATASET_NAME])
-    install_parser.add_argument("--version", choices=available_mhc_protein_dataset_versions())
+    install_parser.add_argument("--version", choices=dataset_versions)
     install_parser.add_argument("--force", action="store_true", help="Re-download and replace this exact cached version")
     install_parser.add_argument(
         "--with-sources",
@@ -663,12 +752,12 @@ def main(argv: list[str] | None = None) -> None:
     )
     path_parser = data_sub.add_parser("path", help="Print the path to an installed versioned dataset")
     path_parser.add_argument("dataset", choices=[MHC_PROTEIN_DATASET_NAME])
-    path_parser.add_argument("--version", choices=available_mhc_protein_dataset_versions())
+    path_parser.add_argument("--version", choices=dataset_versions)
     path_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     refresh_parser = data_sub.add_parser("refresh", help="Re-download source FASTA(s)")
     refresh_parser.add_argument(
         "--source",
-        choices=list(SOURCES),
+        choices=list(SOURCE_KEYS),
         default=None,
         help="Only refresh this source (default: all)",
     )
@@ -680,7 +769,7 @@ def main(argv: list[str] | None = None) -> None:
     clear_parser = data_sub.add_parser("clear", help="Delete cached source FASTA(s)")
     clear_parser.add_argument(
         "--source",
-        choices=list(SOURCES),
+        choices=list(SOURCE_KEYS),
         default=None,
         help="Only clear this source FASTA (default: all sources)",
     )
@@ -695,6 +784,32 @@ def main(argv: list[str] | None = None) -> None:
         help="Delete only built CSVs/reports, keep source FASTAs",
     )
 
+    return parser, data_parser
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Run the ``mhcseqs`` command line.
+
+    Parameters
+    ----------
+    argv : list of str, optional
+        Arguments after the program name. Defaults to ``sys.argv[1:]``.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    SystemExit
+        With status 0 after ``--help``/``--version``, 2 on invalid
+        arguments, and 1 when no command (or no ``data`` subcommand) is
+        given, ``lookup`` finds no built CSV or no match, or ``data path``
+        finds the dataset missing or corrupt. Other failures (for example a
+        failed download) propagate as exceptions.
+    """
+    parser, data_parser = build_parser()
+    argcomplete.autocomplete(parser)
     args = parser.parse_args(argv)
 
     import datacache
