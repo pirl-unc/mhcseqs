@@ -23,7 +23,8 @@ pip install mhcseqs
 ```
 
 Requires Python 3.11 or later. Runtime dependencies are
-[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.67.0 and pandas 3.
+[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.78.1, pandas 3,
+datacache, and biotite.
 
 ## Quick start
 
