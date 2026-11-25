@@ -17,6 +17,7 @@ from mhcseqs.pipeline import (
     _load_genbank_saha_references,
     _load_mouse_h2_references,
     _looks_like_nucleotide,
+    _parse_diverse_gene_class,
     build_raw_index,
     header_tokens,
     parse_domain_record,
@@ -511,3 +512,70 @@ def test_diverse_references_filter_non_mhc_gene_rows():
     # Sanity check that legitimate curated rows remain present
     accessions = {row["source_id"] for row in rows}
     assert "A0A125R585" in accessions  # Ptal-N*01:01
+
+    # Regression checks for #137: Q31152 is Class I alpha (not B2M), Sphenodon DAA-1 is II alpha,
+    # and ~ortho:/~ref: Class II genes override wrong UniProt mhc_class="I".
+    by_acc = {row["source_id"]: row for row in rows}
+    assert by_acc["Q31152"]["mhc_class"] == "I"
+    assert by_acc["Q31152"]["chain"] == "alpha"
+    assert by_acc["A0A0F7GWZ7"]["mhc_class"] == "II"
+    assert by_acc["A0A0F7GWZ7"]["chain"] == "alpha"
+    assert by_acc["A0A250YE21"]["mhc_class"] == "II"
+    assert by_acc["A0A250YE21"]["chain"] == "beta"
+    assert by_acc["P04224"]["mhc_class"] == "II"
+    assert by_acc["P04224"]["chain"] == "alpha"
+    assert by_acc["P01915"]["mhc_class"] == "II"
+    assert by_acc["P01915"]["chain"] == "beta"
+    assert by_acc["Q9TQA7"]["mhc_class"] == "II"
+    assert by_acc["Q9TQA7"]["chain"] == "beta"
+
+
+def test_parse_diverse_gene_class_unwraps_ortho_and_ref_safely():
+    """Issue #137: unwrap ~ortho:/~ref: tags without heuristic false positives on *-like tokens."""
+    assert _parse_diverse_gene_class("~ortho:CastorCanadensis|H2:EB1", species="Castor canadensis")["mhc_class"] == "II"
+    assert _parse_diverse_gene_class("~ortho:CastorCanadensis|H2:EB1", species="Castor canadensis")["chain"] == "beta"
+    assert _parse_diverse_gene_class("~ref:MusMusculus|Q9XRN9:H2-Ea", species="Mus musculus")["mhc_class"] == "II"
+    assert _parse_diverse_gene_class("~ref:MusMusculus|Q9XRN9:H2-Ea", species="Mus musculus")["chain"] == "alpha"
+    assert _parse_diverse_gene_class("~ref:MusMusculus|X1:Q5k-like", species="Mus musculus") is None
+    assert _parse_diverse_gene_class("~ref:MusMusculus|X2:T3-like", species="Mus musculus") is None
+
+
+def test_build_raw_index_filters_non_mhc_tap_genes_and_sanitizes_question_marks(tmp_path, monkeypatch):
+    """Issue #137: TAP1/TAP2 in IMGT/IPD FASTAs are excluded and '?' residues normalize to 'X'."""
+    fasta = tmp_path / "test.fasta"
+    fasta.write_text(
+        ">HLA:HLA99001 TAP1*01:01 748 aa\n"
+        + "M" * 100
+        + "\n>HLA:HLA99002 TAP2*01:01 686 aa\n"
+        + "M" * 100
+        + "\n>IPD-MHC:BOV00001 BoLA-2*030:01 180 aa\n"
+        + "GSHSMRYF?TSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAPWIEQEGPEYWDGETRKVKAHSQTHRVDLGTLRGYYNQSEA"
+        + "GSHTVQRMYGCDVGSDWRFLRGYHQYAYDGKDYIALKEDLRSWTAADMAAQTTKHKWEAAHVAEQLRAYLEGTCVEWLRRYLENGKETLQR\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("mhcseqs.pipeline._load_b2m_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline._load_mouse_h2_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline._load_diverse_mhc_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline._load_genbank_saha_references", lambda: [])
+
+    out_csv = tmp_path / "raw.csv"
+    stats = build_raw_index([(fasta, "ipd_mhc")], out_csv)
+    assert stats["skipped_non_mhc"] == 2
+    assert stats["parsed"] == 1
+    rows = list(csv.DictReader(out_csv.open(encoding="utf-8")))
+    assert len(rows) == 1
+    assert rows[0]["two_field_allele"] == "BoLA-2*030:01"
+    assert "?" not in rows[0]["sequence"]
+    assert rows[0]["sequence"][8] == "X"
+
+
+def test_b2m_sequences_are_unique_per_species_and_reasonable_length():
+    """Issue #137: b2m_sequences.csv has one canonical entry per species and no >200 aa non-B2M proteins."""
+    rows = _load_b2m_references()
+    alleles = [r["two_field_allele"] for r in rows]
+    assert len(alleles) == len(set(alleles))
+    assert all(len(r["sequence"]) <= 200 for r in rows)
+    by_allele = {r["two_field_allele"]: r for r in rows}
+    assert len(by_allele["B2M_oryzias_latipes"]["sequence"]) == 116
+    assert len(by_allele["B2M_sphenodon_punctatus"]["sequence"]) == 119
+    assert len(by_allele["B2M_chrysemys_picta_bellii"]["sequence"]) == 119

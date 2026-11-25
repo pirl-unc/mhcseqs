@@ -200,9 +200,19 @@ def test_is_non_mhc_gene_unwraps_synthetic_ref_and_predicted_tags():
     assert is_non_mhc_gene("~ref:MusMusculus|P04186:Cfb", species="Mus musculus")
     assert is_non_mhc_gene("~ref:MusMusculus|P50171:Hsd17b8", species="Mus musculus")
     assert is_non_mhc_gene("~ref:RattusNorvegicus|A6KHQ1:H13_predicted", species="Rattus norvegicus")
+    assert is_non_mhc_gene("~ref:DipodomysOrdii|A0A1S3FNJ3:Hmha1", species="Dipodomys ordii")
+    assert is_non_mhc_gene("HMHA1")
     assert is_non_mhc_gene("RFX5")
     assert not is_non_mhc_gene("~ref:AnasPlatyrhynchos|A0A1B0P060:UAA", species="Anas platyrhynchos")
     assert not is_non_mhc_gene("HLA-A", species="Homo sapiens")
+
+
+def test_parse_gene_class_enforces_iia_alpha_chain():
+    """Regression test for #137 / mhcgnomes#286: Class IIa genes like DAA-1 must have chain='alpha'."""
+    result = parse_gene_class("SphenodonPunctatus-DAA-1", species="Sphenodon punctatus")
+    assert result is not None
+    assert result["mhc_class"] == "II"
+    assert result["chain"] == "alpha"
 
 
 def test_infer_gene_hla_a():

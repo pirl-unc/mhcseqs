@@ -152,7 +152,10 @@ FULL_FIELDS = [
 
 
 def _iter_fasta(path: Path) -> Iterator[Tuple[str, str]]:
-    """Yield (header, sequence) from a FASTA file."""
+    """Yield (header, sequence) from a FASTA file.
+
+    Normalizes IPD-MHC unknown-residue ``?`` placeholders to IUPAC ``X``.
+    """
     header = None
     seq_parts: List[str] = []
     with open(path, "r", encoding="utf-8") as f:
@@ -162,13 +165,13 @@ def _iter_fasta(path: Path) -> Iterator[Tuple[str, str]]:
                 continue
             if line.startswith(">"):
                 if header is not None:
-                    yield header, "".join(seq_parts)
+                    yield header, "".join(seq_parts).replace("?", "X")
                 header = line[1:].strip()
                 seq_parts = []
             else:
                 seq_parts.append(line)
     if header is not None:
-        yield header, "".join(seq_parts)
+        yield header, "".join(seq_parts).replace("?", "X")
 
 
 def _looks_like_nucleotide(sequence: str) -> bool:
@@ -655,6 +658,43 @@ def _load_genbank_saha_references() -> List[dict]:
     return rows
 
 
+def _parse_diverse_gene_class(gene: str, *, species: str) -> Optional[dict]:
+    """Resolve MHC class and chain for a diverse-bundle gene label.
+
+    Unwraps synthetic ``~ortho:Species|Prefix:Gene`` and
+    ``~ref:Species|Acc:Token`` tags before delegating to :func:`parse_gene_class`.
+    For unwrapped synthetic tags, requires an explicit ``chain`` (``"alpha"`` or
+    ``"beta"``) and skips ``*-like`` labels to avoid heuristic false positives.
+    """
+    token = (gene or "").strip()
+    if not token:
+        return None
+    if token.startswith("~ortho:") and "|" in token:
+        mid = token.split("|", 1)[1]
+        if ":" in mid:
+            prefix, gene_part = mid.split(":", 1)
+            prefix = prefix.strip()
+            gene_part = gene_part.strip()
+            if not gene_part or gene_part.lower().endswith("-like"):
+                return None
+            candidate = gene_part if gene_part.upper().startswith(f"{prefix.upper()}-") else f"{prefix}-{gene_part}"
+            pgc = parse_gene_class(candidate) or parse_gene_class(gene_part, species=species)
+            if pgc and not pgc.get("non_mhc") and pgc.get("mhc_class") in ("I", "II") and pgc.get("chain") in ("alpha", "beta"):
+                return pgc
+        return None
+    if token.startswith("~ref:") and ":" in token:
+        tail = token.rsplit(":", 1)[-1].strip()
+        if not tail or len(tail) < 2 or tail.lower().endswith("-like") or tail.upper() in ("I", "II", "MHC", "MHC-I", "MHC-II", "UNKNOWN", "B2M"):
+            return None
+        pgc = parse_gene_class(tail, species=species)
+        if pgc and not pgc.get("non_mhc") and pgc.get("mhc_class") in ("I", "II") and pgc.get("chain") in ("alpha", "beta"):
+            return pgc
+        return None
+    if token.startswith("~"):
+        return None
+    return parse_gene_class(token, species=species)
+
+
 def _load_diverse_mhc_references() -> List[dict]:
     """Load curated supplemental UniProt MHC sequences.
 
@@ -732,7 +772,7 @@ def _load_diverse_mhc_references() -> List[dict]:
                 # Override mhc_class from mhcgnomes when the CSV value is
                 # wrong or unknown — UniProt annotations frequently misclassify
                 # RT1/H-2 class II genes (DOb, Ba, Eb, DQA, etc.) as class I.
-                pgc = parse_gene_class(gene, species=extract_latin_binomial(organism))
+                pgc = _parse_diverse_gene_class(gene, species=extract_latin_binomial(organism))
                 if pgc and pgc.get("mhc_class") in ("I", "II"):
                     mhc_class = pgc["mhc_class"]
                     if pgc.get("chain"):
@@ -806,6 +846,7 @@ def build_raw_index(
         total=0,
         parsed=0,
         skipped=0,
+        skipped_non_mhc=0,
         skipped_nucleotide=0,
         skipped_short=0,
         domain_parse_errors=0,
@@ -833,6 +874,11 @@ def build_raw_index(
             mhc_class = resolved.mhc_class
             species_raw = resolved.species
             allele_token = resolved.allele_raw
+
+            # Skip non-MHC genes in IMGT/IPD FASTAs (e.g. TAP1, TAP2)
+            if gene and is_non_mhc_gene(gene, species=species_raw or None):
+                stats["skipped_non_mhc"] += 1
+                continue
 
             chain = _infer_chain(gene, mhc_class)
             species_fine = species_raw

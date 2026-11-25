@@ -272,6 +272,11 @@ def parse_gene_class(gene: Optional[str], *, species: Optional[str] = None) -> O
     mhc_class = str(result.mhc_class or "")
     chain_val = result.chain
     non_mhc = result.non_mhc
+    # Guard against upstream mhcgnomes#286 returning chain="beta" for hyphenated
+    # Class II alpha gene names (e.g. SphenodonPunctatus-DAA-1 / DAA-2).
+    gene_name = str(getattr(result, "gene_name", "") or "")
+    if mhc_class.startswith("II") and chain_val == "beta" and re.match(r"^(?:D[A-Z]A|BLA)\-\d+$", gene_name, re.I):
+        chain_val = "alpha"
     # Normalize: mhcgnomes returns "I", "Ia", "Ib", "IIa", "IIb", "other"
     # We need "I" or "II" for dispatch.
     if mhc_class.startswith("II"):
