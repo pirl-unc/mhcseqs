@@ -528,6 +528,11 @@ def test_diverse_references_filter_non_mhc_gene_rows():
     assert by_acc["P01915"]["chain"] == "beta"
     assert by_acc["Q9TQA7"]["mhc_class"] == "II"
     assert by_acc["Q9TQA7"]["chain"] == "beta"
+    # Issue #141: curated mouse H2-D*q / H2-L*q mappings for UniProt Q31145 / Q31151
+    assert by_acc["Q31145"]["two_field_allele"] == "MusMusculus-D*q"
+    assert by_acc["Q31145"]["gene"] == "D"
+    assert by_acc["Q31151"]["two_field_allele"] == "MusMusculus-L*q"
+    assert by_acc["Q31151"]["gene"] == "L"
 
 
 def test_parse_diverse_gene_class_unwraps_ortho_and_ref_safely():
