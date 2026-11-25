@@ -41,6 +41,7 @@ from mhcseqs.imgt import (
     _gbeta_cys_anchor_bonus,
     imgt_to_mature_class_i,
 )
+from mhcseqs.species import get_species_clade
 
 AA20 = "ARNDCQEGHILKMFPSTWYV"
 
@@ -348,37 +349,25 @@ _DIVERSE_SOURCE_GROUP_TO_CLADE: dict[str, str] = {
     "shark_ray": "shark_ray",
 }
 
-# Verified exact binomial genera (first word of scientific name ONLY, never substring matches
-# against organism display synonyms like "Polyodon spathula (Squalus spathula)").
-_SHARK_RAY_GENERA = frozenset(
-    {
-        "callorhinchus",
-        "carcharodon",
-        "chiloscyllium",
-        "ginglymostoma",
-        "heterodontus",
-        "leucoraja",
-        "raja",
-        "rhincodon",
-        "scyliorhinus",
-        "squalus",
-        "triakis",
-    }
-)
-_BONY_FISH_GENERA = frozenset(
-    {
-        "danio",
-        "gadus",
-        "oncorhynchus",
-        "oreochromis",
-        "oryzias",
-        "polyodon",
-        "salmo",
-        "salvelinus",
-        "takifugu",
-    }
-)
-_MONOTREME_GENERA = frozenset({"ornithorhynchus", "tachyglossus"})
+# Map mhcgnomes clades into the profile's vertebrate clade buckets
+_MHCGNOMES_CLADE_TO_PROFILE_CLADE: dict[str, str] = {
+    "human": "human",
+    "nhp": "nhp",
+    "murine": "murine",
+    "ungulate": "ungulate",
+    "carnivore": "carnivore",
+    "bat": "bat",
+    "marsupial": "marsupial",
+    "monotreme": "monotreme",
+    "cetacean": "other_mammal",
+    "other_mammal": "other_mammal",
+    "bird": "bird",
+    "reptile": "reptile",
+    "amphibian": "amphibian",
+    "bony_fish": "bony_fish",
+    "lobe_finned_fish": "bony_fish",
+    "shark_ray": "shark_ray",
+}
 
 
 def load_curated_source_groups(diverse_csv: Path = _DIVERSE_MHC_CSV) -> dict[str, str]:
@@ -395,46 +384,28 @@ def load_curated_source_groups(diverse_csv: Path = _DIVERSE_MHC_CSV) -> dict[str
     return groups
 
 
-def _extract_binomial_genus(species_str: str) -> str:
-    """Return the lowercased first token (genus) of a species name."""
-    parts = (species_str or "").strip().split()
-    return parts[0].strip("(),.;:").lower() if parts else ""
-
-
 def classify_clade(row: dict, curated_source_groups: dict[str, str] | None = None) -> str | None:
     """Assign a verified vertebrate clade label for clade-balanced PSSM weighting.
 
-    Uses packaged curated ``source_group`` annotations by accession first, then
-    verified ``species_category`` and exact binomial-genus matching.  Returns
-    ``None`` for unverified organisms rather than guessing a default clade.
+    Uses authoritative ``mhcgnomes.Species.clade`` first (verified against NCBI
+    Taxonomy), falling back to packaged curated ``source_group`` annotations by
+    accession for organisms not yet in mhcgnomes.  Returns ``None`` for
+    unverified organisms rather than guessing a default clade.
     """
-    source_id = (row.get("source_id") or "").strip()
-    cat = (row.get("species_category") or "").strip()
-    genus = _extract_binomial_genus(row.get("species") or "")
+    species = (row.get("species") or "").strip()
+    mhcgnomes_clade = get_species_clade(species)
+    if mhcgnomes_clade is not None:
+        return _MHCGNOMES_CLADE_TO_PROFILE_CLADE.get(mhcgnomes_clade)
 
+    source_id = (row.get("source_id") or "").strip()
     if curated_source_groups and source_id in curated_source_groups:
         sg = curated_source_groups[source_id]
-        clade = _DIVERSE_SOURCE_GROUP_TO_CLADE.get(sg)
-        if clade == "other_mammal":
-            if genus in _MONOTREME_GENERA:
-                return "monotreme"
-            if cat == "murine" or genus == "mus":
-                return "murine"
-        return clade
+        return _DIVERSE_SOURCE_GROUP_TO_CLADE.get(sg)
 
-    if cat in ("human", "nhp", "murine", "ungulate", "carnivore", "bird"):
+    cat = (row.get("species_category") or "").strip()
+    if cat in ("human", "nhp", "murine", "ungulate", "carnivore", "bird", "other_mammal"):
         return cat
-    if cat == "other_mammal":
-        if genus in _MONOTREME_GENERA:
-            return "monotreme"
-        return "other_mammal"
-    if cat == "fish":
-        if genus in _SHARK_RAY_GENERA:
-            return "shark_ray"
-        if genus in _BONY_FISH_GENERA:
-            return "bony_fish"
-        return None
-    # Uncurated other_vertebrate rows are excluded unless backed by curated source_group.
+    # Uncurated fish/other_vertebrate rows are excluded unless verified via mhcgnomes or source_group.
     return None
 
 

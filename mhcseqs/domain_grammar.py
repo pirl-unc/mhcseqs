@@ -172,6 +172,16 @@ NON_MHC_GENE_NAMES = frozenset(
         "CIITA",
         "C2ta",
         "C*2ta",
+        "Rfx1",
+        "RFX1",
+        "Rfx2",
+        "RFX2",
+        "Rfx5",
+        "RFX5",
+        "Rfxap",
+        "RFXAP",
+        "Rfxank",
+        "RFXANK",
     }
 )
 

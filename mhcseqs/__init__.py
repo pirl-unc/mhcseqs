@@ -133,6 +133,8 @@ from .species import (
     full_species_name_alias,
     get_canonical_prefix,
     get_latin_name,
+    get_ncbi_taxid,
+    get_species_clade,
     normalize_mhc_species,
     normalize_species,
 )
@@ -504,6 +506,8 @@ __all__ = [
     "normalize_mhc_class",
     "normalize_species",
     "normalize_mhc_species",
+    "get_species_clade",
+    "get_ncbi_taxid",
     "get_latin_name",
     "full_species_name_alias",
     "get_canonical_prefix",
