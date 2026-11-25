@@ -186,7 +186,8 @@ def build_query_candidates(query: str) -> set[str]:
                 for obj in (parsed, restricted):
                     body = str(obj.to_string(include_species=False))
                     if body:
-                        candidates.add(f"{rel_prefix}-{body}".casefold())
+                        sep = "*" if isinstance(obj, mhcgnomes.AccessionedAllele) and obj.gene is None else "-"
+                        candidates.add(f"{rel_prefix}{sep}{body}".casefold())
     return candidates
 
 

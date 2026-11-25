@@ -3,6 +3,7 @@ import pytest
 
 from mhcseqs.alleles import (
     allele_suffix_flags,
+    build_accessioned_allele,
     canonical_allele_name,
     infer_gene,
     infer_mhc_class,
@@ -349,3 +350,71 @@ def test_canonical_species_prefix_roundtrips_for_every_mhcgnomes_species():
             norm = canonical_allele_name(parsed, allele_fields=2)
             assert parse_allele_name(norm) is not None, f"Canonical allele {norm!r} failed round-trip"
             assert normalize_allele_name(norm) == norm, f"normalize_allele_name not idempotent for {norm!r}"
+
+
+def test_accessioned_alleles_parse_normalize_and_roundtrip():
+    """Issue #150 / mhcgnomes#309: AccessionedAllele parsing, canonicalization, and metadata."""
+    cases = [
+        ("Saha-UA*uniprot:G3V1L5", "SarcophilusHarrisii-UA*uniprot:G3V1L5", "UA", "I", "other_mammal"),
+        ("TriakisScyllium-UAA*uniprot:Q863D3", "TriakisScyllium-UAA*uniprot:Q863D3", "UAA", "I", "fish"),
+        ("Saha*uniprot:G3V1L5 class I", "SarcophilusHarrisii*uniprot:G3V1L5 class I", None, "I", "other_mammal"),
+        ("Saha*uniprot:G3V1L5 class II", "SarcophilusHarrisii*uniprot:G3V1L5 class II", None, "II", "other_mammal"),
+        ("BoLA*uniprot:P12345 class II", "BoLA*uniprot:P12345 class II", None, "II", "ungulate"),
+    ]
+    for raw, expected, expected_gene, expected_class, expected_species_bucket in cases:
+        parsed = parse_allele_name(raw)
+        assert isinstance(parsed, mhcgnomes.AccessionedAllele)
+        assert normalize_allele_name(raw) == expected
+        assert normalize_allele_name(expected) == expected
+        assert infer_gene(expected) == expected_gene
+        assert infer_mhc_class(expected) == expected_class
+        assert infer_species(expected) == expected_species_bucket
+        assert allele_suffix_flags(parsed) == {"is_null": False, "is_questionable": False, "is_pseudogene": False}
+
+    # Bare UniProt accessions and mechanically truncated derived prefixes are rejected.
+    for bare in ("G3V1L5", "H2LR16", "P01898", "TriaScyl*uniprot:Q863D3 class I"):
+        assert parse_allele_name(bare) is None
+
+
+def test_build_accessioned_allele_handles_gene_and_placeholder_fallbacks():
+    with_gene = build_accessioned_allele(
+        species="Triakis scyllium",
+        accession_source="uniprot",
+        accession="Q863D3",
+        gene="TriakisScyllium-UAA",
+        mhc_class="I",
+    )
+    assert isinstance(with_gene, mhcgnomes.AccessionedAllele)
+    assert canonical_allele_name(with_gene) == "TriakisScyllium-UAA*uniprot:Q863D3"
+    assert with_gene.is_class1
+
+    from_allele_label = build_accessioned_allele(
+        species="Xenopus laevis",
+        accession_source="uniprot",
+        accession="Q9TPA0",
+        gene="XenopusLaevis-UAA*l",
+        mhc_class="I",
+    )
+    assert isinstance(from_allele_label, mhcgnomes.AccessionedAllele)
+    assert canonical_allele_name(from_allele_label) == "XenopusLaevis-UAA*uniprot:Q9TPA0"
+
+    placeholder = build_accessioned_allele(
+        species="Sarcophilus harrisii",
+        accession_source="uniprot",
+        accession="G3V1L5",
+        gene="~ref:SarcophilusHarrisii|G3V1L5:MHC-I",
+        mhc_class="I",
+    )
+    assert isinstance(placeholder, mhcgnomes.AccessionedAllele)
+    assert canonical_allele_name(placeholder) == "SarcophilusHarrisii*uniprot:G3V1L5 class I"
+    assert placeholder.is_class1
+
+    empty_gene = build_accessioned_allele(
+        species="Cricetulus griseus",
+        accession_source="uniprot",
+        accession="A0A061HWC8",
+        gene="",
+        mhc_class="I",
+    )
+    assert isinstance(empty_gene, mhcgnomes.AccessionedAllele)
+    assert canonical_allele_name(empty_gene) == "CricetulusGriseus*uniprot:A0A061HWC8 class I"

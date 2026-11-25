@@ -9,6 +9,7 @@ Ported from presto/data/allele_resolver.py.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import Any, Optional
 
 import mhcgnomes
@@ -42,6 +43,7 @@ _MHC_CLASS_II_ALIASES = {
 
 MOLECULE_RESULT_TYPES = (
     mhcgnomes.Allele,
+    mhcgnomes.AccessionedAllele,
     mhcgnomes.Gene,
     mhcgnomes.AlleleWithoutGene,
     mhcgnomes.Pair,
@@ -77,10 +79,11 @@ def is_generated_short_prefix(candidate: str, parsed: Any) -> bool:
     """
     species = getattr(parsed, "species", None)
     species_name = getattr(species, "name", None)
-    if not species_name or "-" not in candidate:
+    sep_positions = [pos for pos in (candidate.find("-"), candidate.find("*")) if pos > 0]
+    if not species_name or not sep_positions:
         return False
 
-    prefix = candidate.split("-", 1)[0]
+    prefix = candidate[: min(sep_positions)]
     normalized_prefix = re.sub(r"[^A-Za-z0-9]+", "", prefix).casefold()
     if normalized_prefix == full_species_name_alias(species_name).casefold():
         return False
@@ -201,8 +204,73 @@ def canonical_allele_name(parsed: Any, allele_fields: Optional[int] = None) -> s
     if species_prefix:
         body = str(parsed.to_string(include_species=False))
         if body:
-            return f"{species_prefix}-{body}"
+            sep = "*" if isinstance(parsed, mhcgnomes.AccessionedAllele) and parsed.gene is None else "-"
+            return f"{species_prefix}{sep}{body}"
     return str(parsed.to_string())
+
+
+@lru_cache(maxsize=4096)
+def _resolve_species_and_gene(species: str, gene_token: str) -> tuple[Optional[mhcgnomes.Species], Optional[mhcgnomes.Gene]]:
+    """Resolve and cache an mhcgnomes ``(Species, Gene | None)`` pair."""
+    sp_obj = mhcgnomes.Species.get(species)
+    if sp_obj is None:
+        return None, None
+    gene_obj = None
+    if gene_token and not gene_token.startswith("~"):
+        parsed_gene = parse_allele_name(gene_token, species=sp_obj.name)
+        if isinstance(parsed_gene, mhcgnomes.Gene) and parsed_gene.species == sp_obj:
+            gene_obj = parsed_gene
+        elif parsed_gene is not None:
+            candidate_gene = getattr(parsed_gene, "gene", None)
+            if isinstance(candidate_gene, mhcgnomes.Gene) and candidate_gene.species == sp_obj:
+                gene_obj = candidate_gene
+    return sp_obj, gene_obj
+
+
+def build_accessioned_allele(
+    *,
+    species: str,
+    accession_source: str,
+    accession: str,
+    gene: Optional[str] = None,
+    mhc_class: Optional[str] = None,
+) -> Optional[mhcgnomes.AccessionedAllele]:
+    """Construct a validated ``mhcgnomes.AccessionedAllele`` from sequence metadata.
+
+    When *gene* resolves to an ontology ``mhcgnomes.Gene`` belonging to *species*
+    and compatible with *mhc_class*, returns a gene-qualified accessioned allele
+    (rendering as ``<SpeciesPrefix>-<Gene>*<source>:<accession>``). Otherwise
+    returns a gene-less accessioned allele qualified by MHC class when known
+    (rendering as ``<SpeciesPrefix>*<source>:<accession> class <I|II>``).
+    """
+    if not species or not accession:
+        return None
+    sp_obj, gene_obj = _resolve_species_and_gene(species.strip(), (gene or "").strip())
+    if sp_obj is None:
+        return None
+
+    mc = normalize_mhc_class(mhc_class)
+    if mc not in ("I", "II"):
+        mc = None
+
+    if gene_obj is not None:
+        accessioned = mhcgnomes.AccessionedAllele.get(
+            sp_obj,
+            accession_source,
+            accession,
+            gene=gene_obj,
+            mhc_class=mc,
+        )
+        if accessioned is not None:
+            return accessioned
+
+    return mhcgnomes.AccessionedAllele.get(
+        sp_obj,
+        accession_source,
+        accession,
+        gene=None,
+        mhc_class=mc,
+    )
 
 
 def normalize_allele_name(name: str) -> str:
@@ -368,7 +436,7 @@ def allele_suffix_flags(allele: Any) -> dict[str, bool]:
         return {"is_null": False, "is_questionable": False, "is_pseudogene": False}
     is_pseudogene = bool(getattr(parsed, "is_pseudogene", False) or getattr(parsed, "annotation_pseudogene", False))
     return {
-        "is_null": bool(parsed.annotation_null),
-        "is_questionable": bool(parsed.annotation_questionable),
+        "is_null": bool(getattr(parsed, "annotation_null", False)),
+        "is_questionable": bool(getattr(parsed, "annotation_questionable", False)),
         "is_pseudogene": is_pseudogene,
     }

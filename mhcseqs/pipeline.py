@@ -16,6 +16,7 @@ import mhcgnomes
 
 from .alleles import (
     allele_suffix_flags,
+    build_accessioned_allele,
     canonical_allele_name,
     canonical_species_prefix,
     infer_mhc_class,
@@ -215,7 +216,7 @@ def header_tokens(header: str) -> List[str]:
 
 def _parsed_token_rank(parsed: Any, index: int) -> Tuple[int, int, int]:
     """Rank parsed mhcgnomes results by molecule specificity (higher is better)."""
-    if isinstance(parsed, (mhcgnomes.Allele, mhcgnomes.Pair)):
+    if isinstance(parsed, (mhcgnomes.Allele, mhcgnomes.AccessionedAllele, mhcgnomes.Pair)):
         type_rank = 3
     elif isinstance(parsed, mhcgnomes.AlleleWithoutGene):
         type_rank = 2
@@ -694,9 +695,12 @@ def load_diverse_mhc_references() -> List[dict]:
 
     Verified UniProt accessions listed in ``curated_uniprot_alleles.csv`` are
     assigned their canonical allele names (e.g. ``TrichosurusVulpecula-UB*01:01``,
-    ``PteropusAlecto-N*01:01``, ``AnasPlatyrhynchos-UAA*01``, ``FelisCatus-E*003:01``)
-    while retaining the UniProt accession in ``source_id``. Every row receives
-    a populated ``species_prefix``.
+    ``PteropusAlecto-N*01:01``, ``AnasPlatyrhynchos-UAA*01``, ``FelisCatus-E*003:01``).
+    All other UniProt entries receive canonical ``mhcgnomes.AccessionedAllele``
+    identifiers (``<SpeciesPrefix>-<Gene>*uniprot:<ACC>`` when a canonical gene
+    resolves, or ``<SpeciesPrefix>*uniprot:<ACC> class <I|II>`` otherwise) while
+    retaining the bare UniProt accession in ``allele_raw`` and ``source_id``.
+    Every row receives a populated ``species_prefix``.
     """
     if not _DIVERSE_MHC_CSV.exists():
         return []
@@ -726,7 +730,8 @@ def load_diverse_mhc_references() -> List[dict]:
             if curated_entry is None and gene and is_non_mhc_gene(gene, species=extract_latin_binomial(organism)):
                 continue
 
-            # Default: accession as allele name (no standard nomenclature)
+            # Default: retain raw UniProt accession while promoting allele_name
+            # to a curated allele or canonical mhcgnomes AccessionedAllele below.
             allele_raw = accession
             allele_name = accession
             species_out = organism
@@ -739,11 +744,13 @@ def load_diverse_mhc_references() -> List[dict]:
                 species_category = normalize_mhc_species(organism) or species_category
 
             # Apply curated UniProt -> canonical allele mapping when verified.
+            curated_resolved = False
             if curated_entry is not None:
                 curated_allele_raw = (curated_entry.get("allele_name") or "").strip()
                 curated_species = (curated_entry.get("species") or "").strip() or extract_latin_binomial(organism)
                 parsed_curated = parse_allele_name(curated_allele_raw, species=curated_species) if curated_allele_raw else None
                 if parsed_curated is not None:
+                    curated_resolved = True
                     allele_raw = curated_allele_raw
                     allele_name = canonical_allele_name(parsed_curated, allele_fields=2)
                     gene_obj = getattr(parsed_curated, "gene", None)
@@ -773,6 +780,23 @@ def load_diverse_mhc_references() -> List[dict]:
                     chain = "alpha"
                 elif gene:
                     chain = "beta"
+
+            # Emit canonical mhcgnomes-parseable AccessionedAllele identifiers
+            # for uncurated UniProt rows (#150) while preserving the bare
+            # accession in allele_raw and source_id.
+            if not curated_resolved and accession:
+                latin_species = extract_latin_binomial(species_out) or species_out
+                accessioned = build_accessioned_allele(
+                    species=latin_species,
+                    accession_source="uniprot",
+                    accession=accession,
+                    gene=gene,
+                    mhc_class=mhc_class,
+                )
+                if accessioned is not None:
+                    allele_name = canonical_allele_name(accessioned)
+                    if not mhc_class and accessioned.mhc_class:
+                        mhc_class = normalize_mhc_class(accessioned.mhc_class) or mhc_class
 
             species_prefix = species_prefix_cache.get(species_out)
             if species_prefix is None:

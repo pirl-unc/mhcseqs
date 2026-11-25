@@ -299,6 +299,28 @@ def test_validate_build_flags_unparseable_two_field_allele(tmp_path):
                 "mature_sequence": "",
             },
             {
+                "two_field_allele": "SarcophilusHarrisii-UA*uniprot:G3V1L5",
+                "source": "uniprot",
+                "source_id": "G3V1L5",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "groove_status": "not_applicable",
+                "groove1": "",
+                "groove2": "",
+                "mature_sequence": "",
+            },
+            {
+                "two_field_allele": "SarcophilusHarrisii*uniprot:G3V1L5 class I",
+                "source": "uniprot",
+                "source_id": "G3V1L5",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "groove_status": "not_applicable",
+                "groove1": "",
+                "groove2": "",
+                "mature_sequence": "",
+            },
+            {
                 "two_field_allele": "A0A125R585",
                 "source": "uniprot",
                 "source_id": "A0A125R585",
@@ -309,10 +331,23 @@ def test_validate_build_flags_unparseable_two_field_allele(tmp_path):
                 "groove2": "",
                 "mature_sequence": "",
             },
+            {
+                "two_field_allele": "B2M_human",
+                "source": "uniprot",
+                "source_id": "P61769",
+                "mhc_class": "I",
+                "chain": "B2M",
+                "groove_status": "not_applicable",
+                "groove1": "",
+                "groove2": "",
+                "mature_sequence": "",
+            },
         ],
     )
     warnings, stats = validate_build(raw_csv, full_csv)
-    assert stats["unparseable_two_field_alleles"] == 1
+    assert stats["unparseable_two_field_alleles"] == 2
     assert any("ALLELE_ROUNDTRIP(NotASpecies-1*01:01)" in w for w in warnings)
+    assert any("ALLELE_ROUNDTRIP(A0A125R585)" in w for w in warnings)
     assert not any("SLA-1*01:01" in w for w in warnings)
-    assert not any("A0A125R585" in w for w in warnings)
+    assert not any("G3V1L5" in w for w in warnings)
+    assert not any("B2M_human" in w for w in warnings)

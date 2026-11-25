@@ -405,10 +405,10 @@ def validate_build(
     for row in full_rows:
         allele = (row.get("two_field_allele") or "").strip()
         source = (row.get("source") or "").strip()
-        source_id = (row.get("source_id") or "").strip()
-        # Every non-accession, non-B2M canonical allele emitted to mhc-full-seqs.csv
-        # must round-trip cleanly through mhcseqs.parse_allele_name / mhcgnomes.
-        if allele and allele != source_id and not allele.startswith("B2M_") and (source in ("imgt", "ipd_mhc") or "-" in allele):
+        # Every non-B2M canonical allele emitted to mhc-full-seqs.csv — including
+        # accession-backed UniProt identifiers — must round-trip cleanly through
+        # mhcseqs.parse_allele_name / mhcgnomes.
+        if allele and not allele.startswith("B2M_"):
             if parse_allele_name(allele) is None:
                 unparseable_alleles += 1
                 warnings.append(f"ALLELE_ROUNDTRIP({allele}): two_field_allele failed parse_allele_name() round-trip (source={source})")
