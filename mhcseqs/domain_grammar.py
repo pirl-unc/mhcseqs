@@ -168,6 +168,8 @@ NON_MHC_GENE_NAMES = frozenset(
         "Mfsd6",
         "Klra1",
         "Arhgap45",
+        "Hmha1",
+        "HMHA1",
         "Ciita",
         "CIITA",
         "C2ta",
