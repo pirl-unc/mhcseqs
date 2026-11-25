@@ -4692,6 +4692,28 @@ def _class_i_fragment_result(
     if junction_salvage is not None:
         return junction_salvage
 
+    # Guard against C-terminal α3 Ig half-fragments (missing α3 Cys203, so no
+    # Cys pair exists, e.g. MELVETRP...GTFQKW...CHVHHEGLP) falling through to alpha1_only.
+    if re.search(r"G[STN]FQKW[AGSV][ASV]|CHV[QHNYL]H[EDQ]GLP|LVETRP[AST][GSN]D?GTFQ", cleaned) and not re.search(
+        r"G[SP]HS[LMF]RYF|VGYVDDT|RFDSDA", cleaned
+    ):
+        return _attach_parse_candidate(
+            AlleleRecord(
+                allele=allele,
+                gene=gene,
+                mhc_class="I",
+                chain="alpha",
+                sequence=cleaned,
+                seq_len=len(cleaned),
+                mature_start=0,
+                ig_domain=cleaned,
+                ig_domain_len=len(cleaned),
+                status="missing_groove",
+                anchor_type="",
+                flags=("ig_only_fragment",),
+            )
+        )
+
     return _attach_parse_candidate(
         AlleleRecord(
             allele=allele,
@@ -5264,11 +5286,15 @@ def _collect_primary_parse_candidates(
     selections: list[PrimaryParseSelection] = []
     resolve_secondary = secondary_resolver or (lambda _ann: None)
 
+    strong_ig_pairs = (
+        [a for a in annotated if a.domain_type == "ig" and a.ig_score >= 4.0 and a.ig_score > a.groove_score + 2.0]
+        if grammar.mhc_class == "I"
+        else []
+    )
     for ann in annotated:
         # Class I primary anchor must be the G-ALPHA2 groove disulfide, never a
-        # strongly C1-set Ig domain (prevents α3 or Class II β2/α2 Ig domains from
-        # masquerading as groove2 on N-truncated Class I or mislabeled Class II rows).
-        if grammar.mhc_class == "I" and ann.domain_type == "ig" and ann.ig_score >= 4.0 and ann.ig_score > ann.groove_score + 2.0:
+        # strongly C1-set Ig domain (nor an overlapping Cys pair spanning one).
+        if grammar.mhc_class == "I" and any(ann.c1 <= ig.c1 and ig.c2 <= ann.c2 for ig in strong_ig_pairs):
             continue
         secondary = resolve_secondary(ann)
         sec_c1 = secondary[0] if secondary else 0
