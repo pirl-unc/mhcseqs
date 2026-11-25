@@ -30,7 +30,7 @@ entries: 99.3%.
 
 | Column | Description |
 |---|---|
-| `two_field_allele` | Allele name at two-field resolution |
+| `two_field_allele` | Canonical mhcgnomes-parseable allele name at two-field resolution (or accession-backed `<SpeciesPrefix>-<Gene>*uniprot:<ACC>` / `<SpeciesPrefix>*uniprot:<ACC> class <I\|II>` for uncurated UniProt rows) |
 | `gene` | MHC gene (e.g., A, DRB1, BF, UA) |
 | `mhc_class` | I or II |
 | `chain` | alpha, beta, or B2M |
@@ -51,7 +51,7 @@ allele, with the structural decomposition added.
 
 | Column | Description |
 |---|---|
-| `two_field_allele` | Allele name at two-field resolution |
+| `two_field_allele` | Canonical mhcgnomes-parseable allele name at two-field resolution (or accession-backed `<SpeciesPrefix>-<Gene>*uniprot:<ACC>` / `<SpeciesPrefix>*uniprot:<ACC> class <I\|II>` for uncurated UniProt rows) |
 | `representative_allele` | Full-resolution allele chosen as the representative |
 | `protein_seq_selection` | How the representative was chosen (`unique`, `nested_longest`, ...) |
 | `gene`, `mhc_class`, `chain`, `species`, `species_category`, `species_prefix`, `source`, `source_id` | As in [key columns](#key-columns); `species_prefix` is the full-binomial prefix, e.g. `HomoSapiens` |

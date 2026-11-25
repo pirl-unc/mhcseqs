@@ -310,6 +310,9 @@ def test_diverse_references_include_felis_catus_and_curated_alleles(diverse_mhc_
         "A0A7H1D3E9": ("FelisCatus-E*001:01", "FelisCatus", "carnivore"),
         "A0A516V164": ("FelisCatus-E*005:01", "FelisCatus", "carnivore"),
         "A0A7H1D3F5": ("FelisCatus-K*012:02", "FelisCatus", "carnivore"),
+        "P01898": ("MusMusculus-Q10", "MusMusculus", "murine"),
+        "P06339": ("MusMusculus-T23", "MusMusculus", "murine"),
+        "P14429": ("MusMusculus-Q7", "MusMusculus", "murine"),
     }
     for acc, (allele_canon, sp_prefix, sp_cat) in expected.items():
         row = by_source_id[acc]
@@ -329,6 +332,48 @@ def test_diverse_references_include_felis_catus_and_curated_alleles(diverse_mhc_
     # Felis catus Class I heavy-chain coverage (#117)
     fla_ci = [r for r in rows if r["species_prefix"] == "FelisCatus" and r["mhc_class"] == "I" and r["chain"] == "alpha"]
     assert len(fla_ci) >= 15
+
+
+def test_diverse_references_emit_roundtrippable_accessioned_alleles(diverse_mhc_reference_rows):
+    """Issue #150: every UniProt row emits a unique, mhcgnomes-parseable identifier."""
+    import mhcgnomes
+
+    from mhcseqs.alleles import parse_allele_name
+
+    rows = diverse_mhc_reference_rows
+    by_source_id = {r["source_id"]: r for r in rows}
+
+    # Spot-check gene-backed and gene-less AccessionedAllele rows
+    shark = by_source_id["O46817"]
+    assert shark["two_field_allele"] == "TriakisScyllium-UAA*uniprot:O46817"
+    assert shark["allele_raw"] == "O46817"
+    assert shark["source_id"] == "O46817"
+
+    medaka = by_source_id["H2LR16"]
+    assert medaka["two_field_allele"] == "OryziasLatipes-UBA*uniprot:H2LR16"
+    parsed_medaka = parse_allele_name(medaka["two_field_allele"])
+    assert isinstance(parsed_medaka, mhcgnomes.AccessionedAllele)
+    assert parsed_medaka.species.name == "Oryzias latipes"
+    assert parsed_medaka.is_class1
+
+    hamster = by_source_id["A0A061HWC8"]
+    assert hamster["two_field_allele"] == "CricetulusGriseus*uniprot:A0A061HWC8 class I"
+    parsed_hamster = parse_allele_name(hamster["two_field_allele"])
+    assert isinstance(parsed_hamster, mhcgnomes.AccessionedAllele)
+    assert parsed_hamster.species.name == "Cricetulus griseus"
+    assert parsed_hamster.gene is None
+    assert parsed_hamster.is_class1
+
+    # Zero bare accessions, zero collisions, and 100% mhcgnomes round-trip parseability.
+    seen_alleles: set[str] = set()
+    for row in rows:
+        allele = row["two_field_allele"]
+        acc = row["source_id"]
+        assert allele != acc, f"Bare UniProt accession leaked into two_field_allele: {acc}"
+        assert allele not in seen_alleles, f"Duplicate two_field_allele emitted: {allele}"
+        seen_alleles.add(allele)
+        parsed = parse_allele_name(allele)
+        assert parsed is not None, f"two_field_allele failed parse_allele_name(): {allele!r} (source_id={acc})"
 
 
 def test_genbank_saha_references_use_canonical_names():

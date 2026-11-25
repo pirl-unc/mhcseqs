@@ -193,6 +193,57 @@ def test_lookup_finds_allele(tmp_path, monkeypatch):
     assert rec.anchor_cys1 is not None  # populated by extract_groove
 
 
+def test_lookup_resolves_accessioned_alleles_and_bare_uniprot_source_ids(tmp_path, monkeypatch):
+    """Issue #150: lookup matches canonical, short-prefix, and bare UniProt accession queries."""
+    _write_full_seqs_csv(
+        tmp_path / "mhc-full-seqs.csv",
+        [
+            {
+                "two_field_allele": "SarcophilusHarrisii*uniprot:G3V1L5 class I",
+                "representative_allele": "SarcophilusHarrisii*uniprot:G3V1L5 class I",
+                "gene": "~ref:SarcophilusHarrisii|G3V1L5:MHC-I",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Sarcophilus harrisii",
+                "species_category": "other_mammal",
+                "species_prefix": "SarcophilusHarrisii",
+                "source": "uniprot",
+                "source_id": "G3V1L5",
+                "sequence": _A0201_SEQ,
+                "seq_len": str(len(_A0201_SEQ)),
+            },
+            {
+                "two_field_allele": "TriakisScyllium-UAA*uniprot:Q863D3",
+                "representative_allele": "TriakisScyllium-UAA*uniprot:Q863D3",
+                "gene": "TriakisScyllium-UAA",
+                "mhc_class": "I",
+                "chain": "alpha",
+                "species": "Triakis scyllium",
+                "species_category": "fish",
+                "species_prefix": "TriakisScyllium",
+                "source": "uniprot",
+                "source_id": "Q863D3",
+                "sequence": _A0201_SEQ,
+                "seq_len": str(len(_A0201_SEQ)),
+            },
+        ],
+    )
+    monkeypatch.chdir(tmp_path)
+    for query in (
+        "SarcophilusHarrisii*uniprot:G3V1L5 class I",
+        "Saha*uniprot:G3V1L5 class I",
+        "G3V1L5",
+    ):
+        rec = mhcseqs.lookup(query)
+        assert rec.allele == "SarcophilusHarrisii*uniprot:G3V1L5 class I"
+        assert rec.source_id == "G3V1L5"
+
+    for query in ("TriakisScyllium-UAA*uniprot:Q863D3", "Q863D3"):
+        rec = mhcseqs.lookup(query)
+        assert rec.allele == "TriakisScyllium-UAA*uniprot:Q863D3"
+        assert rec.source_id == "Q863D3"
+
+
 def test_lookup_case_insensitive(tmp_path, monkeypatch):
     _write_full_seqs_csv(
         tmp_path / "mhc-full-seqs.csv",
