@@ -1456,6 +1456,62 @@ def detect_h_region(seq: str, *, limit: int = 50) -> tuple[int, int]:
     return start, end
 
 
+_SP_CORE_HYDROPHOBIC = _SP_HYDROPHOBIC | frozenset("C")
+
+
+def _has_plausible_sp_core(seq: str, sp_len: int) -> bool:
+    """Return True if ``seq[:sp_len]`` contains a biophysically plausible SP h-region.
+
+    A genuine eukaryotic signal peptide must contain a hydrophobic core *within*
+    the cleaved prefix ``seq[:sp_len]``, not merely a hydrophobic beta-strand
+    downstream in the mature domain.  Allows either a charged-free (``DEKR``-free)
+    hydrophobic window or a denser core tolerating at most one charged residue
+    (matching real MHC SPs like ``LLLLTRLLLL`` or ``LLLQLSEALALT``).  Leaderless
+    prefixes lacking an N-terminal Methionine (``'M' not in sp[:8]``) require a
+    denser hydrophobic core corresponding to an N-truncated SP tail rather than
+    a hydrophilic mature N-terminus.
+    """
+    if sp_len < 6 or sp_len > len(seq):
+        return False
+    sp = seq[:sp_len].upper()
+    hydro_total = sum(1 for aa in sp if aa in _SP_CORE_HYDROPHOBIC)
+    if hydro_total / len(sp) < 0.36:
+        return False
+
+    has_nterm_met = "M" in sp[:8]
+    max_win = min(16, len(sp))
+    if has_nterm_met:
+        for win_len in range(6, max_win + 1):
+            for start in range(0, len(sp) - win_len + 1):
+                window = sp[start : start + win_len]
+                if window.count("P") > 1:
+                    continue
+                charged = sum(1 for aa in window if aa in _SP_CHARGED)
+                if charged > 1:
+                    continue
+                hydro = sum(1 for aa in window if aa in _SP_CORE_HYDROPHOBIC)
+                if charged == 0 and hydro >= 5 and hydro / win_len >= 0.58:
+                    return True
+                if charged == 1 and win_len >= 9 and hydro >= 7 and hydro / win_len >= 0.66:
+                    return True
+        return False
+
+    for win_len in range(7, max_win + 1):
+        for start in range(0, len(sp) - win_len + 1):
+            window = sp[start : start + win_len]
+            if window.count("P") > 1:
+                continue
+            charged = sum(1 for aa in window if aa in _SP_CHARGED)
+            if charged > 1:
+                continue
+            hydro = sum(1 for aa in window if aa in _SP_CORE_HYDROPHOBIC)
+            if charged == 0 and hydro >= 6 and hydro / win_len >= 0.72:
+                return True
+            if charged == 1 and win_len >= 10 and hydro >= 8 and hydro / win_len >= 0.80:
+                return True
+    return False
+
+
 def estimate_sp_from_h_region(seq: str) -> int:
     """Estimate SP cleavage position from the hydrophobic core alone.
 
@@ -4097,7 +4153,13 @@ def refine_signal_peptide(
             if best_pos > mature_start:
                 required_margin += 0.10
             if best_score < initial_score + required_margin:
-                return mature_start
+                best_pos = mature_start
+
+    # Biophysical SP core gate: the cleaved prefix seq[:best_pos] must itself
+    # contain a charged-free hydrophobic core (not just a hydrophobic beta-strand
+    # downstream of mature_start that fell inside detect_h_region(limit=50)).
+    if best_pos > 0 and (features is None or features.sp_shortcut_state != "sp_present") and not _has_plausible_sp_core(seq, best_pos):
+        return 0
 
     return best_pos
 

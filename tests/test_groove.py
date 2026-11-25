@@ -925,6 +925,39 @@ def test_refine_signal_peptide_rejects_mature_only_input():
     assert refined > 0
 
 
+def test_refine_signal_peptide_rejects_reptile_mature_only_controls():
+    """Regression test for #18: mature-only non-classical reptile/vertebrate
+    sequences whose hydrophobic beta-strand lies downstream of mature_start or
+    whose N-terminus lacks a true hydrophobic SP core must refine to 0, while
+    real vertebrate SPs (including cores with a single charged interruption)
+    are preserved.
+    """
+    from mhcseqs.domain_parsing import _has_plausible_sp_core, analyze_sequence, refine_signal_peptide
+
+    # Mature-only reptile/vertebrate controls that previously leaked false-positive SPs:
+    mature_only_cases = [
+        # Downstream h-region at pos 41-49 fooled detect_h_region(limit=50):
+        ("MEPEGRVVHQEKYDCHFTNGTERVRYLDRYIYNREEFVRFDSDVGEYRAVTELGRPDAEYWNSQKDLLERRRAAVDTYCRHNYGVGESFTVQRRVEPKVTVY", 20, "II"),
+        # Proline/charged-rich mature N-terminus starting with M:
+        ("MEGRFQPPAAQFLHQSKAECHFTNGTERVRYLDRYIYNREEFVRFDSDVGEYRAVTELGRPDAEYWNSQKDLLERRRAAVDTYCRHNYGVGESFTVQRRV", 18, "II"),
+        # Leaderless mature-only Class II beta / Class I sequences:
+        ("EPPVHILYQVIGECYFQSNGSGATERLRYLDRYIYNREEFVRFDSDVGEYRAVTELGRPDAEYWNSQKDLLERRRAAVDTYCRHNYGVGESFTVQRRV", 23, "II"),
+        ("SGTSSPSHSLLHFRYAMLLEGPGLGEPRFITVGYVDDTQFVRFDSDAASPRMEPRAPWIEQEGPEYWDRETQISKTNTQTYRENLRIALRYYNQSEAGS", 21, "I"),
+        ("RGLCGTAEALARRRGDAREPRQSSLHPKGLSFYRGSSSSHSLRYFYTAVSRPGLGEPRFITVGYVDDTQFVRFDSDAASPRMEPRAPWIEQEGPEYWDRET", 38, "I"),
+    ]
+    for seq, init_start, mhc_class in mature_only_cases:
+        feats = analyze_sequence(seq)
+        assert refine_signal_peptide(seq, init_start, "other_vertebrate", mhc_class, features=feats) == 0
+        # Must also work when features is omitted (as in pipeline representative selection).
+        assert refine_signal_peptide(seq, init_start, "other_vertebrate", mhc_class) == 0
+
+    # Real vertebrate SPs including single-charged-residue hydrophobic cores must pass:
+    assert _has_plausible_sp_core("MRVMAPRTLLLQLSEALALTETWA" + HLA_A0201_MATURE, 24)
+    assert _has_plausible_sp_core("MSLARTTGLLLLTRLLLLEPGKT" + HLA_A0201_MATURE, 23)
+    assert _has_plausible_sp_core("MSLPSHTARLLWKILLLIEAWNILG" + HLA_A0201_MATURE, 25)
+    assert _has_plausible_sp_core("WGGVLGKGLLLLRLLFLLERQCSS" + HLA_A0201_MATURE, 24)
+
+
 def test_estimate_sp_from_h_region():
     """SP estimate from h-region should be close to true SP length."""
     hla_a_full = "MAVMAPRTLLLLLSGALALTQTWA" + HLA_A0201_MATURE
