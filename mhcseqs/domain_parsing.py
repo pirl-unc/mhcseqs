@@ -4485,6 +4485,9 @@ def _build_class_i_junction_salvage_result(
 
     half_1 = _slice_or_empty(cleaned, mature_start, best_jpos)
     half_2 = _slice_or_empty(cleaned, best_jpos, alpha2_end)
+    # Reject runaway junction-inferred alpha1 segments (e.g. chimeric / N-extended proteins)
+    if len(half_1) > 120:
+        return None
     ig_end = min(n, alpha2_end + 95) if alpha2_end < n else n
     ig = _slice_or_empty(cleaned, alpha2_end, ig_end)
     tail = cleaned[ig_end:]
@@ -4496,6 +4499,10 @@ def _build_class_i_junction_salvage_result(
         flags.append(f"alpha1_short({len(half_1)})")
     if len(half_2) < 80:
         flags.append(f"alpha2_short({len(half_2)})")
+
+    # When BOTH groove halves are severely truncated (e.g. 105-aa partial exon2+3
+    # fragments with 59+46 aa), downgrade from "ok" to "short".
+    status = "short" if (len(half_1) < MIN_FUNCTIONAL_GROOVE_HALF_LEN and len(half_2) < MIN_FUNCTIONAL_GROOVE_HALF_LEN) else "ok"
 
     return _attach_parse_candidate(
         AlleleRecord(
@@ -4516,7 +4523,7 @@ def _build_class_i_junction_salvage_result(
             tail=tail,
             tail_len=len(tail),
             parse_score=best_jscore + 10.0,
-            status="ok",
+            status=status,
             anchor_type="junction",
             flags=_flags_to_tuple(flags),
         ),
@@ -4587,6 +4594,46 @@ def _class_i_fragment_result(
                     anchor_cys1=best_groove.c1,
                     anchor_cys2=best_groove.c2,
                     flags=_flags_to_tuple(flags),
+                ),
+                seq=cleaned,
+                h_region=(features.h_region if features is not None else None),
+                sp_estimate=(features.sp_estimate if features is not None else None),
+                features=features,
+            )
+        downstream_ig = [ig for ig in ig_pairs if ig.c1 >= best_groove.c2 + 15]
+        if downstream_ig:
+            best_ig = min(downstream_ig, key=lambda a: a.c1)
+            alpha2_end = min(len(cleaned), best_groove.c2 + CLASS_I_ALPHA2_END_AFTER_CYS2)
+            ig_end = min(len(cleaned), best_ig.c2 + IG_DOMAIN_END_AFTER_CYS2)
+            half_2 = _slice_or_empty(cleaned, 0, alpha2_end)
+            ig = _slice_or_empty(cleaned, alpha2_end, ig_end)
+            tail = cleaned[ig_end:]
+            return _attach_parse_candidate(
+                AlleleRecord(
+                    allele=allele,
+                    gene=gene,
+                    mhc_class="I",
+                    chain="alpha",
+                    sequence=cleaned,
+                    seq_len=len(cleaned),
+                    mature_start=0,
+                    groove_seq=half_2,
+                    groove1="",
+                    groove2=half_2,
+                    groove1_len=0,
+                    groove2_len=len(half_2),
+                    ig_domain=ig,
+                    ig_domain_len=len(ig),
+                    tail=tail,
+                    tail_len=len(tail),
+                    parse_score=best_groove.groove_score + best_ig.ig_score,
+                    status="alpha2_only",
+                    anchor_type="alpha2_cys",
+                    anchor_cys1=best_groove.c1,
+                    anchor_cys2=best_groove.c2,
+                    secondary_cys1=best_ig.c1,
+                    secondary_cys2=best_ig.c2,
+                    flags=("missing_alpha1",),
                 ),
                 seq=cleaned,
                 h_region=(features.h_region if features is not None else None),
@@ -5218,6 +5265,11 @@ def _collect_primary_parse_candidates(
     resolve_secondary = secondary_resolver or (lambda _ann: None)
 
     for ann in annotated:
+        # Class I primary anchor must be the G-ALPHA2 groove disulfide, never a
+        # strongly C1-set Ig domain (prevents α3 or Class II β2/α2 Ig domains from
+        # masquerading as groove2 on N-truncated Class I or mislabeled Class II rows).
+        if grammar.mhc_class == "I" and ann.domain_type == "ig" and ann.ig_score >= 4.0 and ann.ig_score > ann.groove_score + 2.0:
+            continue
         secondary = resolve_secondary(ann)
         sec_c1 = secondary[0] if secondary else 0
         sec_c2 = secondary[1] if secondary else 0
@@ -5761,7 +5813,10 @@ def decompose_class_i(
                 )
                 _append_record_candidate(candidates, record)
 
-    if len(cleaned) <= grammar.fragment_max_len:
+    has_nterm_alpha2_groove = any(
+        55 <= ann.separation <= 72 and ann.domain_type == "groove" and ann.groove_score >= 4.0 and ann.c1 <= 30 for ann in annotated
+    )
+    if len(cleaned) <= grammar.fragment_max_len or ((best_record is None or best_record.status != "ok") and has_nterm_alpha2_groove):
         _append_record_candidate(
             candidates,
             _class_i_fragment_result(seq=cleaned, allele=allele, gene=gene, annotated=annotated, features=features),
