@@ -1158,3 +1158,21 @@ def test_class_i_junction_salvage_rejects_runaway_alpha1_and_downgrades_short_fr
     runaway_seq = "A" * 160 + HLA_A0201_MATURE[:163] + "S" + HLA_A0201_MATURE[164:200]
     res_run = decompose_class_i(runaway_seq, allele="SYNTH-runaway")
     assert res_run.status != "ok"
+
+
+def test_class_i_rejects_cterm_alpha3_half_fragment_as_alpha1_only():
+    """Issue #143: C-terminal α3 Ig half-fragments (MELVETRP...GTFQKW...CHVHHEGLP) are missing_groove, not alpha1_only."""
+    a3_half = "MELVETRPSGDGTFQKWASLVVPSGEEQRCTCHVHHEGLPEPLTLRWEPPQSTVPVIGIIGGVVLVGAVVAGVVVWRRKRSGGKGGSYSQAASTDSAQGS"
+    res = decompose_class_i(a3_half, allele="A0ABM2X2D7")
+    assert res.status == "missing_groove"
+    assert "ig_only_fragment" in res.flags
+    assert res.groove1 == ""
+    assert res.ig_domain == a3_half
+
+
+def test_class_i_rejects_overlapping_cys_pair_spanning_ig_domain():
+    """Issue #143: stray upstream Cys forming an overlapping pair spanning a C1-set Ig pair must not be accepted as groove2."""
+    # Synthesize α2 + stray Cys 12 aa before α3 C1-set Ig pair (missing α1)
+    a3_with_stray_cys = "A" * 80 + "MDPPSCAAAAAAAA" + HLA_A0201_MATURE[185:]
+    res = decompose_class_i(a3_with_stray_cys, allele="SYNTH-stray-cys-ig")
+    assert res.status != "ok"

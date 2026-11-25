@@ -533,6 +533,13 @@ def test_diverse_references_filter_non_mhc_gene_rows():
     assert by_acc["Q31145"]["gene"] == "D"
     assert by_acc["Q31151"]["two_field_allele"] == "MusMusculus-L*q"
     assert by_acc["Q31151"]["gene"] == "L"
+    # Issue #143: reclassified mislabeled & unknown-class rodent/rabbit MHC chains
+    assert (by_acc["A0A091CXW4"]["mhc_class"], by_acc["A0A091CXW4"]["chain"]) == ("II", "beta")
+    assert (by_acc["A0A061IKF1"]["mhc_class"], by_acc["A0A061IKF1"]["chain"]) == ("II", "alpha")
+    assert (by_acc["Q9XRP1"]["mhc_class"], by_acc["Q9XRP1"]["chain"]) == ("II", "alpha")
+    assert (by_acc["Q30847"]["mhc_class"], by_acc["Q30847"]["chain"]) == ("II", "alpha")
+    assert (by_acc["A0A8C6QEU6"]["mhc_class"], by_acc["A0A8C6QEU6"]["chain"]) == ("II", "beta")
+    assert (by_acc["B0BNJ8"]["mhc_class"], by_acc["B0BNJ8"]["chain"]) == ("I", "alpha")
 
 
 def test_parse_diverse_gene_class_unwraps_ortho_and_ref_safely():
