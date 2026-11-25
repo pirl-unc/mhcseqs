@@ -143,7 +143,9 @@ def test_historical_nomenclature_prefixes_are_supported():
     assert parse_allele_name("RhLA-A1*001:01").species.name == "Macaca sp."
     assert parse_allele_name("GPLA-DRA").species.name == "Cavia porcellus"
     assert parse_allele_name("XL-A-DAB").species.name == "Xenopus laevis"
-    assert parse_allele_name("B-BF2", species="Gallus gallus").species.name == "Gallus gallus"
+    chicken_bf2 = parse_allele_name("B-F2", species="Gallus gallus")
+    assert chicken_bf2.species.name == "Gallus gallus"
+    assert chicken_bf2.name == "BF2"
 
 
 def test_colliding_attested_prefix_requires_species_context():
