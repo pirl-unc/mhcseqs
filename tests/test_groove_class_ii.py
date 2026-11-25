@@ -262,3 +262,79 @@ def test_class_ii_decomposition_complete():
     reconstructed_beta = beta.groove2 + beta.ig_domain + beta.tail
     inferred_mature = HLA_DRB10101_FULL[beta.mature_start :].upper()
     assert reconstructed_beta == inferred_mature
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for #17: partial/salvage competition & DMB/DQA1 recovery
+# ---------------------------------------------------------------------------
+
+
+def test_hla_dmb_upstream_beta1_resolver_avoids_beta2_cys_collision():
+    """HLA-DMB*01:01 has extra β1 cysteines; β1 secondary selection must pick the
+    strictly upstream β1 disulfide (28, 96) instead of (63, 134) touching β2 Cys1 (134).
+    """
+    hla_dmb = (
+        "MITFLPLLLGLSLGCTGAGGFVAHVESTCLLDDAGTPKDFTYCISFNKDLLTCWDPEENKMAPCEFGVLNSLANVLSQHL"
+        "NQKDTLMQRLRNGLQNCATHTQPFWGSLTNRTRPPSVQVAKTTPFNTREPVMLACYVWGFYPAEVTITWRKNGKLVMPHS"
+        "SAHKTAQPNGDWTYQTLSHLALTPSYGDTYTCVVEHIGAPEPILRDWTPGLSPMQTLKVSVSAVTLGLGLIIFSLGVISW"
+        "RRAGHSSYTPLPGSNYSEGWHIS"
+    )
+    res = decompose_class_ii_beta(hla_dmb, allele="HLA-DMB*01:01", gene="DMB")
+    assert res.status == "ok"
+    assert res.mature_start == 18
+    assert res.groove2_len == 93
+    assert res.ig_domain_len == 100
+    assert (res.anchor_cys1, res.anchor_cys2) == (134, 191)
+
+
+def test_class_ii_beta_salvage_competes_with_negative_primary_parse():
+    """BoLA-DRB3*031:01 lacks a β2 Cys pair; beta1_only_fallback must compete
+    against the negative-scoring primary parse rather than abstaining as missing_groove.
+    """
+    bola_drb3 = (
+        "MVCLYFSGGSWMAALIVMLMVLCPPLAWAREIQPHFLEYYKGECHFFNGTERVRFLDRHFYNGEEFVRFDSDWGEFRAVT"
+        "ELGRPAAEHWNSQKDFLEQKRAEVDRVCRHNYGGVESFTVQRRVEPTVTVYPAKTQPLQHHNLLVCSVNGFYPGHIEVRW"
+        "FRNGHEEEAVDHPSRTSPITVEWRARSDSAQSKMMSGVGGFVLGLLFQAVGLFIYFR"
+    )
+    res = decompose_class_ii_beta(bola_drb3, allele="BoLA-DRB3*031:01", gene="DRB3")
+    assert res.status == "beta1_only_fallback"
+    assert res.mature_start == 29
+    assert res.groove2_len == 93
+
+
+def test_class_ii_beta_n_truncated_beta1_salvage():
+    """N-terminally truncated mature β1+β2 fragments (β1 Cys1 at pos 4) should
+    recover β1 via beta1_only_fallback instead of failing as missing_groove.
+    """
+    aotus_dpb1 = (
+        "RLYECYAFNGTQRLLDRLFYNREEFVRFDSDLGEFRSVTELGRPDAKYWNSDKDILEGMRAEVERVCRHNYELVEPLIRK"
+        "RQVQPKVNVSPSKKGSLQHHNLLVCHVTDFYPGSIQVRWFLNGQEETAGIVSTNLIRNGDWTFQILVMLEMTPQQG"
+    )
+    res = decompose_class_ii_beta(aotus_dpb1, allele="AotusNancymaae-DPB1*28:01", gene="DPB1")
+    assert res.status == "beta1_only_fallback"
+    assert res.mature_start == 0
+    assert 75 <= res.groove2_len <= 90
+
+
+def test_class_ii_alpha_salvage_without_alpha2_cys_pair():
+    """Class II α sequences lacking an α2 disulfide (mutated α2 Cys or SP+α1 exon-2)
+    should recover groove1 via alpha1_only instead of missing_groove.
+    """
+    # HLA-DQA1*01:155: full-length human DQA1 with mutated α2 Cys1 (F instead of C)
+    hla_dqa1_155 = (
+        "MILNKALLLGALALTTMMSPCGGEGIVADHVASCGVNLYQFYGPSGQYTHEFDGDEEFYVDLERKETAWRWPEFSKFGGF"
+        "DPQGALRNMAVAKHNLNIMIKRYNSTAATNEVPEVTVFSKSPVTLGQPNTLIFLVDNIFPPVVNITWLSNGQSVTEGVSE"
+        "TSFLSKSDHSFFKISYLTFLPSADEIYDCKVEHWGLDQPLLKHWEPEIPAPMSELTETVVCALGLSVGLVGIVVGTVFII"
+        "QGLRSVGASRHQGPL"
+    )
+    res_full = decompose_class_ii_alpha(hla_dqa1_155, allele="HLA-DQA1*01:155", gene="DQA1")
+    assert res_full.status == "alpha1_only"
+    assert res_full.mature_start == 23
+    assert 82 <= res_full.groove1_len <= 90
+
+    # BoLA-DQA1*036:01: SP (23 aa) + intact α1 exon-2 (90 aa), no α2 Cys pair
+    bola_dqa1 = "MVLNRALILGTLALTTMMSPSGGEDIVADHVGIYGVNIYQSYGPSGQFTHEFDGDEQFYVDLEKKETVWKLPLFSRMLSFDPQFALRNIAIMKLHVDFLTKFSNSTAATNSTX"
+    res_exon2 = decompose_class_ii_alpha(bola_dqa1, allele="BoLA-DQA1*036:01", gene="DQA1")
+    assert res_exon2.status == "alpha1_only"
+    assert res_exon2.mature_start == 23
+    assert res_exon2.groove1_len == 90

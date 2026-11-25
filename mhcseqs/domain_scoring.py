@@ -976,6 +976,15 @@ def _enumerate_class_ii_beta_from_beta1(
     end_lo = max(beta1_c2 + 1, beta1_c2 + end_hlo)
     end_hi = min(len(seq), beta1_c2 + end_hhi)
 
+    # N-terminally truncated mature β1 fragment (e.g. AotusNancymaae-DPB1*28:01
+    # starting 4 aa before β1 Cys1): allow mature_start=0 with a relaxed lower
+    # groove-length floor so structured partial β1 sequences are not dropped.
+    n_truncated = beta1_c1 < start_hlo and not seq.startswith("M")
+    if n_truncated:
+        start_lo = 0
+        start_hi = 0
+        groove_hlo = min(groove_hlo, 55)
+
     if start_hi < start_lo or end_hi < end_lo:
         return None
 
@@ -1361,7 +1370,7 @@ def _class_i_fragment_result(
     if groove_pairs:
         best_groove = max(groove_pairs, key=lambda a: a.groove_score)
         jpos, jscore = find_junction(cleaned, best_groove.c1)
-        if jpos >= 5 and jscore >= 6.0:
+        if 5 <= jpos <= 120 and jscore >= 6.0:
             alpha2_end = min(len(cleaned), best_groove.c2 + 20)
             half_1 = _slice_or_empty(cleaned, 0, jpos)
             half_2 = _slice_or_empty(cleaned, jpos, alpha2_end)
@@ -1532,6 +1541,96 @@ def _class_i_fragment_result(
     )
 
 
+_CLASS_II_ALPHA1_HALLMARK_RE = re.compile(
+    r"G[STAP][QEN][FYW][TLIV]H[EQD]FDGDE|DHV[AGSTV][STNGI]|E[FL]F[HY]VD|QFYVDLE|EFYVDLE|I[KR]EEHVIIQAEF|D[IHV]V[AG]DHV"
+)
+
+
+def _build_class_ii_alpha1_salvage_result(
+    *,
+    seq: str,
+    allele: str,
+    gene: str,
+    features: Optional[SequenceFeatures] = None,
+) -> Optional[AlleleRecord]:
+    """Build a motif/boundary-anchored class-II α1 salvage candidate when α2 Cys support is missing.
+
+    Class II α G-ALPHA1 has no internal disulfide bond; sequences that are
+    C-terminally truncated before α2 Cys2 (e.g. SP+α1 exon-2 fragments) or
+    carry a mutated α2 Cys lack any Cys pair yet still contain an intact α1
+    binding groove.
+    """
+    from .signal_peptide import has_plausible_sp_core
+
+    cleaned = features.seq if features else _clean_seq(seq)
+    if len(cleaned) < MIN_GROOVE_SOURCE_LEN:
+        return None
+    if not _CLASS_II_ALPHA1_HALLMARK_RE.search(cleaned[:140]):
+        return None
+
+    sp_est = features.sp_estimate if features is not None else infer_signal_peptide(cleaned)[0]
+    mature_start = sp_est if (12 <= sp_est <= 40 and has_plausible_sp_core(cleaned, sp_est)) else 0
+    rem = len(cleaned) - mature_start
+    if rem < MIN_GROOVE_SOURCE_LEN:
+        return None
+
+    if rem <= 95:
+        groove_end = len(cleaned)
+        boundary_score = 1.0
+    else:
+        lo = mature_start + 70
+        hi = min(len(cleaned), mature_start + 106)
+        if hi <= lo:
+            return None
+        best_sc = -999.0
+        groove_end = min(len(cleaned), mature_start + 84)
+        for pos in range(lo, hi):
+            sc = score_groove_ig_boundary(cleaned, pos, "II", "alpha") + _soft_prior_score(
+                pos - mature_start,
+                *_GROOVE_SEGMENT_PRIOR[("II", "alpha")],
+            )
+            if sc > best_sc:
+                best_sc = sc
+                groove_end = pos
+        boundary_score = best_sc
+
+    groove1 = _slice_or_empty(cleaned, mature_start, groove_end)
+    if len(groove1) < MIN_GROOVE_SOURCE_LEN:
+        return None
+    tail = cleaned[groove_end:]
+    parse_score = 12.0 + max(0.0, boundary_score)
+    flags = ["alpha1_only_salvage"]
+    _append_long_sp_flag(flags, mature_start)
+    return _attach_parse_candidate(
+        AlleleRecord(
+            allele=allele,
+            gene=gene,
+            mhc_class="II",
+            chain="alpha",
+            sequence=cleaned,
+            seq_len=len(cleaned),
+            mature_start=mature_start,
+            groove_seq=groove1,
+            groove1=groove1,
+            groove2="",
+            groove1_len=len(groove1),
+            groove2_len=0,
+            ig_domain="",
+            ig_domain_len=0,
+            tail=tail,
+            tail_len=len(tail),
+            parse_score=parse_score,
+            status="alpha1_only",
+            anchor_type="alpha1_motif",
+            flags=_flags_to_tuple(flags),
+        ),
+        seq=cleaned,
+        h_region=(features.h_region if features is not None else None),
+        sp_estimate=sp_est,
+        features=features,
+    )
+
+
 def _class_ii_fragment_result(
     *,
     seq: str,
@@ -1666,6 +1765,10 @@ def prepare_parse_inputs(
                 [],
                 0,
             )
+        if grammar.mhc_class == "II" and grammar.chain == "alpha":
+            alpha1_salvage = _build_class_ii_alpha1_salvage_result(seq=cleaned, allele=allele, gene=gene, features=features)
+            if alpha1_salvage is not None:
+                return alpha1_salvage, cleaned, [], [], 0
         return (
             _missing_groove_result(
                 allele=allele,
@@ -1732,22 +1835,38 @@ def build_beta_secondary_resolver(
     annotated: Sequence[CysPairAnnotation],
     features: Optional[SequenceFeatures] = None,
 ):
-    """Return (resolver, strongest β1 annotation) for class-II beta parsing."""
-    beta1_ann = (
-        max(
-            annotated,
-            key=lambda a: (a.groove_score + _cached_topology_support(seq, a.c1, a.c2, "g_domain", features)) - (0.01 * a.c1),
+    """Return (resolver, strongest β1 annotation) for class-II beta parsing.
+
+    For each candidate β2 Ig anchor, the resolver picks the strongest strictly
+    upstream β1 Cys pair (``c2 <= anchor.c1 - 15``) so spurious Cys pairs
+    touching β2 Cys1 (common in accessory DMB chains with extra cysteines) do
+    not collide with the β2 anchor and penalize valid full parses.
+    """
+    scored = [
+        (
+            a,
+            (a.groove_score + _cached_topology_support(seq, a.c1, a.c2, "g_domain", features)) - (0.01 * a.c1),
         )
-        if annotated
-        else None
-    )
+        for a in annotated
+    ]
+    non_ig = [item for item in scored if item[0].domain_type != "ig"]
+    pool = non_ig if non_ig else scored
+    beta1_ann = max(pool, key=lambda x: x[1])[0] if pool else None
 
     def resolve(anchor: CysPairAnnotation) -> Optional[tuple[int, int]]:
-        if beta1_ann is None:
+        if not scored:
             return None
-        if not grammar_spec("II", "beta").allow_self_secondary and (anchor.c1, anchor.c2) == (beta1_ann.c1, beta1_ann.c2):
+        spec = grammar_spec("II", "beta")
+        allow_self = spec.allow_self_secondary
+        groove_boundary = anchor.c1 - spec.groove_boundary_from_c1
+        upstream = [item for item in scored if item[0].c2 <= anchor.c1 - 15 and (allow_self or (anchor.c1, anchor.c2) != (item[0].c1, item[0].c2))]
+        if not upstream:
             return None
-        return (beta1_ann.c1, beta1_ann.c2)
+        best = max(
+            upstream,
+            key=lambda x: x[1] + _soft_prior_score(groove_boundary - x[0].c2, *_RELATIVE_OFFSET_PRIOR[("II", "beta1_c2_to_end")]) * 0.65,
+        )[0]
+        return (best.c1, best.c2)
 
     return resolve, beta1_ann
 

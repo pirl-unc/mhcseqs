@@ -114,12 +114,14 @@ from .domain_scoring import (
     _attach_parse_candidate,
     _build_class_i_alpha3_salvage_result,
     _build_class_i_junction_salvage_result,
+    _build_class_ii_alpha1_salvage_result,
     _build_class_ii_beta1_salvage_result,
     _class_i_fragment_result,
     _class_ii_chain_from_name,
     _class_ii_fragment_result,
     _missing_groove_result,
     _normalized_gene_token,
+    _record_has_short_flag,
     _refine_status,
     _select_best_record_candidate,
     _select_best_viable_record,
@@ -313,18 +315,19 @@ def decompose_class_i(
                 )
                 _append_record_candidate(candidates, record)
 
+    weak_primary = best_record is None or best_record.status != "ok" or best_record.candidate_score < 10.0 or _record_has_short_flag(best_record)
     nterm_alpha2_grooves = [
         ann for ann in annotated if 55 <= ann.separation <= 72 and ann.domain_type == "groove" and ann.groove_score >= 4.0 and ann.c1 <= 30
     ]
     strong_igs = [ann for ann in annotated if ann.domain_type == "ig" and ann.ig_score >= 4.0 and ann.ig_score > ann.groove_score + 2.0]
     has_nterm_alpha2_plus_ig = any(ig.c1 >= gr.c2 + 15 for gr in nterm_alpha2_grooves for ig in strong_igs)
-    if len(cleaned) <= grammar.fragment_max_len or ((best_record is None or best_record.status != "ok") and has_nterm_alpha2_plus_ig):
+    if len(cleaned) <= grammar.fragment_max_len or (weak_primary and has_nterm_alpha2_plus_ig):
         _append_record_candidate(
             candidates,
             _class_i_fragment_result(seq=cleaned, allele=allele, gene=gene, annotated=annotated, features=features),
         )
 
-    if best_record is None or best_record.status != "ok":
+    if weak_primary:
         _append_record_candidate(
             candidates,
             _build_class_i_junction_salvage_result(seq=cleaned, allele=allele, gene=gene, features=features),
@@ -339,7 +342,7 @@ def decompose_class_i(
         else None
     )
     if alpha3_ann is not None:
-        if best_record is None or best_record.status != "ok" or best_record.parse_candidate.support_state != "support_present":
+        if weak_primary or best_record.parse_candidate.support_state != "support_present":
             _append_record_candidate(
                 candidates,
                 _build_class_i_alpha3_salvage_result(
@@ -519,6 +522,15 @@ def decompose_class_ii_alpha(
                     ),
                 )
 
+    weak_alpha_primary = (
+        best_record is None or best_record.status != "ok" or best_record.candidate_score < 10.0 or _record_has_short_flag(best_record)
+    )
+    if weak_alpha_primary:
+        _append_record_candidate(
+            candidates,
+            _build_class_ii_alpha1_salvage_result(seq=cleaned, allele=allele, gene=gene, features=features),
+        )
+
     if len(cleaned) <= grammar.fragment_max_len:
         _append_record_candidate(
             candidates,
@@ -595,7 +607,7 @@ def decompose_class_ii_beta(
             sp_estimate=sp_est,
             features=features,
             flags=flags,
-            secondary_pair=((beta1_ann.c1, beta1_ann.c2) if beta1_ann is not None else None),
+            secondary_pair=selections[0].secondary_pair,
         )
         _append_record_candidate(candidates, best_record)
         expand_primary = _should_expand_primary_competition(
@@ -616,13 +628,19 @@ def decompose_class_ii_beta(
                     sp_estimate=sp_est,
                     features=features,
                     flags=flags,
-                    secondary_pair=((beta1_ann.c1, beta1_ann.c2) if beta1_ann is not None else None),
+                    secondary_pair=selection.secondary_pair,
                 )
                 _append_record_candidate(candidates, record)
 
-    if beta1_ann is not None and (
-        best_record is None or best_record.status != "ok" or best_record.parse_candidate.support_state != "support_present"
-    ):
+    weak_beta_primary = (
+        best_record is None
+        or best_record.status != "ok"
+        or best_record.parse_candidate.support_state != "support_present"
+        or best_record.candidate_score < 10.0
+        or _record_has_short_flag(best_record)
+        or (beta1_ann is not None and best_record.anchor_cys1 == beta1_ann.c1 and best_record.anchor_cys2 == beta1_ann.c2)
+    )
+    if beta1_ann is not None and weak_beta_primary:
         _append_record_candidate(
             candidates,
             _build_class_ii_beta1_salvage_result(
