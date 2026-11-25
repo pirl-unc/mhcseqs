@@ -6,6 +6,7 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
 dependencies = [
+    "biotite>=1.6,<3",
     "datacache>=1.34.0,<2",
     "mhcgnomes>=3.78.1",
     "pandas>=3,<4",

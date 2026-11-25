@@ -152,26 +152,15 @@ FULL_FIELDS = [
 
 
 def _iter_fasta(path: Path) -> Iterator[Tuple[str, str]]:
-    """Yield (header, sequence) from a FASTA file.
+    """Yield (header, sequence) from a FASTA file using biotite.
 
     Normalizes IPD-MHC unknown-residue ``?`` placeholders to IUPAC ``X``.
     """
-    header = None
-    seq_parts: List[str] = []
+    from biotite.sequence.io.fasta import FastaFile
+
     with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                if header is not None:
-                    yield header, "".join(seq_parts).replace("?", "X")
-                header = line[1:].strip()
-                seq_parts = []
-            else:
-                seq_parts.append(line)
-    if header is not None:
-        yield header, "".join(seq_parts).replace("?", "X")
+        for header, seq in FastaFile.read_iter(f):
+            yield header.strip(), seq.replace("?", "X")
 
 
 def _looks_like_nucleotide(sequence: str) -> bool:
