@@ -19,6 +19,7 @@ from .alleles import (
     canonical_allele_name,
     canonical_species_prefix,
     infer_mhc_class,
+    is_non_mhc_gene,
     normalize_allele_name,
     normalize_mhc_class,
     parse_allele_name,
@@ -688,8 +689,12 @@ def _load_diverse_mhc_references() -> List[dict]:
             if not seq or length < MIN_MHC_SEQUENCE_LEN:
                 continue
 
-            # Skip known non-MHC contaminants
+            # Skip known non-MHC contaminants (by accession or gene symbol,
+            # including ~ref:Species|Acc:Gene labels) unless explicitly curated.
             if accession in NON_MHC_ACCESSIONS:
+                continue
+            curated_entry = curated_alleles.get(accession)
+            if curated_entry is None and gene and is_non_mhc_gene(gene, species=extract_latin_binomial(organism)):
                 continue
 
             # Default: accession as allele name (no standard nomenclature)
@@ -705,7 +710,6 @@ def _load_diverse_mhc_references() -> List[dict]:
                 species_category = normalize_mhc_species(organism) or species_category
 
             # Apply curated UniProt -> canonical allele mapping when verified.
-            curated_entry = curated_alleles.get(accession)
             if curated_entry is not None:
                 curated_allele_raw = (curated_entry.get("allele_name") or "").strip()
                 curated_species = (curated_entry.get("species") or "").strip() or extract_latin_binomial(organism)

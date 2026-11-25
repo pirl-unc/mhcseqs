@@ -293,25 +293,44 @@ def parse_gene_class(gene: Optional[str], *, species: Optional[str] = None) -> O
 def is_non_mhc_gene(gene: Optional[str], *, species: Optional[str] = None) -> bool:
     """Check if a gene name is a known non-MHC gene in the MHC region.
 
-    Returns True for genes like TAP1, TAP2, CIITA, HM13, PRR3 that
+    Returns True for genes like TAP1, TAP2, CIITA, RFX1, HM13, PRR3 that
     appear in MHC-region datasets but don't encode groove proteins.
-    Uses species-aware mhcgnomes classification, with the local set for
-    unscoped helper-gene labels that do not carry a species identity.
+    Unwraps synthetic ``~ref:Species|Acc:Token`` and ``~ortho:Species|Prefix:Token``
+    gene labels, then checks both the local non-MHC set and species-aware
+    mhcgnomes classification.
     """
     if not gene:
         return False
     from .domain_grammar import NON_MHC_GENE_NAMES
 
     token = gene.strip()
-    candidates = {token}
-    if not token.startswith("~") and "-" in token:
-        candidates.add(token.split("-", 1)[1])
+    if not token:
+        return False
+    candidates: list[str] = [token]
+    if token.startswith("~") and ":" in token:
+        tail = token.rsplit(":", 1)[-1].strip()
+        if tail:
+            candidates.append(tail)
+    elif "-" in token:
+        candidates.append(token.split("-", 1)[1])
+
+    expanded: list[str] = []
+    for candidate in candidates:
+        expanded.append(candidate)
+        if candidate.lower().endswith("_predicted"):
+            base = candidate[: -len("_predicted")].strip()
+            if base:
+                expanded.append(base)
+
     known_non_mhc = {g.upper() for g in NON_MHC_GENE_NAMES}
-    if any(candidate.upper() in known_non_mhc for candidate in candidates):
+    if any(candidate.upper() in known_non_mhc for candidate in expanded):
         return True
-    result = parse_gene_class(gene, species=species)
-    if result is not None:
-        return bool(result.get("non_mhc", False))
+    for candidate in expanded:
+        if candidate.startswith("~"):
+            continue
+        result = parse_gene_class(candidate, species=species)
+        if result is not None and bool(result.get("non_mhc", False)):
+            return True
     return False
 
 

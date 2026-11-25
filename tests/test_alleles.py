@@ -190,6 +190,21 @@ def test_local_non_mhc_names_override_allele_like_mhcgnomes_parse():
     assert is_non_mhc_gene("Daxx", species="Mus musculus")
 
 
+def test_is_non_mhc_gene_unwraps_synthetic_ref_and_predicted_tags():
+    """Regression test for #135: ~ref:Species|Acc:Gene tags and RFX symbols must be caught."""
+    assert is_non_mhc_gene("~ref:OctodonDegus|A0A6P6E5A6:Ciita", species="Octodon degus")
+    assert is_non_mhc_gene("~ref:ChinchillaLanigera|A0A8C2VVP9:CIITA", species="Chinchilla lanigera")
+    assert is_non_mhc_gene("~ref:CastorCanadensis|A0A250XZQ4:Hm13", species="Castor canadensis")
+    assert is_non_mhc_gene("~ref:DipodomysOrdii|A0A1S3GLH2:Rfx1", species="Dipodomys ordii")
+    assert is_non_mhc_gene("~ref:RhinolophusFerrumequinum|A0A671DWX3:PRR3", species="Rhinolophus ferrumequinum")
+    assert is_non_mhc_gene("~ref:MusMusculus|P04186:Cfb", species="Mus musculus")
+    assert is_non_mhc_gene("~ref:MusMusculus|P50171:Hsd17b8", species="Mus musculus")
+    assert is_non_mhc_gene("~ref:RattusNorvegicus|A6KHQ1:H13_predicted", species="Rattus norvegicus")
+    assert is_non_mhc_gene("RFX5")
+    assert not is_non_mhc_gene("~ref:AnasPlatyrhynchos|A0A1B0P060:UAA", species="Anas platyrhynchos")
+    assert not is_non_mhc_gene("HLA-A", species="Homo sapiens")
+
+
 def test_infer_gene_hla_a():
     result = infer_gene("HLA-A*02:01")
     assert result == "A"

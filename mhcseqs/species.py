@@ -10,7 +10,9 @@ Ported from presto/data/vocab.py.
 from __future__ import annotations
 
 import re
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
+
+import mhcgnomes
 
 # MHC species categories
 MHC_SPECIES_CATEGORIES = [
@@ -606,13 +608,98 @@ def normalize_species(raw: Optional[str]) -> Optional[str]:
     return None
 
 
+# Authoritative mhcgnomes Species.clade -> 9-class MHC species category
+_CLADE_TO_MHC_SPECIES: Dict[str, str] = {
+    "human": "human",
+    "nhp": "nhp",
+    "murine": "murine",
+    "ungulate": "ungulate",
+    "carnivore": "carnivore",
+    "bat": "other_mammal",
+    "marsupial": "other_mammal",
+    "monotreme": "other_mammal",
+    "cetacean": "other_mammal",
+    "other_mammal": "other_mammal",
+    "bird": "bird",
+    "bony_fish": "fish",
+    "lobe_finned_fish": "fish",
+    "shark_ray": "fish",
+    "jawless_fish": "fish",
+    "reptile": "other_vertebrate",
+    "amphibian": "other_vertebrate",
+}
+
+
+def _lookup_mhcgnomes_species(raw: Optional[str]) -> Optional[Any]:
+    """Resolve *raw* to an ``mhcgnomes.Species`` when available.
+
+    Tries the stripped scientific name (dropping UniProt parenthetical common
+    names), the two-word Latin binomial, and the raw string itself.
+    """
+    if not raw:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    candidates: list[str] = []
+    head = text.split("(", 1)[0].strip()
+    if head:
+        candidates.append(head)
+        parts = head.split()
+        if len(parts) >= 2:
+            binomial = f"{parts[0]} {parts[1]}"
+            if binomial != head:
+                candidates.append(binomial)
+    if text not in candidates:
+        candidates.append(text)
+    for candidate in candidates:
+        sp = mhcgnomes.Species.get(candidate)
+        if sp is not None:
+            return sp
+    return None
+
+
+def get_species_clade(raw: Optional[str]) -> Optional[str]:
+    """Return the verified vertebrate clade from ``mhcgnomes.Species.clade``.
+
+    Examples: ``"human"``, ``"nhp"``, ``"murine"``, ``"ungulate"``,
+    ``"carnivore"``, ``"bat"``, ``"marsupial"``, ``"monotreme"``,
+    ``"cetacean"``, ``"other_mammal"``, ``"bird"``, ``"reptile"``,
+    ``"amphibian"``, ``"bony_fish"``, ``"lobe_finned_fish"``,
+    ``"shark_ray"``, ``"jawless_fish"``.
+    Returns ``None`` if *raw* is not in ``mhcgnomes`` or has no single clade.
+    """
+    sp = _lookup_mhcgnomes_species(raw)
+    if sp is None:
+        return None
+    clade = getattr(sp, "clade", None)
+    return str(clade) if clade else None
+
+
+def get_ncbi_taxid(raw: Optional[str]) -> Optional[int]:
+    """Return the verified NCBI Taxonomy ID from ``mhcgnomes.Species.ncbi_taxid``."""
+    sp = _lookup_mhcgnomes_species(raw)
+    if sp is None:
+        return None
+    taxid = getattr(sp, "ncbi_taxid", None)
+    return int(taxid) if taxid is not None else None
+
+
 def normalize_mhc_species(raw: Optional[str]) -> Optional[str]:
     """Normalize to 9-class MHC species category.
+
+    Prefers verified vertebrate taxonomy from ``mhcgnomes.Species.clade``
+    (preventing substring false positives such as "Cattle egret" -> ungulate
+    or "Struthio camelus" -> camelid), falling back to keyword heuristics
+    for common nicknames, non-vertebrates, and uncatalogued organisms.
 
     Returns one of: human, nhp, murine, ungulate, carnivore,
     other_mammal, bird, fish, other_vertebrate.
     Returns None for non-animal or unrecognizable inputs.
     """
+    clade = get_species_clade(raw)
+    if clade is not None and clade in _CLADE_TO_MHC_SPECIES:
+        return _CLADE_TO_MHC_SPECIES[clade]
     fine = normalize_species(raw)
     if fine is None:
         return None

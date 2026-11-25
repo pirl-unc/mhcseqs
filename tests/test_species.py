@@ -4,6 +4,8 @@ from mhcseqs.species import (
     full_species_name_alias,
     get_canonical_prefix,
     get_latin_name,
+    get_ncbi_taxid,
+    get_species_clade,
     normalize_mhc_species,
     normalize_species,
 )
@@ -111,3 +113,44 @@ def test_full_species_name_alias_does_not_invent_short_codes():
     assert full_species_name_alias("Bos indicus") == "BosIndicus"
     assert full_species_name_alias("Coregonus sp.") == "CoregonusSp"
     assert full_species_name_alias("Notamacropus") == "Notamacropus"
+
+
+def test_species_clade_and_ncbi_taxid_from_mhcgnomes():
+    assert get_species_clade("Homo sapiens") == "human"
+    assert get_ncbi_taxid("Homo sapiens") == 9606
+    assert get_species_clade("Canis lupus familiaris") == "carnivore"
+    assert get_ncbi_taxid("Canis lupus familiaris") == 9615
+    assert get_species_clade("Canis lupus") == "carnivore"
+    assert get_ncbi_taxid("Canis lupus") == 9612
+    assert get_species_clade("Polyodon spathula (Squalus spathula)") == "bony_fish"
+    assert get_species_clade("Squalus acanthias") == "shark_ray"
+    assert get_species_clade("Pteropus alecto") == "bat"
+    assert get_species_clade("Trichosurus vulpecula") == "marsupial"
+    assert get_species_clade("Ornithorhynchus anatinus") == "monotreme"
+    assert get_species_clade("Crocodylus porosus (Saltwater crocodile)") == "reptile"
+    assert get_species_clade("Triturus cristatus") == "amphibian"
+    assert get_ncbi_taxid("Triturus cristatus") == 8323
+    assert get_species_clade("Bubulcus ibis (Cattle egret) (Ardea ibis)") == "bird"
+    assert get_species_clade("Struthio camelus (Common ostrich)") == "bird"
+    assert get_species_clade(None) is None
+    assert get_ncbi_taxid(None) is None
+
+
+def test_normalize_mhc_species_avoids_common_name_substring_false_positives():
+    """Authoritative mhcgnomes clade prevents regex traps like Cattle egret -> ungulate."""
+    assert normalize_mhc_species("Bubulcus ibis (Cattle egret) (Ardea ibis)") == "bird"
+    assert normalize_mhc_species("Struthio camelus (Common ostrich)") == "bird"
+    assert normalize_mhc_species("Polyodon spathula (Squalus spathula)") == "fish"
+    assert normalize_mhc_species("Acipenser sinensis (Chinese sturgeon)") == "fish"
+    assert normalize_mhc_species("Triturus cristatus") == "other_vertebrate"
+
+
+def test_build_imgt_profile_classify_clade_uses_mhcgnomes():
+    from scripts.build_imgt_profile import classify_clade
+
+    assert classify_clade({"species": "Polyodon spathula (Squalus spathula)", "species_category": "fish"}) == "bony_fish"
+    assert classify_clade({"species": "Squalus acanthias", "species_category": "fish"}) == "shark_ray"
+    assert classify_clade({"species": "Triturus cristatus", "species_category": "other_vertebrate"}) == "amphibian"
+    assert classify_clade({"species": "Ornithorhynchus anatinus", "species_category": "other_mammal"}) == "monotreme"
+    assert classify_clade({"species": "Pteropus alecto", "species_category": "other_mammal"}) == "bat"
+    assert classify_clade({"species": "Bubulcus ibis (Cattle egret)", "species_category": "bird"}) == "bird"

@@ -494,3 +494,20 @@ def test_parse_domain_record_counts_value_error_and_propagates_bugs(monkeypatch)
     monkeypatch.setattr("mhcseqs.pipeline.decompose_domains", bug)
     with pytest.raises(RuntimeError, match="unexpected bug"):
         parse_domain_record("MAVMAP" * 20, mhc_class="I", gene="A", allele="HLA-A*02:01", stats=stats)
+
+
+def test_diverse_references_filter_non_mhc_gene_rows():
+    """Regression test for #135: non-MHC bystander rows must not leak from diverse_mhc_sequences.csv."""
+    rows = _load_diverse_mhc_references()
+    leaked = []
+    banned = {"CIITA", "HM13", "H13", "RFX1", "RFX2", "RFX5", "RFXAP", "RFXANK", "PRR3", "HSD17B8", "CFB"}
+    for row in rows:
+        gene = (row.get("gene") or "").strip()
+        tail = gene.rsplit(":", 1)[-1].strip() if gene.startswith("~") and ":" in gene else gene
+        base = tail[: -len("_predicted")] if tail.lower().endswith("_predicted") else tail
+        if base.upper() in banned:
+            leaked.append((row["source_id"], gene))
+    assert leaked == []
+    # Sanity check that legitimate curated rows remain present
+    accessions = {row["source_id"] for row in rows}
+    assert "A0A125R585" in accessions  # Ptal-N*01:01
