@@ -91,8 +91,8 @@ def _sample_full_rows() -> list[dict[str, str]]:
             "is_functional": "True",
         },
         {
-            "two_field_allele": "SarcophilusHarrisii*uniprot:G3V1L5 class I",
-            "representative_allele": "SarcophilusHarrisii*uniprot:G3V1L5 class I",
+            "two_field_allele": "SarcophilusHarrisii-uniprot:G3V1L5",
+            "representative_allele": "SarcophilusHarrisii-uniprot:G3V1L5",
             "gene": "~ref:SarcophilusHarrisii|G3V1L5:MHC-I",
             "mhc_class": "I",
             "chain": "alpha",
@@ -146,8 +146,17 @@ def test_allele_catalog_fast_lookup_bridging_and_batch(tmp_path):
     assert catalog.get("HLA-A*02:01:01:01").source_id == "HLA00005"
     assert catalog.get("FLA-E*003:01").two_field_allele == "FelisCatus-E*003:01"
     assert catalog.get("Q95482").two_field_allele == "FelisCatus-E*003:01"
+    assert catalog.get("Saha-uniprot:G3V1L5").source_id == "G3V1L5"
     assert catalog.get("Saha*uniprot:G3V1L5 class I").source_id == "G3V1L5"
-    assert catalog.get("G3V1L5").two_field_allele == "SarcophilusHarrisii*uniprot:G3V1L5 class I"
+    assert catalog.get("G3V1L5").two_field_allele == "SarcophilusHarrisii-uniprot:G3V1L5"
+
+    # Legacy pre-v2.18.0 CSV rows with "*uniprot:... class I" still resolve seamlessly
+    legacy_rows = [dict(r) for r in _sample_full_rows()]
+    legacy_rows[2]["two_field_allele"] = "SarcophilusHarrisii*uniprot:G3V1L5 class I"
+    legacy_rows[2]["representative_allele"] = "SarcophilusHarrisii*uniprot:G3V1L5 class I"
+    legacy_catalog = AlleleCatalog.from_rows(legacy_rows)
+    assert legacy_catalog.get("Saha-uniprot:G3V1L5").source_id == "G3V1L5"
+    assert legacy_catalog.get("Saha*uniprot:G3V1L5 class I").source_id == "G3V1L5"
 
     # Full AlleleRecord decomposition with mutations
     rec = catalog.lookup("HLA-A*02:01", mutations=["K66A"])

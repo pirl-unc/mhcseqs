@@ -204,8 +204,7 @@ def canonical_allele_name(parsed: Any, allele_fields: Optional[int] = None) -> s
     if species_prefix:
         body = str(parsed.to_string(include_species=False))
         if body:
-            sep = "*" if isinstance(parsed, mhcgnomes.AccessionedAllele) and parsed.gene is None else "-"
-            return f"{species_prefix}{sep}{body}"
+            return f"{species_prefix}-{body}"
     return str(parsed.to_string())
 
 
@@ -240,8 +239,9 @@ def build_accessioned_allele(
     When *gene* resolves to an ontology ``mhcgnomes.Gene`` belonging to *species*
     and compatible with *mhc_class*, returns a gene-qualified accessioned allele
     (rendering as ``<SpeciesPrefix>-<Gene>*<source>:<accession>``). Otherwise
-    returns a gene-less accessioned allele qualified by MHC class when known
-    (rendering as ``<SpeciesPrefix>*<source>:<accession> class <I|II>``).
+    returns a gene-less accessioned allele (rendering as
+    ``<SpeciesPrefix>-<source>:<accession>`` with ``mhc_class`` preserved as
+    structured metadata).
     """
     if not species or not accession:
         return None

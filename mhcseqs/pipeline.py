@@ -776,7 +776,7 @@ def load_diverse_mhc_references() -> List[dict]:
     ``PteropusAlecto-N*01:01``, ``AnasPlatyrhynchos-UAA*01``, ``FelisCatus-E*003:01``).
     All other UniProt entries receive canonical ``mhcgnomes.AccessionedAllele``
     identifiers (``<SpeciesPrefix>-<Gene>*uniprot:<ACC>`` when a canonical gene
-    resolves, or ``<SpeciesPrefix>*uniprot:<ACC> class <I|II>`` otherwise) while
+    resolves, or ``<SpeciesPrefix>-uniprot:<ACC>`` otherwise) while
     retaining the bare UniProt accession in ``allele_raw`` and ``source_id``.
     Every row receives a populated ``species_prefix``.
     """
