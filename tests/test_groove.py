@@ -377,16 +377,16 @@ def test_non_classical_class_i_via_extract():
     assert "non_classical_lineage" in result.flags
 
 
-def test_non_classical_mfsd_detected():
-    """MFSD gene names should be flagged as non-classical (contaminants)."""
+def test_non_mhc_mfsd_detected():
+    """MFSD6 gene names (MFS transporters, not MHC) must be flagged as non_groove."""
     result = decompose_domains(
         HLA_A0201_MATURE,
         mhc_class="I",
         allele="Dare-mfsd6a",
         gene="Dare-mfsd6a",
     )
-    assert result.status == "non_classical"
-    assert result.ok  # parseable, just non-classical
+    assert result.status == "non_groove"
+    assert not result.ok
 
 
 def test_short_groove_class_i():
