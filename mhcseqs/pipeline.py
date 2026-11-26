@@ -153,16 +153,25 @@ FULL_FIELDS = [
 # ---------------------------------------------------------------------------
 
 
+_AMBIGUOUS_AA_TRANSLATION = str.maketrans("?BZJUO", "XXXXXX")
+
+
+def sanitize_protein_sequence(seq: str) -> str:
+    """Normalize rare/ambiguous IUPAC amino acid codes (``?``, ``B``, ``Z``, ``J``, ``U``, ``O``) to ``X``."""
+    return str(seq or "").strip().upper().translate(_AMBIGUOUS_AA_TRANSLATION)
+
+
 def _iter_fasta(path: Path) -> Iterator[Tuple[str, str]]:
     """Yield (header, sequence) from a FASTA file using biotite.
 
-    Normalizes IPD-MHC unknown-residue ``?`` placeholders to IUPAC ``X``.
+    Normalizes IPD-MHC unknown-residue ``?`` placeholders and IUPAC ambiguity
+    codes (``B``, ``Z``, ``J``, ``U``, ``O``) to ``X``.
     """
     from biotite.sequence.io.fasta import FastaFile
 
     with open(path, "r", encoding="utf-8") as f:
         for header, seq in FastaFile.read_iter(f):
-            yield header.strip(), seq.replace("?", "X")
+            yield header.strip(), sanitize_protein_sequence(seq)
 
 
 def looks_like_nucleotide(sequence: str) -> bool:
@@ -784,7 +793,7 @@ def load_diverse_mhc_references() -> List[dict]:
             chain = row.get("chain", "")
             organism = row.get("organism", "")
             source_group = row.get("source_group", "")
-            seq = row.get("sequence", "")
+            seq = sanitize_protein_sequence(row.get("sequence", ""))
             is_fragment = row.get("is_fragment", "False") == "True"
             length = len(seq)
 
@@ -1504,13 +1513,20 @@ def emit_full_row(
 
         return record
 
-    mature_start = groove.mature_start if groove and groove.ok else 0
+    raw_mature_start = groove.mature_start if groove and groove.ok else 0
     mature_start = refine_signal_peptide(
         seq,
-        mature_start,
+        raw_mature_start,
         representative.get("species_category", ""),
         groove.mhc_class if groove else representative.get("mhc_class", ""),
     )
+    # Never let SP refinement reset a structural non-zero mature_start back to 0
+    # when doing so would glue an N-terminal UTR/leader extension onto the groove
+    # and bloat the N-terminal groove segment past the domain length grammar.
+    if groove and groove.ok and raw_mature_start > 0 and mature_start == 0:
+        n_term_groove_len = groove.groove2_len if (groove.mhc_class == "II" and groove.chain == "beta") else groove.groove1_len
+        if n_term_groove_len + raw_mature_start > 120:
+            mature_start = raw_mature_start
     aligned_groove = _realign_domains_to_refined_start(groove, mature_start) if groove else None
     mature_seq = aligned_groove.mature_sequence if aligned_groove and aligned_groove.ok else (seq[mature_start:] if mature_start > 0 else seq)
 

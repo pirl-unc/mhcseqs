@@ -24,3 +24,6 @@ Q31151,H2-L*q,L,I,alpha,Mus musculus,,EMBL AAA39573.1 (MHC class I L-q alpha-cha
 P01898,H2-Q10,Q10,I,alpha,Mus musculus,5J6G;5J6H,PDB 5J6G/5J6H; SwissProt P01898 (H-2 class I histocompatibility antigen Q10 alpha chain)
 P06339,H2-T23*b,T23,I,alpha,Mus musculus,3VJ6;8UMO,PDB 3VJ6/8UMO; SwissProt P06339 (H-2 class I histocompatibility antigen D-37 / Qa-1b alpha chain)
 P14429,H2-Q7,Q7,I,alpha,Mus musculus,1K8D,PDB 1K8D; SwissProt P14429 (H-2 class I histocompatibility antigen Q7 / Qa-2 alpha chain)
+Q9TPA7,Xela-UAAg,UAAg,I,alpha,Xenopus laevis,6A2B,PDB 6A2B; Ma et al. 2020; EMBL AF185579; UniProt Q9TPA7
+Q860N6,Eqca-N*006:02,N,I,alpha,Equus caballus,4ZUS;4ZUT;4ZUU;4ZUV;4ZUW,PDB 4ZUU; Yao et al. J Immunol 2016; EMBL AY225155; UniProt Q860N6
+B2KT53,Aime-128,128,I,alpha,Ailuropoda melanoleuca,7DC6,PDB 7DC6; Ni et al. J Immunol 2021; EMBL EU162659; UniProt B2KT53

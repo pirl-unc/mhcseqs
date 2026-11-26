@@ -184,6 +184,18 @@ NON_MHC_GENE_NAMES = frozenset(
         "RFXAP",
         "Rfxank",
         "RFXANK",
+        "Or12d2",
+        "Or12d2c",
+        "Or1o2",
+        "Or1o2e",
+        "Or1o1",
+        "Or11a4",
+        "Or2h1",
+        "Or2h1b",
+        "Or2h2",
+        "Or2h2c",
+        "Or12d17",
+        "Olr1869",
     }
 )
 

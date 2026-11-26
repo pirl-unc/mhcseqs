@@ -20,6 +20,7 @@ from .domain_features import (
     score_junction,
 )
 from .domain_grammar import (
+    CLASS_I_ALPHA2_CYS1_OFFSET,
     CLASS_I_ALPHA2_END_AFTER_CYS2,
     CLASS_II_ALPHA_GENE_PREFIXES,
     CLASS_II_BETA_GENE_PREFIXES,
@@ -1169,14 +1170,17 @@ def _refine_status(result: AlleleRecord) -> AlleleRecord:
 
     # Short groove detection: whichever groove segment(s) this grammar
     # actually owns must still be large enough to be functional.
-    # For SP-stripped sequences (mature_start=0, no Met), groove1 may be
-    # truncated because the N-terminal residues were missing from the
-    # database deposit.  Use a lower threshold (40 aa) for these.
+    # For SP-stripped sequences (mature_start=0, no Met), the N-terminal
+    # groove half may be partially truncated at its N-terminus (e.g. IPD-MHC
+    # Patr-B*15:01 with 55 aa of α1 + complete 92 aa α2).  Allow down to 50 aa
+    # for the N-terminal groove segment only — never relax the C-terminal
+    # groove2 half of Class I, and mark severely truncated (<50 aa α1 or
+    # <70 aa α2) fragments honestly as "short".
     is_sp_stripped = result.mature_start == 0 and not (result.sequence or "").startswith("M")
-    min_len = 40 if is_sp_stripped else MIN_FUNCTIONAL_GROOVE_HALF_LEN
-    for field_name, _role in grammar.groove_segments:
+    for idx, (field_name, _role) in enumerate(grammar.groove_segments):
         seg_len = int(getattr(result, f"{field_name}_len", 0) or 0)
-        if seg_len > 0 and seg_len < min_len:
+        seg_min = 50 if (is_sp_stripped and idx == 0) else MIN_FUNCTIONAL_GROOVE_HALF_LEN
+        if seg_len > 0 and seg_len < seg_min:
             flags.append(f"{field_name}_short({seg_len})")
             return replace(result, status="short", flags=_flags_to_tuple(flags))
 
@@ -1310,33 +1314,35 @@ def _build_class_i_junction_salvage_result(
     # fragments with 59+46 aa), downgrade from "ok" to "short".
     status = "short" if (len(half_1) < MIN_FUNCTIONAL_GROOVE_HALF_LEN and len(half_2) < MIN_FUNCTIONAL_GROOVE_HALF_LEN) else "ok"
 
-    return _attach_parse_candidate(
-        AlleleRecord(
-            allele=allele,
-            gene=gene,
-            mhc_class="I",
-            chain="alpha",
-            sequence=cleaned,
-            seq_len=n,
-            mature_start=mature_start,
-            groove_seq=half_1 + half_2,
-            groove1=half_1,
-            groove2=half_2,
-            groove1_len=len(half_1),
-            groove2_len=len(half_2),
-            ig_domain=ig,
-            ig_domain_len=len(ig),
-            tail=tail,
-            tail_len=len(tail),
-            parse_score=best_jscore + 10.0,
-            status=status,
-            anchor_type="junction",
-            flags=_flags_to_tuple(flags),
-        ),
-        seq=cleaned,
-        h_region=(features.h_region if features is not None else None),
-        sp_estimate=(features.sp_estimate if features is not None else None),
-        features=features,
+    return _refine_status(
+        _attach_parse_candidate(
+            AlleleRecord(
+                allele=allele,
+                gene=gene,
+                mhc_class="I",
+                chain="alpha",
+                sequence=cleaned,
+                seq_len=n,
+                mature_start=mature_start,
+                groove_seq=half_1 + half_2,
+                groove1=half_1,
+                groove2=half_2,
+                groove1_len=len(half_1),
+                groove2_len=len(half_2),
+                ig_domain=ig,
+                ig_domain_len=len(ig),
+                tail=tail,
+                tail_len=len(tail),
+                parse_score=best_jscore + 10.0,
+                status=status,
+                anchor_type="junction",
+                flags=_flags_to_tuple(flags),
+            ),
+            seq=cleaned,
+            h_region=(features.h_region if features is not None else None),
+            sp_estimate=(features.sp_estimate if features is not None else None),
+            features=features,
+        )
     )
 
 
@@ -1378,40 +1384,43 @@ def _class_i_fragment_result(
             flags = ["truncated_alpha1"]
             if not ig:
                 flags.append("missing_support_anchor")
-            return _attach_parse_candidate(
-                AlleleRecord(
-                    allele=allele,
-                    gene=gene,
-                    mhc_class="I",
-                    chain="alpha",
-                    sequence=cleaned,
-                    seq_len=len(cleaned),
-                    mature_start=0,
-                    groove_seq=half_1 + half_2,
-                    groove1=half_1,
-                    groove2=half_2,
-                    groove1_len=len(half_1),
-                    groove2_len=len(half_2),
-                    ig_domain=ig,
-                    ig_domain_len=len(ig),
-                    parse_score=best_groove.groove_score + jscore,
-                    status="ok",
-                    anchor_type="alpha2_cys",
-                    anchor_cys1=best_groove.c1,
-                    anchor_cys2=best_groove.c2,
-                    flags=_flags_to_tuple(flags),
-                ),
-                seq=cleaned,
-                h_region=(features.h_region if features is not None else None),
-                sp_estimate=(features.sp_estimate if features is not None else None),
-                features=features,
+            return _refine_status(
+                _attach_parse_candidate(
+                    AlleleRecord(
+                        allele=allele,
+                        gene=gene,
+                        mhc_class="I",
+                        chain="alpha",
+                        sequence=cleaned,
+                        seq_len=len(cleaned),
+                        mature_start=0,
+                        groove_seq=half_1 + half_2,
+                        groove1=half_1,
+                        groove2=half_2,
+                        groove1_len=len(half_1),
+                        groove2_len=len(half_2),
+                        ig_domain=ig,
+                        ig_domain_len=len(ig),
+                        parse_score=best_groove.groove_score + jscore,
+                        status="ok",
+                        anchor_type="alpha2_cys",
+                        anchor_cys1=best_groove.c1,
+                        anchor_cys2=best_groove.c2,
+                        flags=_flags_to_tuple(flags),
+                    ),
+                    seq=cleaned,
+                    h_region=(features.h_region if features is not None else None),
+                    sp_estimate=(features.sp_estimate if features is not None else None),
+                    features=features,
+                )
             )
         downstream_ig = [ig for ig in ig_pairs if ig.c1 >= best_groove.c2 + 15]
+        alpha2_start = max(0, best_groove.c1 - CLASS_I_ALPHA2_CYS1_OFFSET) if best_groove.c1 > 20 else 0
+        alpha2_end = min(len(cleaned), best_groove.c2 + CLASS_I_ALPHA2_END_AFTER_CYS2)
         if downstream_ig:
             best_ig = min(downstream_ig, key=lambda a: a.c1)
-            alpha2_end = min(len(cleaned), best_groove.c2 + CLASS_I_ALPHA2_END_AFTER_CYS2)
             ig_end = min(len(cleaned), best_ig.c2 + IG_DOMAIN_END_AFTER_CYS2)
-            half_2 = _slice_or_empty(cleaned, 0, alpha2_end)
+            half_2 = _slice_or_empty(cleaned, alpha2_start, alpha2_end)
             ig = _slice_or_empty(cleaned, alpha2_end, ig_end)
             tail = cleaned[ig_end:]
             return _attach_parse_candidate(
@@ -1446,6 +1455,8 @@ def _class_i_fragment_result(
                 sp_estimate=(features.sp_estimate if features is not None else None),
                 features=features,
             )
+        half_2 = _slice_or_empty(cleaned, alpha2_start, alpha2_end)
+        ig = cleaned[alpha2_end:]
         return _attach_parse_candidate(
             AlleleRecord(
                 allele=allele,
@@ -1455,13 +1466,16 @@ def _class_i_fragment_result(
                 sequence=cleaned,
                 seq_len=len(cleaned),
                 mature_start=0,
-                groove_seq=cleaned,
+                groove_seq=half_2,
                 groove1="",
-                groove2=cleaned,
+                groove2=half_2,
                 groove1_len=0,
-                groove2_len=len(cleaned),
+                groove2_len=len(half_2),
+                ig_domain=ig,
+                ig_domain_len=len(ig),
+                parse_score=best_groove.groove_score,
                 status="alpha2_only",
-                anchor_type="raw_fragment",
+                anchor_type="alpha2_cys",
                 anchor_cys1=best_groove.c1,
                 anchor_cys2=best_groove.c2,
                 flags=("single_exon_fragment",),
@@ -1520,6 +1534,67 @@ def _class_i_fragment_result(
             )
         )
 
+    if len(cleaned) > 125:
+        # Multi-domain / extended fragment (>125 aa) with no surviving α2 or α3
+        # Cys pair.  Try to anchor an intact α1 half on a conserved α1/α2
+        # junction (e.g. SP + α1 + partial α2 truncated before Cys164); if none
+        # exists, reject as missing_groove rather than stuffing 130–200 aa of
+        # frameshifted pseudogene or α3 sequence into groove1.
+        best_jpos = -1
+        best_jscore = -999.0
+        for pos in range(50, min(len(cleaned) - 5, 132)):
+            jscore = score_junction(cleaned, pos)
+            if jscore >= 8.0 and jscore > best_jscore:
+                best_jscore = jscore
+                best_jpos = pos
+        if best_jpos > 0:
+            from .signal_peptide import has_plausible_sp_core
+
+            mature_start = 0
+            if best_jpos > 94:
+                h_region = features.h_region if features is not None else detect_h_region(cleaned)
+                sp_pos, _sp_conf = infer_signal_peptide(cleaned, h_region=h_region)
+                if 12 <= sp_pos <= 40 and 75 <= (best_jpos - sp_pos) <= 105 and has_plausible_sp_core(cleaned, sp_pos):
+                    mature_start = sp_pos
+            half_1 = _slice_or_empty(cleaned, mature_start, best_jpos)
+            if MIN_GROOVE_SOURCE_LEN <= len(half_1) <= 115:
+                tail = cleaned[best_jpos:]
+                return _attach_parse_candidate(
+                    AlleleRecord(
+                        allele=allele,
+                        gene=gene,
+                        mhc_class="I",
+                        chain="alpha",
+                        sequence=cleaned,
+                        seq_len=len(cleaned),
+                        mature_start=mature_start,
+                        groove_seq=half_1,
+                        groove1=half_1,
+                        groove2="",
+                        groove1_len=len(half_1),
+                        groove2_len=0,
+                        tail=tail,
+                        tail_len=len(tail),
+                        parse_score=best_jscore,
+                        status="alpha1_only",
+                        anchor_type="junction",
+                        flags=("partial_alpha2_tail",),
+                    ),
+                    seq=cleaned,
+                    h_region=(features.h_region if features is not None else None),
+                    sp_estimate=(features.sp_estimate if features is not None else None),
+                    features=features,
+                )
+        return _missing_groove_result(
+            allele=allele,
+            gene=gene,
+            mhc_class="I",
+            chain="alpha",
+            sequence=cleaned,
+            seq_len=len(cleaned),
+            flags=("unanchored_multi_domain_fragment",),
+        )
+
     return _attach_parse_candidate(
         AlleleRecord(
             allele=allele,
@@ -1542,7 +1617,7 @@ def _class_i_fragment_result(
 
 
 _CLASS_II_ALPHA1_HALLMARK_RE = re.compile(
-    r"G[STAP][QEN][FYW][TLIV]H[EQD]FDGDE|DHV[AGSTV][STNGI]|E[FL]F[HY]VD|QFYVDLE|EFYVDLE|I[KR]EEHVIIQAEF|D[IHV]V[AG]DHV"
+    r"G[STAP][QEN][FYW][TLIV]H[EQD]FDGDE|H[EQD]FDGDE|DHV[AGSTV][STNGI]|E[FL]F[HY]VD|QFYVDLE|EFYVDLE|I[KR]EEHVIIQAEF|D[IHV]V[AG]DHV|H[TS][FILMV][LM][HM][ST]VYCQDGS"
 )
 
 
