@@ -45,6 +45,7 @@ MIN_MHC_SEQUENCE_LEN = 70
 # Curated reference CSVs (shipped with this repo)
 _B2M_CSV = Path(__file__).resolve().parent / "b2m_sequences.csv"
 _MOUSE_H2_CSV = Path(__file__).resolve().parent / "mouse_h2_sequences.csv"
+_RAT_RT1_CSV = Path(__file__).resolve().parent / "rat_rt1_sequences.csv"
 # Legacy filename: this is the curated supplemental UniProt bundle for
 # underrepresented taxa outside the IMGT/IPD downloads.
 _DIVERSE_MHC_CSV = Path(__file__).resolve().parent / "diverse_mhc_sequences.csv"
@@ -378,6 +379,74 @@ def load_mouse_h2_references() -> List[dict]:
                     "species_prefix": "H2",
                     "source": "uniprot",
                     "source_id": accession,
+                    "seq_len": str(len(seq)),
+                    "sequence": seq,
+                    "has_signal_peptide": str(has_sp),
+                    "signal_peptide_len": str(mature_start),
+                    "signal_peptide_seq": sp_seq,
+                    "is_null": "False",
+                    "is_questionable": str(is_fragment),
+                    "is_pseudogene": "False",
+                }
+            )
+    return rows
+
+
+def load_rat_rt1_references() -> List[dict]:
+    """Load curated rat RT1 sequences from rat_rt1_sequences.csv.
+
+    Primary-source full-length rat MHC class Ia (RT1-A1/A2) and class II
+    (RT1-Ba, RT1-Bb, RT1-Da, RT1-Db1) sequences across standard laboratory rat
+    haplotypes (a, b, c, d, k, l, n, u) from PMID 15517241 (GenBank
+    AY626180-AY626218), Joly et al. 1996 (PMID 8759738), and Walter & Gunther
+    2000 (PMID 10970097).
+    """
+    if not _RAT_RT1_CSV.exists():
+        return []
+    rows = []
+    with open(_RAT_RT1_CSV, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            allele_name = row["allele_name"]
+            gene = row["gene"]
+            mhc_class = row["mhc_class"]
+            chain = row["chain"]
+            source_id = row.get("source_id", "")
+            seq = row["sequence"]
+            is_fragment = row.get("is_fragment", "False") == "True"
+
+            features = analyze_sequence(seq)
+            groove = parse_domain_record(
+                seq,
+                mhc_class=mhc_class,
+                gene=gene,
+                allele=allele_name,
+                chain=chain,
+                species="Rattus norvegicus",
+                features=features,
+            )
+            mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
+            mature_start, has_sp, sp_seq = _signal_peptide_fields(
+                seq,
+                mature_start,
+                "murine",
+                mhc_class,
+                features=features,
+            )
+            source = "uniprot" if re.match(r"^[OPQ][0-9][A-Z0-9]{3}[0-9]$", source_id) else "genbank"
+
+            rows.append(
+                {
+                    "allele_raw": source_id or allele_name,
+                    "allele_normalized": allele_name,
+                    "two_field_allele": allele_name,
+                    "gene": gene,
+                    "mhc_class": mhc_class,
+                    "chain": chain,
+                    "species": "Rattus norvegicus",
+                    "species_category": "murine",
+                    "species_prefix": "RT1",
+                    "source": source,
+                    "source_id": source_id,
                     "seq_len": str(len(seq)),
                     "sequence": seq,
                     "has_signal_peptide": str(has_sp),
@@ -978,6 +1047,15 @@ def build_raw_index(
             records[key] = h2
             stats["parsed"] += 1
             stats["h2_references"] = stats.get("h2_references", 0) + 1
+
+    # Inject curated rat RT1 reference sequences
+    rt1_rows = load_rat_rt1_references()
+    for rt1 in rt1_rows:
+        key = rt1["allele_normalized"]
+        if key not in records:
+            records[key] = rt1
+            stats["parsed"] += 1
+            stats["rt1_references"] = stats.get("rt1_references", 0) + 1
 
     # Inject curated supplemental UniProt MHC sequences for underrepresented taxa.
     diverse_rows = load_diverse_mhc_references()

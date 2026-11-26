@@ -18,6 +18,7 @@ from mhcseqs.pipeline import (
     load_diverse_mhc_references,
     load_genbank_saha_references,
     load_mouse_h2_references,
+    load_rat_rt1_references,
     looks_like_nucleotide,
     parse_diverse_gene_class,
     parse_domain_record,
@@ -210,36 +211,61 @@ def test_resolve_official_imgt_header_with_bare_hla_allele():
 
 def test_load_mouse_h2_references():
     rows = load_mouse_h2_references()
-    assert len(rows) == 30
+    assert len(rows) == 40
     genes = {r["gene"] for r in rows}
-    assert "K" in genes
-    assert "D" in genes
-    assert "L" in genes
-    assert "Aa" in genes
-    assert "Ab1" in genes
-    assert "Ea" in genes
-    assert "Eb1" in genes
+    assert {"K", "D", "L", "T23", "Aa", "Ab1", "Ea", "Eb1"} <= genes
 
 
 def test_mouse_h2_class_i():
     rows = load_mouse_h2_references()
     class_i = [r for r in rows if r["mhc_class"] == "I"]
-    assert len(class_i) == 10
+    assert len(class_i) == 13
     assert all(r["chain"] == "alpha" for r in class_i)
     alleles = {r["allele_normalized"] for r in class_i}
-    assert "H2-K*b" in alleles
-    assert "H2-D*b" in alleles
-    assert "H2-L*d" in alleles
+    assert {"H2-K*b", "H2-K*s", "H2-D*b", "H2-L*d", "H2-T23*a", "H2-T23*b"} <= alleles
 
 
 def test_mouse_h2_class_ii():
     rows = load_mouse_h2_references()
     class_ii = [r for r in rows if r["mhc_class"] == "II"]
-    assert len(class_ii) == 20
+    assert len(class_ii) == 27
     alpha = [r for r in class_ii if r["chain"] == "alpha"]
     beta = [r for r in class_ii if r["chain"] == "beta"]
-    assert len(alpha) == 10
-    assert len(beta) == 10
+    assert len(alpha) == 11
+    assert len(beta) == 16
+    alleles = {r["allele_normalized"] for r in class_ii}
+    assert {"H2-Ab1*g7", "H2-Ab1*u", "H2-Ea*k", "H2-Eb1*d", "H2-Eb1*p", "H2-Eb1*q", "H2-Eb1*r"} <= alleles
+
+
+def test_load_rat_rt1_references():
+    rows = load_rat_rt1_references()
+    assert len(rows) == 39
+    by_allele = {r["allele_normalized"]: r for r in rows}
+    for expected in (
+        "RT1-A1*a",
+        "RT1-A1*l",
+        "RT1-A1*u",
+        "RT1-A1*c",
+        "RT1-A2*c",
+        "RT1-A1*n",
+        "RT1-A2*n",
+        "RT1-Ba*l",
+        "RT1-Bb*l",
+        "RT1-Da*l",
+        "RT1-Db1*l",
+        "RT1-Ba*u",
+        "RT1-Bb*u",
+        "RT1-Da*u",
+        "RT1-Db1*u",
+        "RT1-Ba*n",
+        "RT1-Bb*n",
+        "RT1-Da*n",
+        "RT1-Db1*n",
+    ):
+        assert expected in by_allele
+        assert by_allele[expected]["species"] == "Rattus norvegicus"
+        assert by_allele[expected]["species_prefix"] == "RT1"
+        assert by_allele[expected]["source_id"]
 
 
 def test_mouse_h2_has_source_id():
@@ -311,7 +337,7 @@ def test_diverse_references_include_felis_catus_and_curated_alleles(diverse_mhc_
         "A0A516V164": ("FelisCatus-E*005:01", "FelisCatus", "carnivore"),
         "A0A7H1D3F5": ("FelisCatus-K*012:02", "FelisCatus", "carnivore"),
         "P01898": ("MusMusculus-Q10", "MusMusculus", "murine"),
-        "P06339": ("MusMusculus-T23", "MusMusculus", "murine"),
+        "P06339": ("MusMusculus-T23*b", "MusMusculus", "murine"),
         "P14429": ("MusMusculus-Q7", "MusMusculus", "murine"),
     }
     for acc, (allele_canon, sp_prefix, sp_cat) in expected.items():
@@ -434,6 +460,7 @@ def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, 
     )
     monkeypatch.setattr("mhcseqs.pipeline.load_b2m_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_mouse_h2_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_rat_rt1_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_diverse_mhc_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_genbank_saha_references", lambda: [])
 
@@ -612,6 +639,7 @@ def test_build_raw_index_filters_non_mhc_tap_genes_and_sanitizes_question_marks(
     )
     monkeypatch.setattr("mhcseqs.pipeline.load_b2m_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_mouse_h2_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_rat_rt1_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_diverse_mhc_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_genbank_saha_references", lambda: [])
 
