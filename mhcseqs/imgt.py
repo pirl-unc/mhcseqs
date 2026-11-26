@@ -484,6 +484,94 @@ IMGT_PAN_CLASS_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("HALF1", s) fo
     ("HALF2", s) for s in IMGT_PAN_HALF2_SLOTS
 )
 
+#: 34 Class I NetMHCpan-4.1 peptide-contacting positions expressed in 3D-homologous
+#: pan-class IMGT coordinates (18 HALF1 + 16 HALF2).
+IMGT_PAN_CLASS_NETMHCPAN_SLOTS: tuple[tuple[str, str], ...] = (
+    ("HALF1", "7"),
+    ("HALF1", "9"),
+    ("HALF1", "24"),
+    ("HALF1", "45"),
+    ("HALF1", "59"),
+    ("HALF1", "62"),
+    ("HALF1", "63"),
+    ("HALF1", "66"),
+    ("HALF1", "67"),
+    ("HALF1", "69"),
+    ("HALF1", "70"),
+    ("HALF1", "73"),
+    ("HALF1", "74"),
+    ("HALF1", "76"),
+    ("HALF1", "77"),
+    ("HALF1", "80"),
+    ("HALF1", "81"),
+    ("HALF1", "84"),
+    ("HALF2", "5"),
+    ("HALF2", "7"),
+    ("HALF2", "9"),
+    ("HALF2", "24"),
+    ("HALF2", "26"),
+    ("HALF2", "28"),
+    ("HALF2", "55"),
+    ("HALF2", "59"),
+    ("HALF2", "61A"),
+    ("HALF2", "63"),
+    ("HALF2", "67"),
+    ("HALF2", "69"),
+    ("HALF2", "70"),
+    ("HALF2", "73"),
+    ("HALF2", "77"),
+    ("HALF2", "81"),
+)
+
+#: 34 Class II NetMHCIIpan-3.0/4.0 peptide-contacting positions (Karosiene et al. 2013:
+#: 15 DRA alpha mature [9,11,22,24,31,52,53,58,59,61,65,66,68,72,73] + 19 DRB1 beta mature
+#: [9,11,13,26,28,30,47,57,67,70,71,74,77,78,81,85,86,89,90]) expressed in 3D-homologous
+#: pan-class IMGT coordinates (15 HALF1 + 19 HALF2). Exact 22/34 overlap with Class I
+#: NetMHCpan-34 (11 HALF1 + 11 HALF2), plus 12 Class II-specific P1/P4/P7/P9 slots.
+IMGT_PAN_CLASS_NETMHCIIPAN_SLOTS: tuple[tuple[str, str], ...] = (
+    ("HALF1", "7"),
+    ("HALF1", "9"),
+    ("HALF1", "24"),
+    ("HALF1", "26"),
+    ("HALF1", "33"),
+    ("HALF1", "56"),
+    ("HALF1", "61"),
+    ("HALF1", "66"),
+    ("HALF1", "67"),
+    ("HALF1", "69"),
+    ("HALF1", "73"),
+    ("HALF1", "74"),
+    ("HALF1", "76"),
+    ("HALF1", "80"),
+    ("HALF1", "81"),
+    ("HALF2", "5"),
+    ("HALF2", "7"),
+    ("HALF2", "9"),
+    ("HALF2", "22"),
+    ("HALF2", "24"),
+    ("HALF2", "26"),
+    ("HALF2", "45"),
+    ("HALF2", "55"),
+    ("HALF2", "63"),
+    ("HALF2", "66"),
+    ("HALF2", "67"),
+    ("HALF2", "70"),
+    ("HALF2", "72A"),
+    ("HALF2", "73"),
+    ("HALF2", "76"),
+    ("HALF2", "80"),
+    ("HALF2", "81"),
+    ("HALF2", "84"),
+    ("HALF2", "85"),
+)
+
+#: 46-slot exact 3D-aligned union of Class I NetMHCpan-34 and Class II NetMHCIIpan-34
+#: pocket contacts (22 shared + 12 Class I-only + 12 Class II-only), ordered along
+#: ``IMGT_PAN_CLASS_GROOVE_SLOTS`` (22 HALF1 + 24 HALF2).
+IMGT_PAN_CLASS_POCKET_SLOTS: tuple[tuple[str, str], ...] = tuple(
+    slot for slot in IMGT_PAN_CLASS_GROOVE_SLOTS if slot in (set(IMGT_PAN_CLASS_NETMHCPAN_SLOTS) | set(IMGT_PAN_CLASS_NETMHCIIPAN_SLOTS))
+)
+
 # Hotspot bucket definitions: (anchor_imgt_positions, target_slots, flanking_backbone_pair, fill_mode)
 # fill_mode: "center_out" (1->mid, 2->flanks, 3->all) or "cd_turn" (1->40, 2->40+41, 3->40+40B+41, ...)
 # or "left" (1->61B, 2->61B+61C)
@@ -671,6 +759,8 @@ class DomainAlignment:
     pan_class_fixed_seq: str = ""
     pan_class_fixed_slots: tuple[str, ...] = ()
     pan_class_slot_to_aa: dict[str, str] = field(default_factory=dict)
+    pan_class_overflow_insertions: tuple[GrooveInsertion, ...] = ()
+    pan_class_insertion_counts: tuple[int, ...] = ()
 
     @property
     def has_insertions(self) -> bool:
@@ -687,6 +777,10 @@ class DomainAlignment:
     @property
     def has_overflow_insertions(self) -> bool:
         return bool(self.overflow_insertions)
+
+    @property
+    def has_pan_class_overflow_insertions(self) -> bool:
+        return bool(self.pan_class_overflow_insertions)
 
     @property
     def is_truncated(self) -> bool:
@@ -773,6 +867,35 @@ class GrooveAlignment:
         if self.alpha2 is not None:
             parts.extend(self.alpha2.overflow_insertions)
         return tuple(parts)
+
+    @property
+    def pan_class_overflow_insertions(self) -> tuple[GrooveInsertion, ...]:
+        """Internal insertions that did not fit into the 202-slot pan-class IMGT frame."""
+        parts: list[GrooveInsertion] = []
+        if self.alpha1 is not None:
+            parts.extend(self.alpha1.pan_class_overflow_insertions)
+        if self.alpha2 is not None:
+            parts.extend(self.alpha2.pan_class_overflow_insertions)
+        return tuple(parts)
+
+    @property
+    def has_pan_class_overflow_insertions(self) -> bool:
+        return bool(self.pan_class_overflow_insertions)
+
+    @property
+    def pan_class_insertion_counts(self) -> tuple[int, ...]:
+        """202-length tuple giving unrepresented overflow insertion length after each pan-class slot."""
+        c1 = (
+            self.alpha1.pan_class_insertion_counts
+            if (self.alpha1 is not None and self.alpha1.pan_class_insertion_counts)
+            else (0,) * len(IMGT_PAN_HALF1_SLOTS)
+        )
+        c2 = (
+            self.alpha2.pan_class_insertion_counts
+            if (self.alpha2 is not None and self.alpha2.pan_class_insertion_counts)
+            else (0,) * len(IMGT_PAN_HALF2_SLOTS)
+        )
+        return c1 + c2
 
     @property
     def has_insertions(self) -> bool:
@@ -1003,6 +1126,37 @@ class GrooveAlignment:
     ) -> str:
         """Extract a fixed-position sequence from the shared 202-slot pan-class IMGT frame."""
         return self.extract_imgt_slots(slots, missing=missing, deleted=deleted)
+
+    def extract_pan_class_pocket_seq(
+        self,
+        *,
+        missing: str = "X",
+        deleted: str = "-",
+    ) -> str:
+        """Extract the 46-slot 3D-aligned union of NetMHCpan-34 and NetMHCIIpan-34 pocket contacts."""
+        return self.extract_imgt_slots(IMGT_PAN_CLASS_POCKET_SLOTS, missing=missing, deleted=deleted)
+
+    def to_pan_class_features(self) -> dict[str, Any]:
+        """Export a predictor-ready feature dictionary on the 202-slot pan-class IMGT grid.
+
+        Includes ``seq`` (202 chars, 22-token alphabet with ``'-'`` vs ``'X'``),
+        ``pocket_seq`` (46 chars covering 100% of NetMHCpan-34 and NetMHCIIpan-34
+        contacts), ``insertion_counts`` (202-tuple of per-slot unrepresented overflow
+        insertion lengths), ``overflow_insertions``, and terminal overhangs.
+        """
+        return {
+            "mhc_class": self.resolved_mhc_class,
+            "slots": IMGT_PAN_CLASS_GROOVE_SLOTS,
+            "seq": self.pan_class_fixed_seq,
+            "pocket_slots": IMGT_PAN_CLASS_POCKET_SLOTS,
+            "pocket_seq": self.extract_pan_class_pocket_seq(),
+            "insertion_counts": self.pan_class_insertion_counts,
+            "overflow_insertions": self.pan_class_overflow_insertions,
+            "n_term_overhang_half1": self.alpha1.n_term_overhang if self.alpha1 is not None else "",
+            "c_term_overhang_half1": self.alpha1.c_term_overhang if self.alpha1 is not None else "",
+            "n_term_overhang_half2": self.alpha2.n_term_overhang if self.alpha2 is not None else "",
+            "c_term_overhang_half2": self.alpha2.c_term_overhang if self.alpha2 is not None else "",
+        }
 
     def summary(self) -> str:
         """Return a concise diagnostic summary of indels and truncations."""
@@ -1448,13 +1602,46 @@ _PAN_CLASS_EXTRA_SLOT_FLANKS: dict[str, dict[str, tuple[str, ...]]] = {
 }
 
 
+# Pan-class hotspot buckets used when projecting directly onto the 202-slot
+# shared pan-class IMGT frame. Unlike class-specific frames, HALF1 includes
+# 7A (A-strand), 19A-19C (AB-turn), and 54A-54C (N-helix hinge) for BOTH
+# Class I G-ALPHA1 and Class II G-ALPHA so 3-aa teleost G-ALPHA hinge
+# insertions (54A-54C) and G-ALPHA1 7A insertions populate their pan-class
+# slots directly instead of overflowing.
+_PAN_HALF1_HOTSPOTS: dict[str, tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...]] = {
+    "G-ALPHA1": (
+        (frozenset({"5", "6", "7", "8", "9", "10", "11"}), ("7A",), ("7", "8"), "left"),
+        (frozenset(str(i) for i in range(14, 22)), ("19A", "19B", "19C"), ("19", "20"), "center_out"),
+        (frozenset(str(i) for i in range(50, 59)), ("54A", "54B", "54C"), ("54", "55"), "center_out"),
+    ),
+    "G-ALPHA": (
+        (frozenset({"5", "6", "7", "8", "9", "10", "11"}), ("7A",), ("7", "8"), "left"),
+        (frozenset({"14", "15", "20", "21"}), ("19A", "19B", "19C"), ("15", "20"), "center_out"),
+        (frozenset({"50", "51", "52", "53", "54", "55", "56"}), ("54A", "54B", "54C"), ("54", "55"), "left"),
+    ),
+}
+_PAN_HALF2_HOTSPOTS: dict[str, tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...]] = {
+    "G-ALPHA2": _GALPHA2_HOTSPOTS,
+    "G-BETA": _GBETA_HOTSPOTS,
+}
+
+
 def _build_pan_class_frame(
     domain: str,
     fixed_slot_to_aa: dict[str, str],
     imgt_to_aa: dict[str, str],
-) -> tuple[str, tuple[str, ...], dict[str, str]]:
-    """Project a Class I or Class II domain alignment onto the shared 3D pan-class IMGT frame."""
-    slots = IMGT_PAN_HALF1_SLOTS if domain in ("G-ALPHA1", "G-ALPHA") else IMGT_PAN_HALF2_SLOTS
+    insertions: Sequence[GrooveInsertion] = (),
+) -> tuple[str, tuple[str, ...], dict[str, str], tuple[GrooveInsertion, ...], tuple[int, ...]]:
+    """Project a Class I or Class II domain alignment onto the shared 3D pan-class IMGT frame.
+
+    Buckets internal insertions directly into pan-class hotspot slots (including
+    ``7A``, ``19A-19C``, and ``54A-54C`` on ``HALF1``) and returns both any
+    remaining ``pan_class_overflow_insertions`` and a per-slot
+    ``pan_class_insertion_counts`` tuple giving the number of unrepresented
+    inserted residues immediately following each pan-class slot.
+    """
+    is_half1 = domain in ("G-ALPHA1", "G-ALPHA")
+    slots = IMGT_PAN_HALF1_SLOTS if is_half1 else IMGT_PAN_HALF2_SLOTS
     flanks_map = _PAN_CLASS_EXTRA_SLOT_FLANKS[domain]
     pan_map: dict[str, str] = {}
     for slot in slots:
@@ -1466,8 +1653,46 @@ def _build_pan_class_frame(
                 pan_map[slot] = "-"
             else:
                 pan_map[slot] = "X"
+
+    hotspots = _PAN_HALF1_HOTSPOTS[domain] if is_half1 else _PAN_HALF2_HOTSPOTS[domain]
+    hotspot_seqs: list[list[str]] = [[] for _ in hotspots]
+    hotspot_sources: list[list[GrooveInsertion]] = [[] for _ in hotspots]
+    overflow: list[GrooveInsertion] = []
+    extra_counts: dict[str, int] = {}
+
+    for ins in insertions:
+        matched_idx: Optional[int] = None
+        for idx, (anchors, _target_slots, _flanks, _mode) in enumerate(hotspots):
+            if ins.after_imgt_pos in anchors:
+                matched_idx = idx
+                break
+        if matched_idx is None:
+            overflow.append(ins)
+            if ins.after_imgt_pos in pan_map:
+                extra_counts[ins.after_imgt_pos] = extra_counts.get(ins.after_imgt_pos, 0) + ins.length
+        else:
+            hotspot_seqs[matched_idx].append(ins.sequence)
+            hotspot_sources[matched_idx].append(ins)
+
+    for idx, (_anchors, target_slots, (left_flank, right_flank), mode) in enumerate(hotspots):
+        combined = "".join(hotspot_seqs[idx])
+        flanks_observed = left_flank in imgt_to_aa and right_flank in imgt_to_aa
+        if not combined:
+            fill_ch = "-" if flanks_observed else "X"
+            for s in target_slots:
+                pan_map[s] = fill_ch
+        else:
+            filled, did_overflow = _fill_hotspot_slots(combined, target_slots, mode)
+            pan_map.update(filled)
+            if did_overflow:
+                overflow.extend(hotspot_sources[idx])
+                extra_len = len(combined) - len(target_slots)
+                anchor_slot = target_slots[-1]
+                extra_counts[anchor_slot] = extra_counts.get(anchor_slot, 0) + extra_len
+
     pan_seq = "".join(pan_map[s] for s in slots)
-    return pan_seq, slots, pan_map
+    insertion_counts = tuple(extra_counts.get(s, 0) for s in slots)
+    return pan_seq, slots, pan_map, tuple(overflow), insertion_counts
 
 
 def _domain_reference_spec(norm_domain: str) -> tuple[str, tuple[str, ...], tuple[int, ...]]:
@@ -1537,7 +1762,7 @@ def align_domain_to_imgt(
     qry = "".join(ch for ch in str(seq or "").strip().upper() if ch.isalpha())
     if not qry:
         fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, {}, ())
-        pan_seq, pan_slots, pan_map = _build_pan_class_frame(norm_domain, slot_map, {})
+        pan_seq, pan_slots, pan_map, pan_overflow, pan_ins_counts = _build_pan_class_frame(norm_domain, slot_map, {}, ())
         return DomainAlignment(
             domain=norm_domain,
             query_seq="",
@@ -1559,6 +1784,8 @@ def align_domain_to_imgt(
             pan_class_fixed_seq=pan_seq,
             pan_class_fixed_slots=pan_slots,
             pan_class_slot_to_aa=pan_map,
+            pan_class_overflow_insertions=pan_overflow,
+            pan_class_insertion_counts=pan_ins_counts,
         )
 
     align = _cached_groove_alignment if use_fast_path else _align_groove_domain
@@ -1569,7 +1796,7 @@ def align_domain_to_imgt(
     paired_cols = [idx for idx, (r, q) in enumerate(zip(aligned_ref, aligned_qry)) if r != "-" and q != "-"]
     if not paired_cols:
         fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, {}, ())
-        pan_seq, pan_slots, pan_map = _build_pan_class_frame(norm_domain, slot_map, {})
+        pan_seq, pan_slots, pan_map, pan_overflow, pan_ins_counts = _build_pan_class_frame(norm_domain, slot_map, {}, ())
         overhang_residues = tuple(
             AlignedResidue(
                 aa=ch,
@@ -1607,6 +1834,8 @@ def align_domain_to_imgt(
             pan_class_fixed_seq=pan_seq,
             pan_class_fixed_slots=pan_slots,
             pan_class_slot_to_aa=pan_map,
+            pan_class_overflow_insertions=pan_overflow,
+            pan_class_insertion_counts=pan_ins_counts,
         )
 
     first_paired = paired_cols[0]
@@ -1784,7 +2013,7 @@ def align_domain_to_imgt(
             )
 
     fixed_seq, fixed_slots, slot_map, overflow = _build_fixed_frame(norm_domain, imgt_to_aa, insertions)
-    pan_seq, pan_slots, pan_map = _build_pan_class_frame(norm_domain, slot_map, imgt_to_aa)
+    pan_seq, pan_slots, pan_map, pan_overflow, pan_ins_counts = _build_pan_class_frame(norm_domain, slot_map, imgt_to_aa, insertions)
     identity = identical_pairs / aligned_pairs if aligned_pairs else 0.0
     return DomainAlignment(
         domain=norm_domain,
@@ -1814,6 +2043,8 @@ def align_domain_to_imgt(
         pan_class_fixed_seq=pan_seq,
         pan_class_fixed_slots=pan_slots,
         pan_class_slot_to_aa=pan_map,
+        pan_class_overflow_insertions=pan_overflow,
+        pan_class_insertion_counts=pan_ins_counts,
     )
 
 

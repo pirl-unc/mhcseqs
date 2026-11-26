@@ -15,6 +15,7 @@ nav:
   - Command Line: cli.md
   - Python API: python-api.md
   - Structural Decomposition: parsing.md
+  - Pan-Class IMGT Alignment: pan-class-alignment.md
   - Datasets and Columns: data.md
 
 markdown_extensions:
