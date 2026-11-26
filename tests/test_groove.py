@@ -161,12 +161,19 @@ def test_decompose_class_i_too_short():
 
 
 def test_decompose_class_i_no_cys_short():
-    """Short class I with no Cys pairs gets alpha1_only (no Cys = α1 fragment)."""
-    result = decompose_class_i("A" * 200, allele="no_cys")
+    """Single-exon class I fragment (<=125 aa) with no Cys pairs gets alpha1_only."""
+    result = decompose_class_i("A" * 100, allele="no_cys")
     assert result.ok
     assert result.status == "alpha1_only"
-    assert result.groove1_len == 200
+    assert result.groove1_len == 100
     assert result.groove2_len == 0
+
+    # Multi-domain-length (>125 aa) unanchored sequences with no Cys pairs or α1/α2 junction
+    # must fail as missing_groove rather than dumping 130-200 aa into groove1 (#154).
+    long_unanchored = decompose_class_i("A" * 195, allele="no_cys_195")
+    assert not long_unanchored.ok
+    assert long_unanchored.status == "missing_groove"
+    assert "unanchored_multi_domain_fragment" in long_unanchored.flags
 
 
 def test_decompose_class_i_no_cys_long():
@@ -1128,14 +1135,17 @@ def test_class_i_junction_salvage_recovers_mutated_alpha2_cys():
     assert res_hla.groove2.startswith("GSHTIQIM")
     assert "inferred_from_junction" in res_hla.flags
 
-    # Real IPD-MHC Chae-G*02:01 (123 aa: 80 aa partial α1 + 43 aa partial α2 before Cys164)
+    # Real IPD-MHC Chae-G*02:01 (123 aa: 80 aa partial α1 + 43 aa partial α2 before Cys164).
+    # Junction salvage still splits α1/α2 accurately, while _refine_status marks the
+    # 43-aa C-terminally truncated α2 stub honestly as "short" (#154).
     chae_g0201 = "AVSRPGRGEPRFIPVGYVDDTQFVRLDSDTASPRMEPRARSVEQEWPEYWEEETRNTKAHAQTDRVNLRTLRSYYNQSQVGSHTLQWMIGCDLGPDGRLLRRCEQFAYDGKDYLALNEDLCSX"
     res_chae = decompose_class_i(chae_g0201, allele="Chae-G*02:01")
-    assert res_chae.status == "ok"
+    assert res_chae.status == "short"
     assert res_chae.groove1_len == 80
     assert res_chae.groove2_len == 43
     assert res_chae.groove2.startswith("GSHTLQWM")
     assert "inferred_from_junction" in res_chae.flags
+    assert "groove2_short(43)" in res_chae.flags
 
     # Full-length α1+α2+α3 with C101S (as in Mafa-B*202:01)
     c101s_seq = HLA_A0201_MATURE[:100] + "S" + HLA_A0201_MATURE[101:210]
@@ -1211,3 +1221,86 @@ def test_class_i_rejects_overlapping_cys_pair_spanning_ig_domain():
     a3_with_stray_cys = "A" * 80 + "MDPPSCAAAAAAAA" + HLA_A0201_MATURE[185:]
     res = decompose_class_i(a3_with_stray_cys, allele="SYNTH-stray-cys-ig")
     assert res.status != "ok"
+
+
+def test_class_i_alpha2_only_slices_around_cys_pair_not_upstream_extension():
+    """Issue #154: alpha2_only must slice ~93-aa α2 around Cys1-10..Cys2+20, never swallowing N-term extensions or α3 tails."""
+    # Case 1: N-terminally extended isoform with α2 + downstream α3 Ig
+    extended = "A" * 200 + HLA_A0201_MATURE[90:]
+    res_ext = decompose_class_i(extended, allele="SYNTH-n-extended")
+    assert res_ext.groove2_len <= 105
+    assert "GSHTVQRMYGCDV" in res_ext.groove2
+
+    # Case 2: α2 + 80-aa partial α3 tail (total <=200 aa, no α3 Cys pair)
+    a2_plus_tail = HLA_A0201_MATURE[90:183] + "D" * 80
+    res_tail = decompose_class_i(a2_plus_tail, allele="SYNTH-a2-plus-tail")
+    assert res_tail.status == "alpha2_only"
+    assert 85 <= res_tail.groove2_len <= 100
+    assert len(res_tail.ig_domain) >= 70
+
+
+def test_class_i_short_groove_thresholds_respect_cterm_and_severe_truncation():
+    """Issue #154: SP-stripped flag never lowers Class I groove2 threshold or allows <60-aa groove1 to pass as 'ok'."""
+    # Severely truncated α1 (47 aa) + intact α2 (93 aa): must be 'short', not 'ok'
+    short_a1 = HLA_A0201_MATURE[43:183]
+    res_a1 = decompose_class_i(short_a1, allele="SYNTH-short-a1")
+    assert res_a1.status == "short"
+
+    # Intact α1 (80 aa) + C-terminally truncated α2 (43 aa, C164 lost): must be 'short', not 'ok'
+    short_a2 = HLA_A0201_MATURE[10:133]
+    res_a2 = decompose_class_i(short_a2, allele="SYNTH-short-a2")
+    assert res_a2.status == "short"
+
+
+def test_class_ii_alpha1_salvage_recovers_dqa1_and_dma_fragments():
+    """Issue #154: BosGrunniens-DQA1*004:02 and MacacaThibetana-DMA*02:01 recover cleanly as alpha1_only."""
+    from mhcseqs.domain_parsing import decompose_class_ii_alpha
+
+    bogr_dqa = (
+        "DHIGAYGINVYHTYGPSGYYTHEFDGDEEFYADLEKRETVWRLPVFSKFTSFDPQGALRN"
+        "MAVTKHNLEILIKRSNSTAATNEVPEVTVFSKSPVTLGQPNTLICLVDNIFPPVVNVTWL"
+        "SNGHSVTEGVSETSFLSKSDHSFFKISYLTFLPSAD"
+    )
+    res_dq = decompose_class_ii_alpha(bogr_dqa, allele="BosGrunniens-DQA1*004:02", gene="DQA1")
+    assert res_dq.ok
+    assert res_dq.status == "alpha1_only"
+    assert 75 <= res_dq.groove1_len <= 95
+
+    math_dma = "MGHEQNQGAALLQMLPLLWLLPHSWAVPEAPTPVWRDDLQNHTFLHTVYCQDGSPSMGLSEAYDEDQLFFFDFSQNTRVPRLPEFADWAQEQGDAPAILFDKEFCEWMIQQIGPKLDGKIPVSR"
+    res_dm = decompose_class_ii_alpha(math_dma, allele="MacacaThibetana-DMA*02:01", gene="DMA")
+    assert res_dm.ok
+    assert res_dm.status == "alpha1_only"
+    assert 75 <= res_dm.groove1_len <= 100
+
+
+def test_curated_pdb_benchmark_alleles_and_sanitization():
+    """Issue #154: Xela-UAAg (6A2B), Eqca-N*006:02 (4ZUU), Aime-128 (7DC6) load cleanly with 0 invalid AAs."""
+    from mhcseqs.pipeline import load_b2m_references, load_diverse_mhc_references, sanitize_protein_sequence
+    from mhcseqs.validate import check_valid_aa
+
+    assert sanitize_protein_sequence("AC?BZJUO") == "ACXXXXXX"
+
+    div_rows = load_diverse_mhc_references()
+    by_acc = {row["source_id"]: row for row in div_rows}
+    for acc, expected_allele in (
+        ("Q9TPA7", "XenopusLaevis-UAAg"),
+        ("Q860N6", "EquusCaballus-N*006:02"),
+        ("B2KT53", "AiluropodaMelanoleuca-128"),
+    ):
+        assert acc in by_acc
+        row = by_acc[acc]
+        assert row["allele_normalized"] == expected_allele
+        rec = decompose_class_i(row["sequence"], allele=expected_allele, gene=row["gene"])
+        assert rec.status == "ok"
+        assert 85 <= rec.groove1_len <= 95
+        assert 90 <= rec.groove2_len <= 96
+
+    # No invalid AA characters in loaded diverse or B2M sequences
+    assert not [r["source_id"] for r in div_rows if check_valid_aa(r["sequence"], r["source_id"])]
+    b2m_rows = load_b2m_references()
+    assert not [r["source_id"] for r in b2m_rows if check_valid_aa(r["sequence"], r["source_id"])]
+    # Canonical replacements for zebra finch and snapping turtle; truncated 1-Cys salmonids removed
+    b2m_accs = {r["source_id"] for r in b2m_rows}
+    assert "B5G1N1" in b2m_accs
+    assert "A0A8C3RQL5" in b2m_accs
+    assert not ({"A0A165VGN5", "A0A166TQL1", "A0A291RBL3"} & b2m_accs)

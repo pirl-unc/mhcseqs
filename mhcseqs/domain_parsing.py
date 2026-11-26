@@ -316,12 +316,10 @@ def decompose_class_i(
                 _append_record_candidate(candidates, record)
 
     weak_primary = best_record is None or best_record.status != "ok" or best_record.candidate_score < 10.0 or _record_has_short_flag(best_record)
-    nterm_alpha2_grooves = [
-        ann for ann in annotated if 55 <= ann.separation <= 72 and ann.domain_type == "groove" and ann.groove_score >= 4.0 and ann.c1 <= 30
-    ]
+    alpha2_grooves = [ann for ann in annotated if 55 <= ann.separation <= 72 and ann.domain_type == "groove" and ann.groove_score >= 4.0]
     strong_igs = [ann for ann in annotated if ann.domain_type == "ig" and ann.ig_score >= 4.0 and ann.ig_score > ann.groove_score + 2.0]
-    has_nterm_alpha2_plus_ig = any(ig.c1 >= gr.c2 + 15 for gr in nterm_alpha2_grooves for ig in strong_igs)
-    if len(cleaned) <= grammar.fragment_max_len or (weak_primary and has_nterm_alpha2_plus_ig):
+    has_alpha2_plus_ig = any(ig.c1 >= gr.c2 + 15 for gr in alpha2_grooves for ig in strong_igs)
+    if len(cleaned) <= grammar.fragment_max_len or (weak_primary and has_alpha2_plus_ig):
         _append_record_candidate(
             candidates,
             _class_i_fragment_result(seq=cleaned, allele=allele, gene=gene, annotated=annotated, features=features),
