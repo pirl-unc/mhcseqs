@@ -10,10 +10,10 @@ lower-level function lives in.
 ```python
 import mhcseqs
 
-# Build the database (downloads to ~/.cache/mhcseqs/, only needed once)
-paths = mhcseqs.build()  # BuildPaths dataclass
+# Install the prebuilt release catalog (seconds) — or mhcseqs.build() locally
+paths = mhcseqs.install_catalog()  # CatalogPaths dataclass
 
-# Look up any allele -> AlleleRecord with everything
+# Look up any allele -> AlleleRecord with everything (backed by cached O(1) index)
 r = mhcseqs.lookup("HLA-A*02:01")
 r.allele            # "HomoSapiens-A*02:01" (two-field)
 r.full_allele       # "HomoSapiens-A*02:01:01:100" (full resolution)
@@ -37,15 +37,21 @@ m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])
 mhcseqs emits (`HomoSapiens-A*02:01`), not the short IMGT form. See
 [datasets and columns](data.md#species-prefixes) for why.
 
-## Load the whole build
+## Fast cached catalog index
 
 ```python
 import mhcseqs
 
-# As a DataFrame (full sequence + groove decomposition + metadata)
-df = mhcseqs.load_sequences_dataframe()
+# Cached in memory by (path, mtime, size); pass auto_install=True to fetch if absent
+catalog = mhcseqs.load_catalog()
 
-# Or as a list of dicts (no pandas dependency)
+# O(1) lookup supporting canonical names, aliases, genus bridging, AccessionedAllele, and source_id
+entry = catalog.get("FLA-E*003:01")      # CatalogEntry (pre-parsed groove1/groove2, no recompute)
+hits = catalog.lookup_many(["HLA-A*02:01", "FLA-E*003:01", "G3V1L5"])
+c1_complete = catalog.filter(mhc_class="I", functional_only=True, complete_only=True)
+
+# As a DataFrame or list of dicts
+df = mhcseqs.load_sequences_dataframe()
 rows = mhcseqs.load_sequences_dict()
 ```
 

@@ -5,7 +5,9 @@ Usage:
     mhcseqs build [--output-dir DIR] [--data-dir DIR] [--force-download]
     mhcseqs lookup ALLELE [--output-dir DIR] [--format {text,csv,tsv,json,fasta}] [--all] [--output PATH]
     mhcseqs data list [--details]
+    mhcseqs data install catalog [--version VERSION] [--include-raw] [--force]
     mhcseqs data install mhc-proteins [--version VERSION] [--with-sources] [--force]
+    mhcseqs data path catalog [--json]
     mhcseqs data path mhc-proteins [--version VERSION]
     mhcseqs data refresh [--source imgt_hla|ipd_mhc]
     mhcseqs data clear [--source ...] [--built | --built-only]
@@ -32,11 +34,16 @@ from .version import __version__
 
 LOOKUP_FORMATS = ("text", "csv", "tsv", "json", "fasta")
 SOURCE_KEYS = ("imgt_hla", "ipd_mhc")
+CATALOG_DATASET_NAME = "catalog"
 MHC_PROTEIN_DATASET_NAME = "mhc-proteins"
 _FULL_SEQS_FILENAME = "mhc-full-seqs.csv"
 
 _LAZY_ATTRS: dict[str, tuple[str, str]] = {
     "default_data_dir": (".", "default_data_dir"),
+    "CatalogError": (".catalog", "CatalogError"),
+    "CatalogNotInstalledError": (".catalog", "CatalogNotInstalledError"),
+    "install_catalog": (".catalog", "install_catalog"),
+    "validate_catalog": (".catalog", "validate_catalog"),
     "FULL_SEQS_CSV": (".datafiles", "FULL_SEQS_CSV"),
     "MERGE_REPORT": (".datafiles", "MERGE_REPORT"),
     "RAW_CSV": (".datafiles", "RAW_CSV"),
@@ -269,7 +276,7 @@ def cmd_lookup(args):
             continue
 
     if not csv_files:
-        print("No built CSVs found. Run 'mhcseqs build' first.", file=sys.stderr)
+        print("No built CSVs found. Run 'mhcseqs data install catalog' or 'mhcseqs build' first.", file=sys.stderr)
         sys.exit(1)
 
     query = args.allele.strip()
@@ -453,6 +460,9 @@ def cmd_data(args):
         protein_error = _resolve("ProteinDatasetError")
         protein_not_installed = _resolve("ProteinDatasetNotInstalledError")
         validate_dataset = _resolve("validate_mhc_protein_dataset")
+        catalog_error = _resolve("CatalogError")
+        catalog_not_installed = _resolve("CatalogNotInstalledError")
+        validate_catalog_fn = _resolve("validate_catalog")
         checks = []
         ok = True
         for item in _resolve("inventory")(dd):
@@ -468,6 +478,29 @@ def cmd_data(args):
                     path=str(item.path),
                     status=status,
                     size_bytes=item.size,
+                )
+            )
+        try:
+            cpaths = validate_catalog_fn(data_dir=dd)
+            checks.append(
+                dict(
+                    kind="dataset",
+                    name=f"{CATALOG_DATASET_NAME}:{cpaths.version or 'local'}",
+                    path=str(cpaths.sequences),
+                    status="verified",
+                )
+            )
+        except catalog_not_installed:
+            pass
+        except catalog_error as exc:
+            ok = False
+            checks.append(
+                dict(
+                    kind="dataset",
+                    name=CATALOG_DATASET_NAME,
+                    path=str(dd),
+                    status="corrupt",
+                    error=str(exc),
                 )
             )
         for version in _resolve("available_mhc_protein_dataset_versions")():
@@ -590,6 +623,20 @@ def cmd_data(args):
         return
 
     if action in ("install", "fetch"):
+        if args.dataset == CATALOG_DATASET_NAME:
+            paths = _resolve("install_catalog")(
+                args.version,
+                data_dir=dd,
+                include_raw=getattr(args, "include_raw", False),
+                force=args.force,
+            )
+            print(f"Installed {CATALOG_DATASET_NAME} v{paths.version}")
+            print(f"  sequences: {paths.sequences}")
+            if paths.raw is not None:
+                print(f"  raw: {paths.raw}")
+            if paths.manifest is not None:
+                print(f"  manifest: {paths.manifest}")
+            return
         paths = _resolve("install_mhc_protein_dataset")(args.version, data_dir=dd, force=args.force)
         print(f"Installed {MHC_PROTEIN_DATASET_NAME} {paths.version}")
         print(f"  records: {paths.records}")
@@ -601,6 +648,33 @@ def cmd_data(args):
         return
 
     if action == "path":
+        if args.dataset == CATALOG_DATASET_NAME:
+            catalog_error = _resolve("CatalogError")
+            try:
+                cpaths = _resolve("validate_catalog")(data_dir=dd)
+            except catalog_error as exc:
+                print(
+                    f"{CATALOG_DATASET_NAME} is missing or corrupt: {exc}\n"
+                    f"Install it with 'mhcseqs data install {CATALOG_DATASET_NAME}' or build locally with 'mhcseqs build'.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            if json_output:
+                print(
+                    json.dumps(
+                        dict(
+                            dataset=CATALOG_DATASET_NAME,
+                            version=cpaths.version,
+                            sequences=str(cpaths.sequences),
+                            raw=str(cpaths.raw) if cpaths.raw is not None else None,
+                            manifest=str(cpaths.manifest) if cpaths.manifest is not None else None,
+                        ),
+                        indent=2,
+                    )
+                )
+            else:
+                print(cpaths.sequences)
+            return
         protein_error = _resolve("ProteinDatasetError")
         try:
             paths = _resolve("validate_mhc_protein_dataset")(args.version, data_dir=dd)
@@ -736,23 +810,44 @@ def build_parser() -> tuple[HelpArgumentParser, HelpArgumentParser]:
     dirs_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     verify_parser = data_sub.add_parser("verify", help="Verify cached source files and installed datasets offline")
     verify_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
-    install_parser = data_sub.add_parser("install", aliases=["fetch"], help="Install an immutable versioned dataset")
-    install_parser.add_argument("dataset", choices=[MHC_PROTEIN_DATASET_NAME])
-    install_parser.add_argument("--version", choices=dataset_versions)
+
+    def _complete_dataset_version(prefix: str, parsed_args: Any = None, **kwargs: Any) -> list[str]:
+        dataset = getattr(parsed_args, "dataset", None) if parsed_args is not None else None
+        candidates = [__version__] if dataset == CATALOG_DATASET_NAME else dataset_versions
+        return [ver for ver in candidates if ver.startswith(prefix)]
+
+    install_parser = data_sub.add_parser(
+        "install",
+        aliases=["fetch"],
+        help="Install prebuilt catalog CSVs or an immutable versioned dataset",
+    )
+    install_parser.add_argument("dataset", choices=[CATALOG_DATASET_NAME, MHC_PROTEIN_DATASET_NAME])
+    install_ver_arg = install_parser.add_argument(
+        "--version",
+        default=None,
+        help="Release/dataset version (for catalog: defaults to installed mhcseqs version)",
+    )
+    install_ver_arg.completer = _complete_dataset_version
     install_parser.add_argument("--force", action="store_true", help="Re-download and replace this exact cached version")
+    install_parser.add_argument(
+        "--include-raw",
+        action="store_true",
+        help="Also install mhc-seqs-raw.csv when installing the prebuilt catalog",
+    )
     install_parser.add_argument(
         "--with-sources",
         action="store_true",
-        help="Also install the pinned source and curation artifacts needed for offline regeneration",
+        help="Also install the pinned source and curation artifacts needed for offline regeneration (mhc-proteins)",
     )
     install_parser.add_argument(
         "--offline",
         action="store_true",
         help="Forbid remote downloads (equivalent to OPENVAX_OFFLINE=1)",
     )
-    path_parser = data_sub.add_parser("path", help="Print the path to an installed versioned dataset")
-    path_parser.add_argument("dataset", choices=[MHC_PROTEIN_DATASET_NAME])
-    path_parser.add_argument("--version", choices=dataset_versions)
+    path_parser = data_sub.add_parser("path", help="Print the path to an installed catalog or versioned dataset")
+    path_parser.add_argument("dataset", choices=[CATALOG_DATASET_NAME, MHC_PROTEIN_DATASET_NAME])
+    path_ver_arg = path_parser.add_argument("--version", default=None)
+    path_ver_arg.completer = _complete_dataset_version
     path_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     refresh_parser = data_sub.add_parser("refresh", help="Re-download source FASTA(s)")
     refresh_parser.add_argument(

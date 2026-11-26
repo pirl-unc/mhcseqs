@@ -10,8 +10,8 @@ sources and writes the CSVs, `lookup` reads one allele back out of them, and
 | `mhcseqs build` | Download sources and build CSVs |
 | `mhcseqs lookup` | Look up an allele from built CSVs |
 | `mhcseqs data list` | List cached source and built data files |
-| `mhcseqs data install` | Install an immutable versioned dataset |
-| `mhcseqs data path` | Print the path to an installed versioned dataset |
+| `mhcseqs data install` | Install prebuilt catalog CSVs or an immutable versioned dataset |
+| `mhcseqs data path` | Print the path to an installed catalog or versioned dataset |
 | `mhcseqs data refresh` | Re-download source FASTA(s) |
 | `mhcseqs data clear` | Delete cached source FASTA(s) |
 
@@ -92,9 +92,15 @@ mhcseqs data clear --built-only  # only built CSVs/reports
 mhcseqs data clear --source imgt_hla   # just one source
 ```
 
-## Versioned datasets
+## Prebuilt catalog and versioned datasets
 
 ```bash
+# Fast prebuilt release catalog (downloads version-matched mhc-full-seqs.csv)
+mhcseqs data install catalog
+mhcseqs data install catalog --include-raw
+mhcseqs data path catalog
+
+# Independently versioned UniProt protein records
 mhcseqs data install mhc-proteins
 mhcseqs data path mhc-proteins
 mhcseqs data install mhc-proteins --version uniprot-2026_03-r2

@@ -23,24 +23,28 @@ pip install mhcseqs
 ```
 
 Requires Python 3.11 or later. Runtime dependencies are
-[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.78.1, pandas 3,
+[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.84.0, pandas 3,
 datacache, biotite, and argcomplete.
 
 ## Quick start
 
-Build the database once (downloads IMGT/HLA and IPD-MHC sources into
-`~/.cache/mhcseqs/`), then look an allele up:
+Install the prebuilt release catalog in seconds (or run `mhcseqs.build()` to
+rebuild from upstream IMGT/HLA and IPD-MHC FASTAs), then look alleles up:
 
 ```python
 import mhcseqs
 
-mhcseqs.build()  # only needed once; returns a BuildPaths dataclass
+mhcseqs.install_catalog()  # fast prebuilt release download; or mhcseqs.build()
 
 r = mhcseqs.lookup("HLA-A*02:01")
 print(r.allele, r.species_category, r.mhc_class, r.chain)
 print("mature starts at", r.mature_start)
 print("groove1", r.groove1)
 print("architecture", r.domain_architecture)
+
+# Fast cached O(1) catalog index for batch lookup and filtering
+catalog = mhcseqs.load_catalog()
+hits = catalog.lookup_many(["HLA-A*02:01", "FLA-E*003:01", "G3V1L5"])
 ```
 
 ```
@@ -58,9 +62,10 @@ once. See the [Python API guide](https://pirl-unc.github.io/mhcseqs/python-api/)
 ## Command line
 
 ```bash
-mhcseqs build                    # download sources and build CSVs
-mhcseqs lookup "HLA-A*02:01"     # print one allele's record
-mhcseqs data list                # cached downloads and built CSVs
+mhcseqs data install catalog       # download prebuilt release CSVs (fast)
+mhcseqs build                      # or build CSVs locally from IMGT/IPD FASTAs
+mhcseqs lookup "HLA-A*02:01"       # print one allele's record
+mhcseqs data list                  # cached downloads and built CSVs
 mhcseqs data install mhc-proteins  # versioned UniProt record dataset
 ```
 
