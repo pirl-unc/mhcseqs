@@ -40,6 +40,17 @@ if TYPE_CHECKING:
         normalize_mhc_class,
         parse_allele_name,
     )
+    from .catalog import (
+        AlleleCatalog,
+        CatalogEntry,
+        CatalogError,
+        CatalogNotInstalledError,
+        CatalogPaths,
+        clear_catalog_cache,
+        install_catalog,
+        load_catalog,
+        validate_catalog,
+    )
     from .datafiles import find_csv
     from .domain_parsing import (
         NON_GROOVE_GENES,
@@ -138,6 +149,16 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "normalize_allele_name": (".alleles", "normalize_allele_name"),
     "normalize_mhc_class": (".alleles", "normalize_mhc_class"),
     "parse_allele_name": (".alleles", "parse_allele_name"),
+    # catalog
+    "AlleleCatalog": (".catalog", "AlleleCatalog"),
+    "CatalogEntry": (".catalog", "CatalogEntry"),
+    "CatalogError": (".catalog", "CatalogError"),
+    "CatalogNotInstalledError": (".catalog", "CatalogNotInstalledError"),
+    "CatalogPaths": (".catalog", "CatalogPaths"),
+    "clear_catalog_cache": (".catalog", "clear_catalog_cache"),
+    "install_catalog": (".catalog", "install_catalog"),
+    "load_catalog": (".catalog", "load_catalog"),
+    "validate_catalog": (".catalog", "validate_catalog"),
     # datafiles
     "FULL_SEQS_CSV": (".datafiles", "FULL_SEQS_CSV"),
     "MERGE_REPORT": (".datafiles", "MERGE_REPORT"),
@@ -243,6 +264,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
 _LAZY_SUBMODULES: frozenset[str] = frozenset(
     {
         "alleles",
+        "catalog",
         "cli_help",
         "datafiles",
         "domain_features",
@@ -551,50 +573,34 @@ def lookup(
     >>> m.groove1[65]                                # doctest: +SKIP
     'A'
     """
-    import csv as _csv
     from dataclasses import replace
 
     query = allele.strip()
-    query_candidates = _resolve("build_query_candidates")(query)
-    match_row = _resolve("match_allele_row")
-
     p = _resolve("find_csv")(_resolve("FULL_SEQS_CSV"), search_dir=search_dir)
-    hit: dict | None = None
-    with open(p, "r", encoding="utf-8") as f:
-        for row in _csv.DictReader(f):
-            if match_row(row, query, query_candidates=query_candidates):
-                hit = row
-                break
-
-    if hit is None:
+    catalog = _resolve("load_catalog")(p)
+    entry = catalog.get(query)
+    if entry is None:
         raise KeyError(f"Allele {query!r} not found in {p}")
 
-    seq = hit.get("sequence", "")
-    mhc_class = hit.get("mhc_class", "")
-    chain = hit.get("chain", "")
-    gene = hit.get("gene", "")
-    allele_name = hit.get("two_field_allele", "")
-    full_allele_name = hit.get("representative_allele", "")
-
     result = _resolve("decompose_domains")(
-        seq,
-        mhc_class=mhc_class,
-        chain=chain,
-        allele=allele_name,
-        gene=gene,
-        species=hit.get("species", ""),
+        entry.sequence,
+        mhc_class=entry.mhc_class,
+        chain=entry.chain,
+        allele=entry.two_field_allele,
+        gene=entry.gene,
+        species=entry.species,
         mutations=mutations,
     )
 
-    final_seq = result.sequence if result.mutations and result.sequence else seq
+    final_seq = result.sequence if result.mutations and result.sequence else entry.sequence
     return replace(
         result,
-        full_allele=full_allele_name,
-        species=hit.get("species", ""),
-        species_category=hit.get("species_category", ""),
-        species_prefix=hit.get("species_prefix", ""),
-        source=hit.get("source", ""),
-        source_id=hit.get("source_id", ""),
+        full_allele=entry.representative_allele,
+        species=entry.species,
+        species_category=entry.species_category,
+        species_prefix=entry.species_prefix,
+        source=entry.source,
+        source_id=entry.source_id,
         sequence=final_seq,
         seq_len=len(final_seq),
     )
@@ -603,6 +609,15 @@ def lookup(
 __all__ = [
     "__version__",
     "BuildPaths",
+    "AlleleCatalog",
+    "CatalogEntry",
+    "CatalogError",
+    "CatalogNotInstalledError",
+    "CatalogPaths",
+    "install_catalog",
+    "load_catalog",
+    "validate_catalog",
+    "clear_catalog_cache",
     "default_data_dir",
     "find_csv",
     "build",

@@ -73,6 +73,11 @@ jobs:
           dist-csv/mhc-seqs-raw.csv \
           dist-csv/mhc-full-seqs.csv
 
+    - name: Package compressed catalog artifacts and manifest
+      if: steps.check.outputs.exists == 'false'
+      run: |
+        python scripts/build_catalog_manifest.py dist-csv/ --version "${{ steps.version.outputs.version }}"
+
     - name: Create release
       if: steps.check.outputs.exists == 'false'
       run: |
@@ -87,8 +92,11 @@ jobs:
       run: |
         gh release upload "${{ steps.version.outputs.tag }}" \
           dist-csv/mhc-seqs-raw.csv \
+          dist-csv/mhc-seqs-raw.csv.gz \
           dist-csv/mhc-full-seqs.csv \
+          dist-csv/mhc-full-seqs.csv.gz \
           dist-csv/mhc-merge-report.txt \
-          dist-csv/mhc-validation-report.txt
+          dist-csv/mhc-validation-report.txt \
+          dist-csv/mhc-catalog-manifest.json
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

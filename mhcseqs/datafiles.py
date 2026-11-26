@@ -18,6 +18,7 @@ layer in ``__main__`` handles formatting.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from .download import SOURCES
@@ -129,7 +130,7 @@ def find_csv(
         seen.add(resolved)
         if p.exists():
             return p
-    raise FileNotFoundError(f"{name} not found. Run mhcseqs.build() or 'mhcseqs build' first.")
+    raise FileNotFoundError(f"{name} not found. Run 'mhcseqs data install catalog' (prebuilt release) or mhcseqs.build() / 'mhcseqs build' first.")
 
 
 ALLELE_LOOKUP_FIELDS = (
@@ -141,16 +142,13 @@ ALLELE_LOOKUP_FIELDS = (
 )
 
 
-def build_query_candidates(query: str) -> set[str]:
-    """Return casefolded candidate strings for matching an allele query against CSV rows."""
+@lru_cache(maxsize=8192)
+def _cached_query_candidates(token: str) -> frozenset[str]:
     import mhcgnomes
 
     from .alleles import canonical_allele_name, parse_allele_name
     from .species import full_species_name_alias
 
-    token = query.strip()
-    if not token:
-        return set()
     candidates = {token.casefold()}
     parsed = parse_allele_name(token)
     if parsed is not None:
@@ -188,7 +186,15 @@ def build_query_candidates(query: str) -> set[str]:
                     if body:
                         sep = "*" if isinstance(obj, mhcgnomes.AccessionedAllele) and obj.gene is None else "-"
                         candidates.add(f"{rel_prefix}{sep}{body}".casefold())
-    return candidates
+    return frozenset(candidates)
+
+
+def build_query_candidates(query: str) -> set[str]:
+    """Return casefolded candidate strings for matching an allele query against CSV rows."""
+    token = query.strip()
+    if not token:
+        return set()
+    return set(_cached_query_candidates(token))
 
 
 def match_allele_row(
