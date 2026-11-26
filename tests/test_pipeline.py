@@ -383,18 +383,19 @@ def test_diverse_references_emit_roundtrippable_accessioned_alleles(diverse_mhc_
     assert parsed_medaka.is_class1
 
     hamster = by_source_id["A0A061HWC8"]
-    assert hamster["two_field_allele"] == "CricetulusGriseus*uniprot:A0A061HWC8 class I"
+    assert hamster["two_field_allele"] == "CricetulusGriseus-uniprot:A0A061HWC8"
+    assert hamster["mhc_class"] == "I"
     parsed_hamster = parse_allele_name(hamster["two_field_allele"])
     assert isinstance(parsed_hamster, mhcgnomes.AccessionedAllele)
     assert parsed_hamster.species.name == "Cricetulus griseus"
     assert parsed_hamster.gene is None
-    assert parsed_hamster.is_class1
 
-    # Zero bare accessions, zero collisions, and 100% mhcgnomes round-trip parseability.
+    # Zero bare accessions, zero whitespace, zero collisions, and 100% mhcgnomes round-trip parseability.
     seen_alleles: set[str] = set()
     for row in rows:
         allele = row["two_field_allele"]
         acc = row["source_id"]
+        assert " " not in allele, f"Whitespace leaked into two_field_allele: {allele!r}"
         assert allele != acc, f"Bare UniProt accession leaked into two_field_allele: {acc}"
         assert allele not in seen_alleles, f"Duplicate two_field_allele emitted: {allele}"
         seen_alleles.add(allele)

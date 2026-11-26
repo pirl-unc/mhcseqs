@@ -637,8 +637,8 @@ class AlleleCatalog:
     Supports exact canonical keys, case-insensitive short aliases (``HLA-A*02:01``,
     ``A0201``, ``H2-Kb``), genus/species bridging (``FLA-E*003:01`` <->
     ``FelisCatus-E*003:01``), ``AccessionedAllele`` identifiers
-    (``Saha*uniprot:G3V1L5 class I``), and bare ``source_id`` database
-    accessions (``G3V1L5``, ``P01898``).
+    (``Saha-uniprot:G3V1L5``, plus legacy ``Saha*uniprot:G3V1L5 class I``), and
+    bare ``source_id`` database accessions (``G3V1L5``, ``P01898``).
     """
 
     def __init__(
@@ -665,6 +665,15 @@ class AlleleCatalog:
                 entry.representative_allele,
                 entry.source_id,
             ]
+            # Bridge pre-v2.18.0 CSV rows that used legacy gene-less
+            # "<Species>*<db>:<acc> [class I|II]" formatting so lookups
+            # normalized by mhcgnomes >= 3.92.0 ("<Species>-<db>:<acc>") still
+            # hit cached older CSVs in O(1) time.
+            tfa = entry.two_field_allele
+            if "*" in tfa and ":" in tfa:
+                left, right = tfa.split("*", 1)
+                if left and "-" not in left and ":" in right:
+                    raw_tokens.append(f"{left}-{right.split()[0]}")
             if extra_lookup_tokens and idx in extra_lookup_tokens:
                 raw_tokens.extend(extra_lookup_tokens[idx])
             for token in raw_tokens:

@@ -199,8 +199,8 @@ def test_lookup_resolves_accessioned_alleles_and_bare_uniprot_source_ids(tmp_pat
         tmp_path / "mhc-full-seqs.csv",
         [
             {
-                "two_field_allele": "SarcophilusHarrisii*uniprot:G3V1L5 class I",
-                "representative_allele": "SarcophilusHarrisii*uniprot:G3V1L5 class I",
+                "two_field_allele": "SarcophilusHarrisii-uniprot:G3V1L5",
+                "representative_allele": "SarcophilusHarrisii-uniprot:G3V1L5",
                 "gene": "~ref:SarcophilusHarrisii|G3V1L5:MHC-I",
                 "mhc_class": "I",
                 "chain": "alpha",
@@ -230,12 +230,14 @@ def test_lookup_resolves_accessioned_alleles_and_bare_uniprot_source_ids(tmp_pat
     )
     monkeypatch.chdir(tmp_path)
     for query in (
+        "SarcophilusHarrisii-uniprot:G3V1L5",
+        "Saha-uniprot:G3V1L5",
         "SarcophilusHarrisii*uniprot:G3V1L5 class I",
         "Saha*uniprot:G3V1L5 class I",
         "G3V1L5",
     ):
         rec = mhcseqs.lookup(query)
-        assert rec.allele == "SarcophilusHarrisii*uniprot:G3V1L5 class I"
+        assert rec.allele == "SarcophilusHarrisii-uniprot:G3V1L5"
         assert rec.source_id == "G3V1L5"
 
     for query in ("TriakisScyllium-UAA*uniprot:Q863D3", "Q863D3"):
