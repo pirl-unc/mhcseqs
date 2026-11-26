@@ -82,6 +82,7 @@ jobs:
       if: steps.check.outputs.exists == 'false'
       run: |
         gh release create "${{ steps.version.outputs.tag }}" \
+          --target "${{ github.sha }}" \
           --title "${{ steps.version.outputs.tag }}" \
           --generate-notes
       env:
