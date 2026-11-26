@@ -22,6 +22,9 @@ from mhcseqs.imgt import (
     IMGT_GALPHA_SLOTS,
     IMGT_GBETA_SLOTS,
     IMGT_PAN_CLASS_GROOVE_SLOTS,
+    IMGT_PAN_CLASS_NETMHCIIPAN_SLOTS,
+    IMGT_PAN_CLASS_NETMHCPAN_SLOTS,
+    IMGT_PAN_CLASS_POCKET_SLOTS,
     IMGT_PAN_HALF1_SLOTS,
     IMGT_PAN_HALF2_SLOTS,
     AlignedResidue,
@@ -917,3 +920,57 @@ def test_class_ii_cache_matches_uncached_dp():
         assert cached == expected
         cached.pan_class_slot_to_aa.clear()
         assert align_domain_to_imgt(seq, dom, use_fast_path=True) == expected
+
+
+def test_pan_class_pocket_slot_union_and_netmhciipan_exact_pseudosequence():
+    """Issue #155: exact 22/34 overlap between NetMHCpan-34 and NetMHCIIpan-34 -> 46-slot union."""
+    assert len(IMGT_PAN_CLASS_NETMHCPAN_SLOTS) == 34
+    assert len(IMGT_PAN_CLASS_NETMHCIIPAN_SLOTS) == 34
+    overlap = set(IMGT_PAN_CLASS_NETMHCPAN_SLOTS) & set(IMGT_PAN_CLASS_NETMHCIIPAN_SLOTS)
+    assert len(overlap) == 22
+    assert len(IMGT_PAN_CLASS_POCKET_SLOTS) == 46
+    assert set(IMGT_PAN_CLASS_POCKET_SLOTS) == set(IMGT_PAN_CLASS_NETMHCPAN_SLOTS) | set(IMGT_PAN_CLASS_NETMHCIIPAN_SLOTS)
+    assert all(slot in IMGT_PAN_CLASS_GROOVE_SLOTS for slot in IMGT_PAN_CLASS_POCKET_SLOTS)
+
+    # Exact NetMHCpan-4.1 34-aa pseudosequence for HLA-A*02:01
+    c1 = map_groove_positions(HLA_A0201_GALPHA1, HLA_A0201_GALPHA2)
+    assert c1.extract_pan_class_slots(IMGT_PAN_CLASS_NETMHCPAN_SLOTS) == "YFAMYGEKVAHTHVDTLYVRYHYYTWAVLAYTWY"
+
+    # Exact NetMHCIIpan-3.0/4.0 34-aa pseudosequence for HLA-DRA*01:01 / HLA-DRB1*01:01
+    dr1 = map_class_ii_groove_positions(_HLA_DRA0101_GROOVE, _HLA_DRB1_0101_GROOVE)
+    assert dr1.extract_pan_class_slots(IMGT_PAN_CLASS_NETMHCIIPAN_SLOTS) == "QEFFIASGAAVDAIMWLFLECYDLQRATYHVGFT"
+
+    # Both extract cleanly onto the 46-slot pan-class pocket union
+    assert len(c1.extract_pan_class_pocket_seq()) == 46
+    assert len(dr1.extract_pan_class_pocket_seq()) == 46
+    # Closed Class I A-cap (HALF1:59 = Y) vs open Class II P1 end (HALF1:59 = '-')
+    idx_59 = IMGT_PAN_CLASS_POCKET_SLOTS.index(("HALF1", "59"))
+    assert c1.extract_pan_class_pocket_seq()[idx_59] == "Y"
+    assert dr1.extract_pan_class_pocket_seq()[idx_59] == "-"
+
+
+def test_pan_class_frame_buckets_galpha_54c_and_tracks_insertion_counts():
+    """Issue #155: 3-aa G-ALPHA N-helix hinge insertions fill pan-class 54A-54C without overflow; overflows record per-slot counts."""
+    # Synthesize a 3-aa teleost-style insertion ('WSP') after DRA IMGT 54 (mature 50 'R')
+    galpha_54c = HLA_DRA0101_GALPHA[:50] + "WSP" + HLA_DRA0101_GALPHA[50:]
+    aln_a = align_domain_to_imgt(galpha_54c, "G-ALPHA")
+    assert aln_a.has_overflow_insertions  # 87-slot G-ALPHA class frame only has 54A-54B
+    assert not aln_a.has_pan_class_overflow_insertions  # 100-slot pan HALF1 captures all 3 in 54A-54C
+    assert aln_a.pan_class_slot_to_aa["54A"] == "W"
+    assert aln_a.pan_class_slot_to_aa["54B"] == "S"
+    assert aln_a.pan_class_slot_to_aa["54C"] == "P"
+    assert sum(aln_a.pan_class_insertion_counts) == 0
+
+    # Synthesize a +5 aa insertion after Class I W51 (3 fill 54A-54C, 2 overflow -> count 2 at 54C)
+    long_ins_g1 = HLA_A0201_GALPHA1[:51] + "MDLVK" + HLA_A0201_GALPHA1[51:]
+    aln_c1 = map_groove_positions(long_ins_g1, HLA_A0201_GALPHA2 + "D")
+    feats = aln_c1.to_pan_class_features()
+    assert feats["mhc_class"] == "I"
+    assert len(feats["seq"]) == 202
+    assert len(feats["pocket_seq"]) == 46
+    assert len(feats["insertion_counts"]) == 202
+    assert aln_c1.has_pan_class_overflow_insertions
+    idx_54c = IMGT_PAN_CLASS_GROOVE_SLOTS.index(("HALF1", "54C"))
+    assert feats["insertion_counts"][idx_54c] == 2
+    assert sum(feats["insertion_counts"]) == 2
+    assert feats["c_term_overhang_half2"] == "D"
