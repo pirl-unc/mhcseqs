@@ -707,10 +707,13 @@ class AlleleCatalog:
     def __len__(self) -> int:
         return len(self._entries)
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         if self.path is not None:
-            return f"AlleleCatalog({len(self._entries):,} entries, path={str(self.path)!r})"
-        return f"AlleleCatalog({len(self._entries):,} entries)"
+            return f"AlleleCatalog(num_entries={len(self._entries)}, path={str(self.path)!r})"
+        return f"AlleleCatalog(num_entries={len(self._entries)})"
+
+    def __repr__(self) -> str:
+        return str(self)
 
     def __iter__(self) -> Iterator[CatalogEntry]:
         return iter(self._entries)
@@ -905,8 +908,7 @@ class AlleleCatalog:
             parsed = mhcgnomes.parse(token, raise_on_error=False)
             if isinstance(parsed, mhcgnomes.Pair):
                 raise KeyError(
-                    f"Allele {token!r} is a Class II heterodimer pair; "
-                    f"use catalog.resolve_heterodimer({token!r}) or catalog.pan_class_features({token!r})."
+                    f"Allele {token!r} is an MHC Class II Pair; use catalog.resolve_pair({token!r}) or catalog.pan_class_features({token!r})."
                 )
             loc = f" in {self.path}" if self.path is not None else ""
             raise KeyError(f"Allele {token!r} not found{loc}")
@@ -1025,18 +1027,19 @@ class AlleleCatalog:
                 return entry
         return None
 
-    def resolve_heterodimer(
+    def resolve_pair(
         self,
         alpha_or_pair: str,
         beta: str | None = None,
         *,
         allow_default_dra: bool = True,
     ) -> tuple[CatalogEntry, CatalogEntry]:
-        """Resolve a Class II alpha/beta heterodimer into ``(alpha_entry, beta_entry)``.
+        """Resolve an MHC Class II alpha/beta :class:`mhcgnomes.Pair` into ``(alpha_entry, beta_entry)``.
 
         Accepts:
         - Explicit ``(alpha, beta)`` allele names, e.g. ``("HLA-DQA1*01:02", "HLA-DQB1*06:02")``
-        - A slash-paired heterodimer string parsed via ``mhcgnomes``, e.g. ``"HLA-DQA1*01:02/DQB1*06:02"``
+        - A pair string parsed via ``mhcgnomes.parse`` into :class:`mhcgnomes.Pair`, e.g.
+          ``"HLA-DQA1*01:02/DQB1*06:02"`` or ``"H2-IAb"``
         - A single monomorphic-alpha ``DRB`` beta allele (e.g. ``"HLA-DRB1*01:01"``) when
           ``allow_default_dra=True``, pairing it with that species' canonical ``DRA*01:01`` entry.
         """
@@ -1051,7 +1054,7 @@ class AlleleCatalog:
         else:
             raw = str(alpha_or_pair or "").strip()
             if not raw:
-                raise KeyError("Empty heterodimer query")
+                raise KeyError("Empty pair query")
             parsed = mhcgnomes.parse(raw, raise_on_error=False)
             if isinstance(parsed, mhcgnomes.Pair) and parsed.alpha is not None and parsed.beta is not None:
                 alpha_query = parsed.alpha.to_string()
@@ -1068,7 +1071,7 @@ class AlleleCatalog:
                 if entry.mhc_class != "II" or entry.chain != "beta":
                     raise ValueError(
                         f"Cannot resolve single allele {raw!r} (class={entry.mhc_class!r}, chain={entry.chain!r}) "
-                        "as a Class II heterodimer without an explicit partner."
+                        "as a Class II pair without an explicit partner."
                     )
                 if not allow_default_dra or not entry.gene.upper().startswith("DRB"):
                     raise ValueError(f"Class II beta allele {raw!r} (gene={entry.gene!r}) requires an explicit alpha chain.")
@@ -1097,13 +1100,13 @@ class AlleleCatalog:
         *,
         allow_default_dra: bool = True,
     ) -> GrooveAlignment:
-        """Align a Class I allele or Class II heterodimer onto the unified 202-slot pan-class IMGT frame."""
+        """Align a Class I allele or Class II pair onto the unified 202-slot pan-class IMGT frame."""
         import mhcgnomes
 
         from .imgt import align_groove_to_imgt
 
         if beta is not None:
-            alpha_entry, beta_entry = self.resolve_heterodimer(allele, beta, allow_default_dra=allow_default_dra)
+            alpha_entry, beta_entry = self.resolve_pair(allele, beta, allow_default_dra=allow_default_dra)
             return align_groove_to_imgt(alpha_entry.groove1, beta_entry.groove2, mhc_class="II")
 
         raw = str(allele or "").strip()
@@ -1112,7 +1115,7 @@ class AlleleCatalog:
 
         parsed = mhcgnomes.parse(raw, raise_on_error=False)
         if isinstance(parsed, mhcgnomes.Pair) or "/" in raw:
-            alpha_entry, beta_entry = self.resolve_heterodimer(raw, allow_default_dra=allow_default_dra)
+            alpha_entry, beta_entry = self.resolve_pair(raw, allow_default_dra=allow_default_dra)
             return align_groove_to_imgt(alpha_entry.groove1, beta_entry.groove2, mhc_class="II")
 
         entry = self.get(raw)
@@ -1164,7 +1167,7 @@ def load_catalog(
         Explicit path to ``mhc-full-seqs.csv``. When omitted, located via
         :func:`mhcseqs.datafiles.find_csv`.
     search_dir : str or Path, optional
-        Directory searched first before CWD and the resolved data directory.
+        Explicit local directory checked first before the resolved data directory.
     data_dir : str or Path, optional
         Override the default ``mhcseqs`` data directory.
     auto_install : bool, optional

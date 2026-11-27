@@ -181,7 +181,7 @@ def test_lookup_finds_allele(tmp_path, monkeypatch):
             },
         ],
     )
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MHCSEQS_DATA", str(tmp_path))
     rec = mhcseqs.lookup("HLA-A*02:01")
     assert isinstance(rec, mhcseqs.AlleleRecord)
     assert rec.ok
@@ -228,7 +228,7 @@ def test_lookup_resolves_accessioned_alleles_and_bare_uniprot_source_ids(tmp_pat
             },
         ],
     )
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MHCSEQS_DATA", str(tmp_path))
     for query in (
         "SarcophilusHarrisii-uniprot:G3V1L5",
         "Saha-uniprot:G3V1L5",
@@ -258,7 +258,7 @@ def test_lookup_case_insensitive(tmp_path, monkeypatch):
             },
         ],
     )
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MHCSEQS_DATA", str(tmp_path))
     rec = mhcseqs.lookup("hla-a*02:01")
     assert rec.ok
     assert len(rec.groove1) == 90
@@ -276,7 +276,7 @@ def test_lookup_with_mutations(tmp_path, monkeypatch):
             },
         ],
     )
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MHCSEQS_DATA", str(tmp_path))
     rec = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A"])
     assert rec.groove1[65] == "A"
     assert rec.mature_sequence[65] == "A"
@@ -373,7 +373,7 @@ def test_lookup_resolves_curated_non_human_and_genus_aliases(tmp_path, monkeypat
             },
         ],
     )
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MHCSEQS_DATA", str(tmp_path))
     for query, expected in (
         ("FLA-E*003:01", "FelisCatus-E*003:01"),
         ("FLA-E*00301", "FelisCatus-E*003:01"),
@@ -401,7 +401,7 @@ def test_lookup_not_found(tmp_path, monkeypatch):
             {"two_field_allele": "HLA-A*02:01", "mhc_class": "I", "sequence": _A0201_SEQ},
         ],
     )
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MHCSEQS_DATA", str(tmp_path))
     with pytest.raises(KeyError, match="HLA-B"):
         mhcseqs.lookup("HLA-B*07:02")
 
@@ -611,11 +611,19 @@ def test_cli_and_api_lookup_share_csv_search_order(capsys, tmp_path, monkeypatch
         ],
     )
 
+    # Default lookup uses $MHCSEQS_DATA (datacache dir) and ignores stale CSVs in CWD
     rec = mhcseqs.lookup("HLA-A*02:01")
     main(["lookup", "HLA-A*02:01", "--format", "json"])
     cli_rows = json.loads(capsys.readouterr().out)
-    assert rec.source_id == "FROM_CWD"
-    assert cli_rows[0]["source_id"] == "FROM_CWD"
+    assert rec.source_id == "FROM_CACHE"
+    assert cli_rows[0]["source_id"] == "FROM_CACHE"
+
+    # Explicit search_dir / --output-dir overrides the datacache dir
+    rec_explicit = mhcseqs.lookup("HLA-A*02:01", search_dir=str(cwd_dir))
+    main(["lookup", "HLA-A*02:01", "--output-dir", str(cwd_dir), "--format", "json"])
+    cli_explicit = json.loads(capsys.readouterr().out)
+    assert rec_explicit.source_id == "FROM_CWD"
+    assert cli_explicit[0]["source_id"] == "FROM_CWD"
 
 
 def test_validate_signal_peptides_uses_resolved_data_dir(capsys, tmp_path, monkeypatch):

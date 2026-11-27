@@ -50,9 +50,9 @@ entry = catalog.get("FLA-E*003:01")  # CatalogEntry (pre-parsed groove1/groove2,
 hits = catalog.lookup_many(["HLA-A*02:01", "FLA-E*003:01", "B3F369"])
 c1_complete = catalog.filter(mhc_class="I", functional_only=True, complete_only=True)
 
-# Class II heterodimer resolution & unified 202-slot / 46-slot pan-class IMGT features
-alpha_entry, beta_entry = catalog.resolve_heterodimer("HLA-DQA1*01:02/DQB1*06:02")
-dr_alpha, dr_beta = catalog.resolve_heterodimer("HLA-DRB1*01:01")  # pairs with HomoSapiens-DRA*01:01
+# Class II Pair resolution & unified 202-slot / 46-slot pan-class IMGT features
+alpha_entry, beta_entry = catalog.resolve_pair("HLA-DQA1*01:02/DQB1*06:02")
+dr_alpha, dr_beta = catalog.resolve_pair("HLA-DRB1*01:01")  # pairs with HomoSapiens-DRA*01:01
 c1_feats = catalog.pan_class_features("HLA-A*02:01")
 c2_feats = catalog.pan_class_features("HLA-DQA1*01:02", "HLA-DQB1*06:02")
 # c1_feats["seq"] / c2_feats["seq"] -> 202-char pan-class IMGT grid

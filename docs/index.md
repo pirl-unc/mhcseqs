@@ -69,7 +69,7 @@ Roughly in reading order:
 1. [Command line](cli.md): `build`, `lookup`, and the `data` subcommands for
    prebuilt catalog installs, cached downloads, and versioned datasets.
 2. [Python API](python-api.md): `lookup` and `AlleleRecord`, `AlleleCatalog`
-   batch/heterodimer/pan-class helpers, DataFrame loaders, allele and species
+   batch/pair/pan-class helpers, DataFrame loaders, allele and species
    utilities, and the module reference.
 3. [Structural decomposition](parsing.md): the domain grammar, how the
    alignment-free parser decides a decomposition, the groove status codes, and

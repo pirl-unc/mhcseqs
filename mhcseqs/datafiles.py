@@ -98,13 +98,11 @@ def find_csv(
     *,
     data_dir: str | Path | None = None,
 ) -> Path:
-    """Locate a built CSV file using the unified search order.
+    """Locate a built CSV file in an explicit directory or the resolved data directory.
 
     Search order:
-    1. *search_dir* (when explicitly provided)
-    2. Current working directory (``Path(".")``)
-    3. Resolved data directory (*data_dir* if given, else :func:`resolve_data_dir`)
-    4. Package parent directory
+    1. *search_dir* (when explicitly provided, e.g. CLI ``--output-dir``)
+    2. Resolved data directory (*data_dir* if given, else :func:`resolve_data_dir`)
 
     Raises
     ------
@@ -115,13 +113,7 @@ def find_csv(
     if search_dir is not None:
         candidates.append(Path(search_dir) / name)
     resolved_data = Path(data_dir) if data_dir is not None else resolve_data_dir()
-    candidates.extend(
-        [
-            Path(".") / name,
-            resolved_data / name,
-            Path(__file__).resolve().parent.parent / name,
-        ]
-    )
+    candidates.append(resolved_data / name)
     seen: set[Path] = set()
     for p in candidates:
         resolved = p.resolve()

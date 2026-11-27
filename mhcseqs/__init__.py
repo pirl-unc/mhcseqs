@@ -427,8 +427,7 @@ def load_raw_dict(path: str | None = None) -> list[dict]:
     ----------
     path : str, optional
         CSV to read. By default ``mhc-seqs-raw.csv`` is located via
-        :func:`find_csv` (current directory, then resolved data directory,
-        then package parent directory).
+        :func:`find_csv` (resolved data directory).
 
     Returns
     -------
@@ -482,8 +481,7 @@ def load_sequences_dict(path: str | None = None) -> list[dict]:
     ----------
     path : str, optional
         CSV to read. By default ``mhc-full-seqs.csv`` is located via
-        :func:`find_csv` (current directory, then resolved data directory,
-        then package parent directory).
+        :func:`find_csv` (resolved data directory).
 
     Returns
     -------
