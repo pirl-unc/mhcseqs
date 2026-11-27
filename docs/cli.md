@@ -47,9 +47,9 @@ CSV, and `--output PATH` (`-o`) to write output to a file. Missing matches
 report an error on `stderr` and exit with status 1.
 
 `mhcseqs lookup` uses the same CSV search order as `mhcseqs.lookup()`:
-`--output-dir` (when given), then the current working directory, then the
-resolved `mhcseqs` data directory. Non-human alleles work the same way:
-`mhcseqs lookup "Mamu-A1*001:01"`.
+`--output-dir` (when explicitly given), then the resolved `mhcseqs` data
+directory (`$MHCSEQS_DATA` or the `datacache` cache dir). Non-human alleles
+work the same way: `mhcseqs lookup "Mamu-A1*001:01"`.
 
 ## Inspect and manage cached data
 

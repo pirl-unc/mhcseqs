@@ -341,8 +341,8 @@ def test_cli_data_install_and_path_catalog(capsys, tmp_path, monkeypatch):
     assert payload["sequences"] == str(seq_csv)
 
 
-def test_catalog_resolve_heterodimer_and_pan_class_features():
-    """Issue #167: AlleleCatalog resolves Class II heterodimers (incl. DRA default) and exports pan-class features."""
+def test_catalog_resolve_pair_and_pan_class_features():
+    """Issue #167 / #173: AlleleCatalog resolves Class II pairs (incl. DRA default) and exports pan-class features."""
     from mhcseqs.imgt import (
         HLA_A0201_GALPHA1,
         HLA_A0201_GALPHA2,
@@ -429,21 +429,21 @@ def test_catalog_resolve_heterodimer_and_pan_class_features():
     catalog = AlleleCatalog.from_rows(rows)
 
     # Explicit (alpha, beta), slash-pair string, and default DRA pairing for DRB1
-    a1, b1 = catalog.resolve_heterodimer("HLA-DRA*01:01", "HLA-DRB1*01:01")
-    a2, b2 = catalog.resolve_heterodimer("HLA-DRA*01:01/DRB1*01:01")
-    a3, b3 = catalog.resolve_heterodimer("HLA-DRB1*01:01")
+    a1, b1 = catalog.resolve_pair("HLA-DRA*01:01", "HLA-DRB1*01:01")
+    a2, b2 = catalog.resolve_pair("HLA-DRA*01:01/DRB1*01:01")
+    a3, b3 = catalog.resolve_pair("HLA-DRB1*01:01")
     assert (a1.two_field_allele, b1.two_field_allele) == ("HomoSapiens-DRA*01:01", "HomoSapiens-DRB1*01:01")
     assert (a2.two_field_allele, b2.two_field_allele) == (a1.two_field_allele, b1.two_field_allele)
     assert (a3.two_field_allele, b3.two_field_allele) == (a1.two_field_allele, b1.two_field_allele)
 
     # Non-DRB polymorphic beta chain must NOT auto-pair with DRA
     with pytest.raises(ValueError, match="explicit alpha chain"):
-        catalog.resolve_heterodimer("HLA-DQB1*06:02")
+        catalog.resolve_pair("HLA-DQB1*06:02")
     with pytest.raises(ValueError, match="explicit alpha chain"):
-        catalog.resolve_heterodimer("HLA-DRB1*01:01", allow_default_dra=False)
+        catalog.resolve_pair("HLA-DRB1*01:01", allow_default_dra=False)
     # Wrong chain order raises ValueError
     with pytest.raises(ValueError, match="Expected Class II alpha"):
-        catalog.resolve_heterodimer("HLA-DRB1*01:01", "HLA-DRA*01:01")
+        catalog.resolve_pair("HLA-DRB1*01:01", "HLA-DRA*01:01")
 
     # Unified pan-class features for Class I and Class II
     f1 = catalog.pan_class_features("HLA-A*02:01")
@@ -525,18 +525,19 @@ def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
         },
     ]
     cat = AlleleCatalog.from_rows(rows)
-    assert repr(cat) == "AlleleCatalog(3 entries)"
+    assert repr(cat) == "AlleleCatalog(num_entries=3)"
+    assert str(cat) == repr(cat)
 
     # Mouse H2-Ab*b / H2-IAb / H2-Aa*b/Ab1*b resolve seamlessly
     assert cat.get("H2-Ab*b") is not None
     assert cat.get("H2-Ab*b").two_field_allele == "H2-Ab1*b"
-    a_ent, b_ent = cat.resolve_heterodimer("H2-IAb")
+    a_ent, b_ent = cat.resolve_pair("H2-IAb")
     assert (a_ent.two_field_allele, b_ent.two_field_allele) == ("H2-Aa*b", "H2-Ab1*b")
-    a_ent2, b_ent2 = cat.resolve_heterodimer("H2-Aa*b/Ab1*b")
+    a_ent2, b_ent2 = cat.resolve_pair("H2-Aa*b/Ab1*b")
     assert (a_ent2.two_field_allele, b_ent2.two_field_allele) == ("H2-Aa*b", "H2-Ab1*b")
 
-    # Helpful KeyError hint when a heterodimer pair is passed to single-allele lookup()
-    with pytest.raises(KeyError, match="resolve_heterodimer"):
+    # Helpful KeyError hint when a Class II Pair is passed to single-allele lookup()
+    with pytest.raises(KeyError, match="resolve_pair"):
         cat.lookup("H2-IAb")
 
     # 2-digit <-> 3-digit zero-padded chicken BF2 queries hit GallusGallus-BF2*021:01
