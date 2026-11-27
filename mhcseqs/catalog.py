@@ -45,6 +45,7 @@ from .version import __version__
 
 if TYPE_CHECKING:
     from .domain_types import AlleleRecord
+    from .imgt import GrooveAlignment
 
 CATALOG_DATASET_NAME = "catalog"
 CATALOG_MANIFEST_FILENAME = "mhc-catalog-manifest.json"
@@ -580,6 +581,12 @@ class CatalogEntry:
             seq_len=len(final_seq),
         )
 
+    def align_imgt(self) -> GrooveAlignment:
+        """Align this entry's binding groove onto the IMGT G-DOMAIN & pan-class frames."""
+        from .imgt import align_groove_to_imgt
+
+        return align_groove_to_imgt(self.groove1, self.groove2, mhc_class=self.mhc_class)
+
 
 def _entry_from_mapping(row: Mapping[str, Any]) -> CatalogEntry:
     def _s(key: str) -> str:
@@ -976,6 +983,141 @@ class AlleleCatalog:
         import pandas as pd
 
         return pd.DataFrame(self.to_dicts())
+
+    def _find_default_dra_alpha(self, beta_entry: CatalogEntry) -> CatalogEntry | None:
+        """Locate the canonical monomorphic DRA alpha entry for a DRB beta entry's species."""
+        prefix = (beta_entry.species_prefix or "").strip()
+        if not prefix:
+            return None
+        for candidate in (f"{prefix}-DRA*01:01", f"{prefix}-DRA*01:02"):
+            hit = self.get(candidate)
+            if hit is not None and hit.mhc_class == "II" and hit.chain == "alpha" and hit.groove1:
+                return hit
+        # Fall back to any complete DRA alpha entry for this species prefix
+        prefix_cf = prefix.casefold()
+        for entry in self._entries:
+            if (
+                entry.species_prefix.casefold() == prefix_cf
+                and entry.mhc_class == "II"
+                and entry.chain == "alpha"
+                and entry.gene.upper() in ("DRA", "DRA1")
+                and entry.groove1
+            ):
+                return entry
+        return None
+
+    def resolve_heterodimer(
+        self,
+        alpha_or_pair: str,
+        beta: str | None = None,
+        *,
+        allow_default_dra: bool = True,
+    ) -> tuple[CatalogEntry, CatalogEntry]:
+        """Resolve a Class II alpha/beta heterodimer into ``(alpha_entry, beta_entry)``.
+
+        Accepts:
+        - Explicit ``(alpha, beta)`` allele names, e.g. ``("HLA-DQA1*01:02", "HLA-DQB1*06:02")``
+        - A slash-paired heterodimer string parsed via ``mhcgnomes``, e.g. ``"HLA-DQA1*01:02/DQB1*06:02"``
+        - A single monomorphic-alpha ``DRB`` beta allele (e.g. ``"HLA-DRB1*01:01"``) when
+          ``allow_default_dra=True``, pairing it with that species' canonical ``DRA*01:01`` entry.
+        """
+        import mhcgnomes
+
+        alpha_query: str | None = None
+        beta_query: str | None = None
+
+        if beta is not None:
+            alpha_query = str(alpha_or_pair or "").strip()
+            beta_query = str(beta or "").strip()
+        else:
+            raw = str(alpha_or_pair or "").strip()
+            if not raw:
+                raise KeyError("Empty heterodimer query")
+            parsed = mhcgnomes.parse(raw, raise_on_error=False)
+            if isinstance(parsed, mhcgnomes.Pair) and parsed.alpha is not None and parsed.beta is not None:
+                alpha_query = parsed.alpha.to_string()
+                beta_query = parsed.beta.to_string()
+            elif "/" in raw:
+                parts = [p.strip() for p in raw.split("/", 1)]
+                if len(parts) == 2 and parts[0] and parts[1]:
+                    alpha_query, beta_query = parts[0], parts[1]
+            if alpha_query is None:
+                # Single-allele query: allow default DRA pairing for DRB beta chains only
+                entry = self.get(raw)
+                if entry is None:
+                    raise KeyError(f"Class II allele {raw!r} not found in catalog")
+                if entry.mhc_class != "II" or entry.chain != "beta":
+                    raise ValueError(
+                        f"Cannot resolve single allele {raw!r} (class={entry.mhc_class!r}, chain={entry.chain!r}) "
+                        "as a Class II heterodimer without an explicit partner."
+                    )
+                if not allow_default_dra or not entry.gene.upper().startswith("DRB"):
+                    raise ValueError(f"Class II beta allele {raw!r} (gene={entry.gene!r}) requires an explicit alpha chain.")
+                dra = self._find_default_dra_alpha(entry)
+                if dra is None:
+                    raise KeyError(f"No canonical DRA alpha entry found for {entry.species_prefix!r} to pair with {raw!r}")
+                return dra, entry
+
+        alpha_entry = self.get(alpha_query)
+        if alpha_entry is None:
+            raise KeyError(f"Class II alpha allele {alpha_query!r} not found in catalog")
+        beta_entry = self.get(beta_query or "")
+        if beta_entry is None:
+            raise KeyError(f"Class II beta allele {beta_query!r} not found in catalog")
+
+        if alpha_entry.mhc_class != "II" or alpha_entry.chain != "alpha":
+            raise ValueError(f"Expected Class II alpha chain for {alpha_query!r}, got class={alpha_entry.mhc_class!r}, chain={alpha_entry.chain!r}")
+        if beta_entry.mhc_class != "II" or beta_entry.chain != "beta":
+            raise ValueError(f"Expected Class II beta chain for {beta_query!r}, got class={beta_entry.mhc_class!r}, chain={beta_entry.chain!r}")
+        return alpha_entry, beta_entry
+
+    def align_pan_class(
+        self,
+        allele: str,
+        beta: str | None = None,
+        *,
+        allow_default_dra: bool = True,
+    ) -> GrooveAlignment:
+        """Align a Class I allele or Class II heterodimer onto the unified 202-slot pan-class IMGT frame."""
+        import mhcgnomes
+
+        from .imgt import align_groove_to_imgt
+
+        if beta is not None:
+            alpha_entry, beta_entry = self.resolve_heterodimer(allele, beta, allow_default_dra=allow_default_dra)
+            return align_groove_to_imgt(alpha_entry.groove1, beta_entry.groove2, mhc_class="II")
+
+        raw = str(allele or "").strip()
+        if not raw:
+            raise KeyError("Empty allele query")
+
+        parsed = mhcgnomes.parse(raw, raise_on_error=False)
+        if isinstance(parsed, mhcgnomes.Pair) or "/" in raw:
+            alpha_entry, beta_entry = self.resolve_heterodimer(raw, allow_default_dra=allow_default_dra)
+            return align_groove_to_imgt(alpha_entry.groove1, beta_entry.groove2, mhc_class="II")
+
+        entry = self.get(raw)
+        if entry is None:
+            loc = f" in {self.path}" if self.path is not None else ""
+            raise KeyError(f"Allele {raw!r} not found{loc}")
+
+        if entry.mhc_class == "I":
+            return align_groove_to_imgt(entry.groove1, entry.groove2, mhc_class="I")
+        if entry.mhc_class == "II" and entry.chain == "beta" and allow_default_dra and entry.gene.upper().startswith("DRB"):
+            dra = self._find_default_dra_alpha(entry)
+            if dra is not None:
+                return align_groove_to_imgt(dra.groove1, entry.groove2, mhc_class="II")
+        return align_groove_to_imgt(entry.groove1, entry.groove2, mhc_class=entry.mhc_class or "II")
+
+    def pan_class_features(
+        self,
+        allele: str,
+        beta: str | None = None,
+        *,
+        allow_default_dra: bool = True,
+    ) -> dict[str, Any]:
+        """Return predictor-ready 202-slot pan-class IMGT & 46-slot pocket features for an allele or Class II pair."""
+        return self.align_pan_class(allele, beta, allow_default_dra=allow_default_dra).to_pan_class_features()
 
 
 def clear_catalog_cache() -> None:
