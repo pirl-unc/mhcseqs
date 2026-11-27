@@ -383,7 +383,7 @@ def test_diverse_references_emit_roundtrippable_accessioned_alleles(diverse_mhc_
     assert parsed_medaka.is_class1
 
     hamster = by_source_id["A0A061HWC8"]
-    assert hamster["two_field_allele"] == "CricetulusGriseus-uniprot:A0A061HWC8"
+    assert hamster["two_field_allele"] == "CricetulusGriseus-classI*uniprot:A0A061HWC8"
     assert hamster["mhc_class"] == "I"
     parsed_hamster = parse_allele_name(hamster["two_field_allele"])
     assert isinstance(parsed_hamster, mhcgnomes.AccessionedAllele)

@@ -358,9 +358,10 @@ def test_accessioned_alleles_parse_normalize_and_roundtrip():
         ("Saha-UA*uniprot:G3V1L5", "SarcophilusHarrisii-UA*uniprot:G3V1L5", "UA", "I", "other_mammal"),
         ("TriakisScyllium-UAA*uniprot:Q863D3", "TriakisScyllium-UAA*uniprot:Q863D3", "UAA", "I", "fish"),
         ("Saha-uniprot:G3V1L5", "SarcophilusHarrisii-uniprot:G3V1L5", None, None, "other_mammal"),
-        ("Saha*uniprot:G3V1L5 class I", "SarcophilusHarrisii-uniprot:G3V1L5", None, "I", "other_mammal"),
-        ("Saha*uniprot:G3V1L5 class II", "SarcophilusHarrisii-uniprot:G3V1L5", None, "II", "other_mammal"),
-        ("BoLA*uniprot:P12345 class II", "BoLA-uniprot:P12345", None, "II", "ungulate"),
+        ("Saha-classI*uniprot:G3V1L5", "SarcophilusHarrisii-classI*uniprot:G3V1L5", None, "I", "other_mammal"),
+        ("Saha*uniprot:G3V1L5 class I", "SarcophilusHarrisii-classI*uniprot:G3V1L5", None, "I", "other_mammal"),
+        ("Saha*uniprot:G3V1L5 class II", "SarcophilusHarrisii-classII*uniprot:G3V1L5", None, "II", "other_mammal"),
+        ("BoLA*uniprot:P12345 class II", "BoLA-classII*uniprot:P12345", None, "II", "ungulate"),
     ]
     for raw, expected, expected_gene, expected_class, expected_species_bucket in cases:
         parsed = parse_allele_name(raw)
@@ -410,7 +411,7 @@ def test_build_accessioned_allele_handles_gene_and_placeholder_fallbacks():
         mhc_class="I",
     )
     assert isinstance(placeholder, mhcgnomes.AccessionedAllele)
-    assert canonical_allele_name(placeholder) == "SarcophilusHarrisii-uniprot:G3V1L5"
+    assert canonical_allele_name(placeholder) == "SarcophilusHarrisii-classI*uniprot:G3V1L5"
     assert placeholder.is_class1
 
     empty_gene = build_accessioned_allele(
@@ -421,5 +422,5 @@ def test_build_accessioned_allele_handles_gene_and_placeholder_fallbacks():
         mhc_class="I",
     )
     assert isinstance(empty_gene, mhcgnomes.AccessionedAllele)
-    assert canonical_allele_name(empty_gene) == "CricetulusGriseus-uniprot:A0A061HWC8"
+    assert canonical_allele_name(empty_gene) == "CricetulusGriseus-classI*uniprot:A0A061HWC8"
     assert empty_gene.is_class1
