@@ -665,3 +665,45 @@ def test_b2m_sequences_are_unique_per_species_and_reasonable_length():
     assert len(by_allele["B2M_oryzias_latipes"]["sequence"]) == 116
     assert len(by_allele["B2M_sphenodon_punctatus"]["sequence"]) == 119
     assert len(by_allele["B2M_chrysemys_picta_bellii"]["sequence"]) == 119
+
+
+def test_diverse_mhc_csv_has_no_bundled_non_mhc_or_unknown_class_rows():
+    """Issue #165: diverse_mhc_sequences.csv itself contains no non-MHC, obsolete, or unknown-class rows."""
+    from pathlib import Path
+
+    from mhcseqs.alleles import is_non_mhc_gene
+    from mhcseqs.domain_grammar import NON_MHC_ACCESSIONS
+
+    csv_path = Path(__file__).resolve().parent.parent / "mhcseqs" / "diverse_mhc_sequences.csv"
+    with open(csv_path, encoding="utf-8", newline="") as f:
+        raw_rows = list(csv.DictReader(f))
+
+    bad_non_mhc = [r["uniprot_accession"] for r in raw_rows if is_non_mhc_gene(r["gene"]) or r["uniprot_accession"] in NON_MHC_ACCESSIONS]
+    assert bad_non_mhc == []
+
+    bad_unknown = [r["uniprot_accession"] for r in raw_rows if r["mhc_class"] in ("", "unknown") or r["chain"] in ("", "unknown")]
+    assert bad_unknown == []
+
+    by_acc = {r["uniprot_accession"]: r for r in raw_rows}
+    # Verified non-MHC / hidden H13 SPP / chimeric / inactive removals
+    for removed in (
+        "Q1LUQ4",
+        "B0UYT5",
+        "A0A091DH87",
+        "A0A5E4CGV5",
+        "A0AA41TDD6",
+        "A0AA41MEA0",
+        "A0AA41MGX6",
+        "A0A4Z2F9A0",
+        "A0ACB7F4S7",
+        "A0A8J4T2F2",
+        "F1R0K2",
+        "A0A8D2IDC0",
+    ):
+        assert removed not in by_acc
+
+    # Verified InterPro reclassifications
+    assert (by_acc["A0A8J0V155"]["mhc_class"], by_acc["A0A8J0V155"]["chain"]) == ("I", "alpha")
+    assert (by_acc["A0A8T1RYK3"]["mhc_class"], by_acc["A0A8T1RYK3"]["chain"]) == ("I", "alpha")
+    assert (by_acc["Q5U3R9"]["mhc_class"], by_acc["Q5U3R9"]["chain"]) == ("II", "alpha")
+    assert (by_acc["A0A8C8W1F8"]["mhc_class"], by_acc["A0A8C8W1F8"]["chain"]) == ("II", "beta")

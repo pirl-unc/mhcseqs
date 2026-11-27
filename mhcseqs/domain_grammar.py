@@ -114,7 +114,6 @@ NON_CLASSICAL_CLASS_I_GENE_PATTERNS = (
     "LGA",
     "LIA",
     "LJA",
-    "MFSD",
 )
 NON_MHC_ACCESSIONS = frozenset(
     {
@@ -166,6 +165,10 @@ NON_MHC_GENE_NAMES = frozenset(
         "Uty",
         "Kdm5d",
         "Mfsd6",
+        "Mfsd6a",
+        "Mfsd6b",
+        "Azgp1",
+        "AZGP1",
         "Klra1",
         "Arhgap45",
         "Hmha1",
