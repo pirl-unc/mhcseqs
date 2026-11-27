@@ -27,18 +27,18 @@ from pathlib import Path
 from mhcseqs.datafiles import FULL_SEQS_CSV, find_csv
 from mhcseqs.imgt import (
     _BLOSUM62,
-    _GALPHA_MATURE_POSITIONS,
-    _GBETA_MATURE_POSITIONS,
-    GALPHA1_POSITIONS,
-    GALPHA2_POSITIONS,
-    GALPHA_POSITIONS,
-    GBETA_POSITIONS,
-    HLA_A0201_GALPHA1,
-    HLA_A0201_GALPHA2,
-    HLA_DRA0101_GALPHA,
-    HLA_DRB1_0101_GBETA,
-    _galpha2_cys_anchor_bonus,
-    _gbeta_cys_anchor_bonus,
+    G_ALPHA1_POSITIONS,
+    G_ALPHA2_POSITIONS,
+    G_ALPHA_MATURE_POSITIONS,
+    G_ALPHA_POSITIONS,
+    G_BETA_MATURE_POSITIONS,
+    G_BETA_POSITIONS,
+    HLA_A0201_G_ALPHA1,
+    HLA_A0201_G_ALPHA2,
+    HLA_DRA0101_G_ALPHA,
+    HLA_DRB1_0101_G_BETA,
+    g_alpha2_cys_anchor_bonus,
+    g_beta_cys_anchor_bonus,
     imgt_to_mature_class_i,
 )
 from mhcseqs.species import get_species_clade
@@ -90,7 +90,7 @@ def make_position_gap_penalties(domain: str) -> tuple[list[float], list[float]]:
     at biologically homologous sites without wobbling into adjacent strands/helices.
     """
     if domain == "G-ALPHA1":
-        n_cols = len(HLA_A0201_GALPHA1)  # 90
+        n_cols = len(HLA_A0201_G_ALPHA1)  # 90
         go_del = [-14.0] * n_cols
         go_ins = [-14.0] * n_cols
 
@@ -129,7 +129,7 @@ def make_position_gap_penalties(domain: str) -> tuple[list[float], list[float]]:
         #   60..70 -> IMGT 62..72
         #   71     -> IMGT 72A
         #   72..91 -> IMGT 73..92 (C164 = idx 73)
-        n_cols = len(HLA_A0201_GALPHA2)  # 92
+        n_cols = len(HLA_A0201_G_ALPHA2)  # 92
         go_del = [-14.0] * n_cols
         go_ins = [-14.0] * n_cols
 
@@ -159,7 +159,7 @@ def make_position_gap_penalties(domain: str) -> tuple[list[float], list[float]]:
         #   17..36 -> 20..39 (IMGT 16-19 gap before idx 17; IMGT 40-41 gap after idx 36)
         #   37..51 -> 42..56 (W47 = idx 42; IMGT 54 = idx 49; IMGT 57-60 gap after idx 51)
         #   52..81 -> 61..90 (N86 = idx 77)
-        n_cols = len(HLA_DRA0101_GALPHA)  # 82
+        n_cols = len(HLA_DRA0101_G_ALPHA)  # 82
         go_del = [-14.0] * n_cols
         go_ins = [-14.0] * n_cols
 
@@ -199,7 +199,7 @@ def make_position_gap_penalties(domain: str) -> tuple[list[float], list[float]]:
         #   61..71 -> 62..72
         #   72     -> 72A
         #   73..88 -> 73..88 (C74 = idx 74)
-        n_cols = len(HLA_DRB1_0101_GBETA)  # 89
+        n_cols = len(HLA_DRB1_0101_G_BETA)  # 89
         go_del = [-14.0] * n_cols
         go_ins = [-14.0] * n_cols
 
@@ -417,21 +417,21 @@ def train_domain_profile(
     iterations: int = 2,
 ) -> dict:
     if domain == "G-ALPHA1":
-        ref_seq = HLA_A0201_GALPHA1
-        imgt_positions = list(GALPHA1_POSITIONS)
+        ref_seq = HLA_A0201_G_ALPHA1
+        imgt_positions = list(G_ALPHA1_POSITIONS)
         mature_positions = [imgt_to_mature_class_i(domain, p) for p in imgt_positions]
     elif domain == "G-ALPHA2":
-        ref_seq = HLA_A0201_GALPHA2
-        imgt_positions = list(GALPHA2_POSITIONS)
+        ref_seq = HLA_A0201_G_ALPHA2
+        imgt_positions = list(G_ALPHA2_POSITIONS)
         mature_positions = [imgt_to_mature_class_i(domain, p) for p in imgt_positions]
     elif domain == "G-ALPHA":
-        ref_seq = HLA_DRA0101_GALPHA
-        imgt_positions = list(GALPHA_POSITIONS)
-        mature_positions = list(_GALPHA_MATURE_POSITIONS)
+        ref_seq = HLA_DRA0101_G_ALPHA
+        imgt_positions = list(G_ALPHA_POSITIONS)
+        mature_positions = list(G_ALPHA_MATURE_POSITIONS)
     elif domain == "G-BETA":
-        ref_seq = HLA_DRB1_0101_GBETA
-        imgt_positions = list(GBETA_POSITIONS)
-        mature_positions = list(_GBETA_MATURE_POSITIONS)
+        ref_seq = HLA_DRB1_0101_G_BETA
+        imgt_positions = list(G_BETA_POSITIONS)
+        mature_positions = list(G_BETA_MATURE_POSITIONS)
     else:
         raise ValueError(f"Unsupported domain: {domain!r}")
 
@@ -450,9 +450,9 @@ def train_domain_profile(
             weight = 10.0 / len(seqs)  # Equal total weight per vertebrate clade
             for seq in seqs:
                 if domain == "G-ALPHA2":
-                    bonus = _galpha2_cys_anchor_bonus(seq)
+                    bonus = g_alpha2_cys_anchor_bonus(seq)
                 elif domain == "G-BETA":
-                    bonus = _gbeta_cys_anchor_bonus(seq)
+                    bonus = g_beta_cys_anchor_bonus(seq)
                 else:
                     bonus = None
                 _, ar, aq = _profile_gotoh(pssm, go_del, go_ins, seq, anchor_bonus=bonus)

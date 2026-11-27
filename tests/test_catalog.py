@@ -355,10 +355,10 @@ def test_cli_data_install_and_path_catalog(capsys, tmp_path, monkeypatch):
 def test_catalog_resolve_pair_and_pan_class_features():
     """Issue #167 / #173: AlleleCatalog resolves Class II pairs (incl. DRA default) and exports pan-class features."""
     from mhcseqs.imgt import (
-        HLA_A0201_GALPHA1,
-        HLA_A0201_GALPHA2,
-        HLA_DRA0101_GALPHA,
-        HLA_DRB1_0101_GBETA,
+        HLA_A0201_G_ALPHA1,
+        HLA_A0201_G_ALPHA2,
+        HLA_DRA0101_G_ALPHA,
+        HLA_DRB1_0101_G_BETA,
         IMGT_PAN_CLASS_GROOVE_SLOTS,
         IMGT_PAN_CLASS_POCKET_SLOTS,
     )
@@ -376,9 +376,9 @@ def test_catalog_resolve_pair_and_pan_class_features():
             "source": "imgt",
             "source_id": "HLA00005",
             "sequence": _A0201_SEQ,
-            "groove1": HLA_A0201_GALPHA1,
-            "groove2": HLA_A0201_GALPHA2,
-            "groove_seq": HLA_A0201_GALPHA1 + HLA_A0201_GALPHA2,
+            "groove1": HLA_A0201_G_ALPHA1,
+            "groove2": HLA_A0201_G_ALPHA2,
+            "groove_seq": HLA_A0201_G_ALPHA1 + HLA_A0201_G_ALPHA2,
             "groove_status": "ok",
             "is_functional": "True",
         },
@@ -393,10 +393,10 @@ def test_catalog_resolve_pair_and_pan_class_features():
             "species_prefix": "HomoSapiens",
             "source": "imgt",
             "source_id": "HLA00662",
-            "sequence": HLA_DRA0101_GALPHA,
-            "groove1": HLA_DRA0101_GALPHA,
+            "sequence": HLA_DRA0101_G_ALPHA,
+            "groove1": HLA_DRA0101_G_ALPHA,
             "groove2": "",
-            "groove_seq": HLA_DRA0101_GALPHA,
+            "groove_seq": HLA_DRA0101_G_ALPHA,
             "groove_status": "ok",
             "is_functional": "True",
         },
@@ -411,10 +411,10 @@ def test_catalog_resolve_pair_and_pan_class_features():
             "species_prefix": "HomoSapiens",
             "source": "imgt",
             "source_id": "HLA00664",
-            "sequence": HLA_DRB1_0101_GBETA,
+            "sequence": HLA_DRB1_0101_G_BETA,
             "groove1": "",
-            "groove2": HLA_DRB1_0101_GBETA,
-            "groove_seq": HLA_DRB1_0101_GBETA,
+            "groove2": HLA_DRB1_0101_G_BETA,
+            "groove_seq": HLA_DRB1_0101_G_BETA,
             "groove_status": "ok",
             "is_functional": "True",
         },
@@ -429,10 +429,10 @@ def test_catalog_resolve_pair_and_pan_class_features():
             "species_prefix": "HomoSapiens",
             "source": "imgt",
             "source_id": "HLA00646",
-            "sequence": HLA_DRB1_0101_GBETA,
+            "sequence": HLA_DRB1_0101_G_BETA,
             "groove1": "",
-            "groove2": HLA_DRB1_0101_GBETA,
-            "groove_seq": HLA_DRB1_0101_GBETA,
+            "groove2": HLA_DRB1_0101_G_BETA,
+            "groove_seq": HLA_DRB1_0101_G_BETA,
             "groove_status": "ok",
             "is_functional": "True",
         },
@@ -477,7 +477,7 @@ def test_catalog_resolve_pair_and_pan_class_features():
 
 def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
     """Issue #171: H2-IAb/IEk, 2<->3-digit BF2*21:01 padding, repr, and pair hint."""
-    from mhcseqs.imgt import HLA_A0201_GALPHA1, HLA_A0201_GALPHA2, HLA_DRA0101_GALPHA, HLA_DRB1_0101_GBETA
+    from mhcseqs.imgt import HLA_A0201_G_ALPHA1, HLA_A0201_G_ALPHA2, HLA_DRA0101_G_ALPHA, HLA_DRB1_0101_G_BETA
 
     rows = [
         {
@@ -491,10 +491,10 @@ def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
             "species_prefix": "H2",
             "source": "uniprot",
             "source_id": "P04228",
-            "sequence": HLA_DRA0101_GALPHA,
-            "groove1": HLA_DRA0101_GALPHA,
+            "sequence": HLA_DRA0101_G_ALPHA,
+            "groove1": HLA_DRA0101_G_ALPHA,
             "groove2": "",
-            "groove_seq": HLA_DRA0101_GALPHA,
+            "groove_seq": HLA_DRA0101_G_ALPHA,
             "groove_status": "ok",
             "is_functional": "True",
         },
@@ -509,10 +509,10 @@ def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
             "species_prefix": "H2",
             "source": "uniprot",
             "source_id": "P14483",
-            "sequence": HLA_DRB1_0101_GBETA,
+            "sequence": HLA_DRB1_0101_G_BETA,
             "groove1": "",
-            "groove2": HLA_DRB1_0101_GBETA,
-            "groove_seq": HLA_DRB1_0101_GBETA,
+            "groove2": HLA_DRB1_0101_G_BETA,
+            "groove_seq": HLA_DRB1_0101_G_BETA,
             "groove_status": "ok",
             "is_functional": "True",
         },
@@ -528,9 +528,9 @@ def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
             "source": "ipd_mhc",
             "source_id": "GAGA001",
             "sequence": _A0201_SEQ,
-            "groove1": HLA_A0201_GALPHA1,
-            "groove2": HLA_A0201_GALPHA2,
-            "groove_seq": HLA_A0201_GALPHA1 + HLA_A0201_GALPHA2,
+            "groove1": HLA_A0201_G_ALPHA1,
+            "groove2": HLA_A0201_G_ALPHA2,
+            "groove_seq": HLA_A0201_G_ALPHA1 + HLA_A0201_G_ALPHA2,
             "groove_status": "ok",
             "is_functional": "True",
         },
@@ -551,8 +551,8 @@ def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
     with pytest.raises(KeyError, match="resolve_pair"):
         cat.lookup("H2-IAb")
 
-    # 2-digit <-> 3-digit zero-padded chicken BF2 queries hit GallusGallus-BF2*021:01
-    for q in ("BF2*21:01", "Gaga-BF2*21:01", "GallusGallus-BF2*21:01", "Gaga-BF2*021:01"):
+    # 2-digit <-> 3-digit zero-padded & colon-less chicken BF2 queries hit GallusGallus-BF2*021:01 (mhcgnomes >= 3.96.0)
+    for q in ("BF2*21:01", "BF2*2101", "Gaga-BF2*21:01", "Gaga-BF2*2101", "GallusGallus-BF2*21:01", "Gaga-BF2*021:01"):
         hit = cat.get(q)
         assert hit is not None, f"Expected hit for {q}"
         assert hit.two_field_allele == "GallusGallus-BF2*021:01"
@@ -561,20 +561,20 @@ def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
 def test_catalog_inline_mhcgnomes_mutations_for_alleles_and_pairs():
     """Issue #175: get, lookup, resolve_pair, and pan_class_features apply mhcgnomes inline mutations."""
     from mhcseqs.domain_parsing import decompose_domains
-    from mhcseqs.imgt import HLA_A0201_GALPHA1, HLA_A0201_GALPHA2, HLA_DRA0101_GALPHA, HLA_DRB1_0101_GBETA
+    from mhcseqs.imgt import HLA_A0201_G_ALPHA1, HLA_A0201_G_ALPHA2, HLA_DRA0101_G_ALPHA, HLA_DRB1_0101_G_BETA
 
     # Full-length DRB1*01:01 sequence (SP + mature GDTR... beta1 + beta2 + TM, UniProt P04229)
     drb1_full = (
         "MVCLKLPGGSCMTALTVTLMVLSSPLALA"
         + "GDTR"
-        + HLA_DRB1_0101_GBETA
+        + HLA_DRB1_0101_G_BETA
         + "RVQPKVTVYPSKTQPLQHHNLLVCSVSGFYPGSIEVRWFRNGQEEKAGVVSTGLIQNGDWTFQTLVMLETVPRSGEVYTCQVEHPSVTSPLTVEW"
         + "RARSESAQSKMLSGVGGFVLGLLFLGAGLFIYFRNQKGHSGLQPTGFLS"
     )
     dra_full = (
         "MAISGVPVLGFFIIAVLMSAQESWA"
         + "IKEEH"
-        + HLA_DRA0101_GALPHA
+        + HLA_DRA0101_G_ALPHA
         + "SPVTVLTNSPVELREPNVLICFIDKFTPPVVNVTWLRNGKPVTTGVSETVFLPREDHLFRKFHYLPFLPSTEDVYDCRVEHWGLDEPLLKHWEF"
         + "DAPSPLPETTENVVCALGLTVGLVGIIIGTIFIIKGLRKSNAAERRGPL"
     )
@@ -593,9 +593,9 @@ def test_catalog_inline_mhcgnomes_mutations_for_alleles_and_pairs():
             "source": "imgt",
             "source_id": "HLA00005",
             "sequence": _A0201_SEQ,
-            "groove1": HLA_A0201_GALPHA1,
-            "groove2": HLA_A0201_GALPHA2,
-            "groove_seq": HLA_A0201_GALPHA1 + HLA_A0201_GALPHA2,
+            "groove1": HLA_A0201_G_ALPHA1,
+            "groove2": HLA_A0201_G_ALPHA2,
+            "groove_seq": HLA_A0201_G_ALPHA1 + HLA_A0201_G_ALPHA2,
             "groove_status": "ok",
             "is_functional": "True",
         },
