@@ -44,7 +44,7 @@ print("architecture", r.domain_architecture)
 
 # Fast cached O(1) catalog index for batch lookup, filtering, and pan-class alignment
 catalog = mhcseqs.load_catalog()
-hits = catalog.lookup_many(["HLA-A*02:01", "FLA-E*003:01", "G3V1L5"])
+hits = catalog.lookup_many(["HLA-A*02:01", "FLA-E*003:01", "B3F369"])
 feats = catalog.pan_class_features("HLA-DRB1*01:01")  # auto-pairs with DRA*01:01
 ```
 

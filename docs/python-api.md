@@ -47,7 +47,7 @@ catalog = mhcseqs.load_catalog()
 
 # O(1) lookup supporting canonical names, aliases, genus bridging, AccessionedAllele, and source_id
 entry = catalog.get("FLA-E*003:01")  # CatalogEntry (pre-parsed groove1/groove2, no recompute)
-hits = catalog.lookup_many(["HLA-A*02:01", "FLA-E*003:01", "G3V1L5"])
+hits = catalog.lookup_many(["HLA-A*02:01", "FLA-E*003:01", "B3F369"])
 c1_complete = catalog.filter(mhc_class="I", functional_only=True, complete_only=True)
 
 # Class II heterodimer resolution & unified 202-slot / 46-slot pan-class IMGT features

@@ -186,6 +186,25 @@ def _cached_query_candidates(token: str) -> frozenset[str]:
                     if body:
                         sep = "*" if isinstance(obj, mhcgnomes.AccessionedAllele) and obj.gene is None else "-"
                         candidates.add(f"{rel_prefix}{sep}{body}".casefold())
+
+        # Bridge 2-digit <-> 3-digit zero-padded numeric first allele fields
+        # (e.g. literature "BF2*21:01" / "Gaga-BF2*21:01" <-> IPD-MHC "GallusGallus-BF2*021:01").
+        if isinstance(restricted, mhcgnomes.Allele) and restricted.allele_fields:
+            f0 = restricted.allele_fields[0]
+            if f0.isdigit():
+                alt_f0 = f0.zfill(3) if len(f0) == 2 else (f0[1:] if len(f0) == 3 and f0.startswith("0") else None)
+                if alt_f0 is not None:
+                    padded: set[str] = set()
+                    needle_colon = f"*{f0}:"
+                    repl_colon = f"*{alt_f0}:"
+                    needle_end = f"*{f0}"
+                    repl_end = f"*{alt_f0}"
+                    for cand in candidates:
+                        if needle_colon in cand:
+                            padded.add(cand.replace(needle_colon, repl_colon, 1))
+                        elif cand.endswith(needle_end):
+                            padded.add(cand[: -len(needle_end)] + repl_end)
+                    candidates.update(padded)
     return frozenset(candidates)
 
 

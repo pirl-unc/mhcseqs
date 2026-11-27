@@ -462,3 +462,85 @@ def test_catalog_resolve_heterodimer_and_pan_class_features():
     entry_a = catalog.get("HLA-A*02:01")
     assert entry_a is not None
     assert entry_a.align_imgt().pan_class_fixed_seq == f1["seq"]
+
+
+def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
+    """Issue #171: H2-IAb/IEk, 2<->3-digit BF2*21:01 padding, repr, and pair hint."""
+    from mhcseqs.imgt import HLA_A0201_GALPHA1, HLA_A0201_GALPHA2, HLA_DRA0101_GALPHA, HLA_DRB1_0101_GBETA
+
+    rows = [
+        {
+            "two_field_allele": "H2-Aa*b",
+            "representative_allele": "H2-Aa*b",
+            "gene": "Aa",
+            "mhc_class": "II",
+            "chain": "alpha",
+            "species": "Mus musculus",
+            "species_category": "murine",
+            "species_prefix": "H2",
+            "source": "uniprot",
+            "source_id": "P04228",
+            "sequence": HLA_DRA0101_GALPHA,
+            "groove1": HLA_DRA0101_GALPHA,
+            "groove2": "",
+            "groove_seq": HLA_DRA0101_GALPHA,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+        {
+            "two_field_allele": "H2-Ab1*b",
+            "representative_allele": "H2-Ab1*b",
+            "gene": "Ab1",
+            "mhc_class": "II",
+            "chain": "beta",
+            "species": "Mus musculus",
+            "species_category": "murine",
+            "species_prefix": "H2",
+            "source": "uniprot",
+            "source_id": "P14483",
+            "sequence": HLA_DRB1_0101_GBETA,
+            "groove1": "",
+            "groove2": HLA_DRB1_0101_GBETA,
+            "groove_seq": HLA_DRB1_0101_GBETA,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+        {
+            "two_field_allele": "GallusGallus-BF2*021:01",
+            "representative_allele": "GallusGallus-BF2*021:01",
+            "gene": "BF2",
+            "mhc_class": "I",
+            "chain": "alpha",
+            "species": "Gallus gallus",
+            "species_category": "bird",
+            "species_prefix": "GallusGallus",
+            "source": "ipd_mhc",
+            "source_id": "GAGA001",
+            "sequence": _A0201_SEQ,
+            "groove1": HLA_A0201_GALPHA1,
+            "groove2": HLA_A0201_GALPHA2,
+            "groove_seq": HLA_A0201_GALPHA1 + HLA_A0201_GALPHA2,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+    ]
+    cat = AlleleCatalog.from_rows(rows)
+    assert repr(cat) == "AlleleCatalog(3 entries)"
+
+    # Mouse H2-Ab*b / H2-IAb / H2-Aa*b/Ab1*b resolve seamlessly
+    assert cat.get("H2-Ab*b") is not None
+    assert cat.get("H2-Ab*b").two_field_allele == "H2-Ab1*b"
+    a_ent, b_ent = cat.resolve_heterodimer("H2-IAb")
+    assert (a_ent.two_field_allele, b_ent.two_field_allele) == ("H2-Aa*b", "H2-Ab1*b")
+    a_ent2, b_ent2 = cat.resolve_heterodimer("H2-Aa*b/Ab1*b")
+    assert (a_ent2.two_field_allele, b_ent2.two_field_allele) == ("H2-Aa*b", "H2-Ab1*b")
+
+    # Helpful KeyError hint when a heterodimer pair is passed to single-allele lookup()
+    with pytest.raises(KeyError, match="resolve_heterodimer"):
+        cat.lookup("H2-IAb")
+
+    # 2-digit <-> 3-digit zero-padded chicken BF2 queries hit GallusGallus-BF2*021:01
+    for q in ("BF2*21:01", "Gaga-BF2*21:01", "GallusGallus-BF2*21:01", "Gaga-BF2*021:01"):
+        hit = cat.get(q)
+        assert hit is not None, f"Expected hit for {q}"
+        assert hit.two_field_allele == "GallusGallus-BF2*021:01"
