@@ -1233,11 +1233,14 @@ def _try_assemble_overlap(
     if not consensus:
         return None
 
+    min_seq_len = min(len(r["sequence"].strip()) for r in sorted_recs)
+    effective_min_overlap = min(min_overlap, max(50, int(0.8 * min_seq_len)))
+
     for rec in sorted_recs[1:]:
         seq = rec["sequence"].strip().upper()
         if not seq:
             return None
-        merged = _merge_sequences_with_exact_overlap(consensus, seq, min_overlap=min_overlap)
+        merged = _merge_sequences_with_exact_overlap(consensus, seq, min_overlap=effective_min_overlap)
         if merged is None:
             return None
         consensus = merged
@@ -1347,20 +1350,32 @@ def _classify_group(
         assembled_seq, anchor = assembled
         return anchor, assembled_seq, "assembled_overlap", None
 
-    # 4. Groove equivalence: all unique sequences produce the same groove?
+    # 4. Groove equivalence: all unique sequences produce the same (or nested) groove?
     signatures: Dict[Tuple[str, str], List[dict]] = {}
+    rec_sigs: List[Tuple[dict, Tuple[str, str]]] = []
     all_have_sig = True
-    for rec in unique:
+    for rec in sorted_by_len:
         sig = _groove_signature(rec)
         if sig is None:
             all_have_sig = False
             break
         signatures.setdefault(sig, []).append(rec)
+        rec_sigs.append((rec, sig))
 
     if all_have_sig and len(signatures) == 1:
-        # All produce the same groove — pick the longest
+        # All produce the exact same groove — pick the longest
         exemplar = sorted_by_len[0]
         return exemplar, None, "groove_equivalent", None
+
+    if all_have_sig and rec_sigs:
+        # Shorter exon fragments can trim 1-4 aa off a groove boundary while
+        # full-length alleles differ only outside the groove (e.g., cytoplasmic tail).
+        # If every member's groove halves nest identically inside the longest
+        # member's groove halves, the group is groove-equivalent.
+        anchor_g1, anchor_g2 = rec_sigs[0][1]
+        if (anchor_g1 or anchor_g2) and all(((not g1) or (g1 in anchor_g1)) and ((not g2) or (g2 in anchor_g2)) for _, (g1, g2) in rec_sigs[1:]):
+            exemplar = sorted_by_len[0]
+            return exemplar, None, "groove_equivalent", None
 
     # 5. Conflict — cannot resolve.  Collect details for the merge report.
     conflict_alleles = []
@@ -1522,10 +1537,18 @@ def emit_full_row(
     )
     # Never let SP refinement reset a structural non-zero mature_start back to 0
     # when doing so would glue an N-terminal UTR/leader extension onto the groove
-    # and bloat the N-terminal groove segment past the domain length grammar.
+    # and bloat the N-terminal groove segment past the domain length grammar, or
+    # undo a validated non-Met truncated Class I signal-peptide stub.
     if groove and groove.ok and raw_mature_start > 0 and mature_start == 0:
         n_term_groove_len = groove.groove2_len if (groove.mhc_class == "II" and groove.chain == "beta") else groove.groove1_len
-        if n_term_groove_len + raw_mature_start > 120:
+        is_truncated_class_i_leader = (
+            groove.mhc_class == "I"
+            and not seq.upper().startswith("M")
+            and 5 <= raw_mature_start <= 18
+            and 84 <= groove.groove1_len <= 96
+            and groove.groove1_len + raw_mature_start > 98
+        )
+        if n_term_groove_len + raw_mature_start > 120 or is_truncated_class_i_leader:
             mature_start = raw_mature_start
     aligned_groove = _realign_domains_to_refined_start(groove, mature_start) if groove else None
     mature_seq = aligned_groove.mature_sequence if aligned_groove and aligned_groove.ok else (seq[mature_start:] if mature_start > 0 else seq)

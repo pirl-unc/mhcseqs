@@ -707,3 +707,123 @@ def test_diverse_mhc_csv_has_no_bundled_non_mhc_or_unknown_class_rows():
     assert (by_acc["A0A8T1RYK3"]["mhc_class"], by_acc["A0A8T1RYK3"]["chain"]) == ("I", "alpha")
     assert (by_acc["Q5U3R9"]["mhc_class"], by_acc["Q5U3R9"]["chain"]) == ("II", "alpha")
     assert (by_acc["A0A8C8W1F8"]["mhc_class"], by_acc["A0A8C8W1F8"]["chain"]) == ("II", "beta")
+
+
+def test_classify_group_assembles_short_class_ii_overlap():
+    """Issue #166: short Class II exon-2 pairs with >=80% exact overlap assemble cleanly."""
+    from mhcseqs.pipeline import _classify_group
+
+    # 88-aa Class II DPB1 exon-2 groove split into two shifted overlapping fragments (87 + 85 aa)
+    full_exon2 = "ENYLYQGRQECYAFNGTQRFLERYIYNREELVRFDSDVGEFRAVTELGRPDEEYWNSQKDILEEKRAVPDRVCRHNYELDEAVTLQRR"
+    frag_a = full_exon2[1:]  # 87 aa (missing leading E)
+    frag_b = full_exon2[:-3]  # 85 aa (missing trailing QRR)
+    members = [
+        {
+            "allele_normalized": "MacacaThibetana-DPB1*01:01:02",
+            "two_field_allele": "MacacaThibetana-DPB1*01:01",
+            "sequence": frag_a,
+            "mhc_class": "II",
+            "gene": "DPB1",
+            "chain": "beta",
+            "species": "Macaca thibetana",
+            "signal_peptide_len": "0",
+        },
+        {
+            "allele_normalized": "MacacaThibetana-DPB1*01:01:01",
+            "two_field_allele": "MacacaThibetana-DPB1*01:01",
+            "sequence": frag_b,
+            "mhc_class": "II",
+            "gene": "DPB1",
+            "chain": "beta",
+            "species": "Macaca thibetana",
+            "signal_peptide_len": "0",
+        },
+    ]
+    anchor, assembled, policy, _details = _classify_group("MacacaThibetana-DPB1*01:01", members)
+    assert policy == "assembled_overlap"
+    assert anchor is not None
+    assert assembled == full_exon2
+
+
+def test_classify_group_resolves_groove_nested_isoforms_and_fragments():
+    """Issue #166: tail isoforms + trimmed fragments sharing nested grooves resolve as groove_equivalent."""
+    from mhcseqs.pipeline import _classify_group
+
+    a1 = "GSHSMRYFYTAVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASPRGEPRAPWVEQEGPEYWDRETQKYKRQAQTDRVSLRNLRGYYNQSEA"
+    a2 = "GSHTLQRMYGCDLGPDGRLLRGYDQSAYDGKDYIALNEDLRSWTAADTAAQITQRKWEAAREAEQWRAYLEGECVEWLRRYLENGKETLQRA"
+    a3 = "DPPKTHVTHHPISDHEATLRCWALGFYPAEITLTWQRDGEDQTQDTELVETRPAGDGTFQKWAAVVVPSGEEQRYTCHVQHEGLPEPLTLRW"
+    full_1 = "MRVMAPRTLILLLSGALALTETWA" + a1 + a2 + a3 + "EPSSQPTIPIVGIVAGLAVLAVLAVLGAVVAVVMCRRKSSGGKGGSCSQAASSNSAQGSDESLIACKA"
+    full_2 = "MRVMAPRTLILLLSGALALTETWA" + a1 + a2 + a3 + "EPSSQPTIPIVGIVAGLAVLAVLAVLGAVVAVVMCRRKSSGGKGGSCSQAASSNSAQGSDESLIAZZZ"
+    frag = a1 + a2[:-2]  # exon 2+3 fragment missing last 2 aa of alpha2
+    members = [
+        {
+            "allele_normalized": "HomoSapiens-C*03:03:01:01",
+            "two_field_allele": "HomoSapiens-C*03:03",
+            "sequence": full_1,
+            "mhc_class": "I",
+            "gene": "C",
+            "chain": "alpha",
+            "species": "Homo sapiens",
+            "signal_peptide_len": "24",
+        },
+        {
+            "allele_normalized": "HomoSapiens-C*03:03:01:32",
+            "two_field_allele": "HomoSapiens-C*03:03",
+            "sequence": full_2,
+            "mhc_class": "I",
+            "gene": "C",
+            "chain": "alpha",
+            "species": "Homo sapiens",
+            "signal_peptide_len": "24",
+        },
+        {
+            "allele_normalized": "HomoSapiens-C*03:03:02",
+            "two_field_allele": "HomoSapiens-C*03:03",
+            "sequence": frag,
+            "mhc_class": "I",
+            "gene": "C",
+            "chain": "alpha",
+            "species": "Homo sapiens",
+            "signal_peptide_len": "0",
+        },
+    ]
+    rep, assembled, policy, _details = _classify_group("HomoSapiens-C*03:03", members)
+    assert policy == "groove_equivalent"
+    assert assembled is None
+    assert rep is not None
+    assert len(rep["sequence"]) == len(full_1)
+
+
+def test_emit_full_row_preserves_truncated_class_i_leader_stub():
+    """Issue #166: emit_full_row must not revert validated non-Met Class I SP stubs back to mature_start=0."""
+    from mhcseqs.domain_parsing import decompose_domains
+    from mhcseqs.pipeline import emit_full_row
+
+    # Non-Met partial signal peptide stub (12 aa) upstream of canonical GSHSMRYF alpha1
+    a1 = "GSHSMRYFYTSMSRPGRGQPRFIAVGYVDDTQFVRFDSDAASPRMEPRAPWIEQEGPEYWDGETRNMKAHSQTDRANLGTLRGYYNQSEA"
+    a2 = "GSHTIQMMYGCDVGSDGRLLRGYEQDAYDGKDYIALNEDLRSWTAADMAAQNTQRKWEAARVAEQLRAYLEGECVEWLRRYLENGKETLQR"
+    a3 = "ADPPKTHVTHHPVSDHEATLRCWALGFYPAEITLTWQRDGEDQTQDTELVETRPAGDGTFQKWAAVVVPSGEEQRYTCHVQHEGLPEPLTLRW"
+    seq = "LSGVLALTQTRA" + a1 + a2 + a3
+    groove = decompose_domains(seq, mhc_class="I", chain="alpha", allele="MacacaFascicularis-A1*015:03")
+    assert groove.ok
+    assert groove.mature_start == 12
+    assert groove.groove1_len == 90
+
+    rep = {
+        "allele_normalized": "MacacaFascicularis-A1*015:03",
+        "gene": "A1",
+        "mhc_class": "I",
+        "chain": "alpha",
+        "species": "Macaca fascicularis",
+        "species_category": "nhp",
+        "species_prefix": "MacacaFascicularis",
+        "source": "ipd_mhc",
+        "source_id": "Mafa00001",
+        "is_null": "False",
+        "is_questionable": "False",
+        "is_pseudogene": "False",
+    }
+    row = emit_full_row("MacacaFascicularis-A1*015:03", rep, "unique", seq, groove)
+    assert row["mature_start"] == "12"
+    assert row["groove1_len"] == "90"
+    assert row["groove1"].startswith("GSHSMRYF")
