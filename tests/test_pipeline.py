@@ -211,7 +211,7 @@ def test_resolve_official_imgt_header_with_bare_hla_allele():
 
 def test_load_mouse_h2_references():
     rows = load_mouse_h2_references()
-    assert len(rows) == 40
+    assert len(rows) == 41
     genes = {r["gene"] for r in rows}
     assert {"K", "D", "L", "T23", "Aa", "Ab1", "Ea", "Eb1"} <= genes
 
@@ -228,13 +228,13 @@ def test_mouse_h2_class_i():
 def test_mouse_h2_class_ii():
     rows = load_mouse_h2_references()
     class_ii = [r for r in rows if r["mhc_class"] == "II"]
-    assert len(class_ii) == 27
+    assert len(class_ii) == 28
     alpha = [r for r in class_ii if r["chain"] == "alpha"]
     beta = [r for r in class_ii if r["chain"] == "beta"]
     assert len(alpha) == 11
-    assert len(beta) == 16
+    assert len(beta) == 17
     alleles = {r["allele_normalized"] for r in class_ii}
-    assert {"H2-Ab1*g7", "H2-Ab1*u", "H2-Ea*k", "H2-Eb1*d", "H2-Eb1*p", "H2-Eb1*q", "H2-Eb1*r"} <= alleles
+    assert {"H2-Ab1*g7", "H2-Ab1*u", "H2-Ea*k", "H2-Eb1*d", "H2-Eb1*g7", "H2-Eb1*p", "H2-Eb1*q", "H2-Eb1*r"} <= alleles
 
 
 def test_load_rat_rt1_references():

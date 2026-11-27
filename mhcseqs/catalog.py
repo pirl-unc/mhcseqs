@@ -587,6 +587,28 @@ class CatalogEntry:
 
         return align_groove_to_imgt(self.groove1, self.groove2, mhc_class=self.mhc_class)
 
+    def with_mutations(self, mutations: str | Sequence[object]) -> CatalogEntry:
+        """Return a copy of this entry with mature-numbered mutations applied and validated."""
+        if not mutations:
+            return self
+        rec = self.as_allele_record(mutations=mutations)
+        return replace(
+            self,
+            sequence=rec.sequence,
+            seq_len=len(rec.sequence),
+            mature_start=rec.mature_start,
+            mature_sequence=rec.mature_sequence,
+            groove1=rec.groove1,
+            groove2=rec.groove2,
+            groove_seq=rec.groove_seq,
+            groove1_len=rec.groove1_len,
+            groove2_len=rec.groove2_len,
+            ig_domain=rec.ig_domain,
+            ig_domain_len=rec.ig_domain_len,
+            tail=rec.tail,
+            tail_len=rec.tail_len,
+        )
+
 
 def _entry_from_mapping(row: Mapping[str, Any]) -> CatalogEntry:
     def _s(key: str) -> str:
@@ -875,7 +897,12 @@ class AlleleCatalog:
         return sorted(matched)
 
     def get(self, allele: str) -> CatalogEntry | None:
-        """Return the first matching :class:`CatalogEntry` in O(1) time, or ``None``."""
+        """Return the first matching :class:`CatalogEntry` in O(1) time, or ``None``.
+
+        If *allele* carries inline ``mhcgnomes`` mutations (e.g.
+        ``"HLA-DRB1*01:01 C30S mutant"``), the wild-type entry is resolved and
+        returned with mutations applied via :meth:`CatalogEntry.with_mutations`.
+        """
         token = (allele or "").strip()
         if not token:
             return None
@@ -885,23 +912,47 @@ class AlleleCatalog:
         if primary_idx is not None:
             return self._entries[primary_idx]
         indices = self._matching_indices(token)
-        if not indices:
-            return None
-        return self._entries[indices[0]]
+        if indices:
+            return self._entries[indices[0]]
+        base_query, inline_muts = self._split_inline_mutations(token)
+        if inline_muts and base_query != token:
+            base_entry = self.get(base_query)
+            if base_entry is not None:
+                return base_entry.with_mutations(inline_muts)
+        return None
 
     def get_all(self, allele: str) -> list[CatalogEntry]:
         """Return all matching :class:`CatalogEntry` rows in CSV order."""
         return [self._entries[idx] for idx in self._matching_indices(allele)]
 
+    @staticmethod
+    def _split_inline_mutations(query: str) -> tuple[str, tuple[object, ...]]:
+        """Extract mhcgnomes inline mutations (e.g. ``'HLA-DRB1*01:01 C30S mutant'``)."""
+        import mhcgnomes
+
+        token = (query or "").strip()
+        if not token:
+            return "", ()
+        parsed = mhcgnomes.parse(token, raise_on_error=False)
+        muts = tuple(getattr(parsed, "mutations", ()) or ()) if parsed is not None else ()
+        if muts and hasattr(parsed, "copy"):
+            return str(parsed.copy(mutations=()).to_string()), muts
+        return token, ()
+
     def lookup(
         self,
         allele: str,
         *,
-        mutations: str | Sequence[str] = (),
+        mutations: str | Sequence[object] = (),
     ) -> AlleleRecord:
-        """Look up *allele* and return a fully decomposed :class:`AlleleRecord`."""
+        """Look up *allele* and return a fully decomposed :class:`AlleleRecord`.
+
+        Supports both explicit ``mutations=...`` and inline ``mhcgnomes``
+        mutant strings (e.g. ``"HLA-A*02:01 K66A mutant"``).
+        """
         token = (allele or "").strip()
-        entry = self.get(token)
+        base_query, inline_muts = self._split_inline_mutations(token)
+        entry = self.get(base_query)
         if entry is None:
             import mhcgnomes
 
@@ -912,7 +963,10 @@ class AlleleCatalog:
                 )
             loc = f" in {self.path}" if self.path is not None else ""
             raise KeyError(f"Allele {token!r} not found{loc}")
-        return entry.as_allele_record(mutations=mutations)
+
+        explicit_muts: tuple[object, ...] = (mutations,) if isinstance(mutations, str) else tuple(mutations or ())
+        combined_muts = inline_muts + explicit_muts
+        return entry.as_allele_record(mutations=combined_muts)
 
     def lookup_many(
         self,
@@ -1047,25 +1101,33 @@ class AlleleCatalog:
 
         alpha_query: str | None = None
         beta_query: str | None = None
+        alpha_muts: tuple[object, ...] = ()
+        beta_muts: tuple[object, ...] = ()
 
         if beta is not None:
-            alpha_query = str(alpha_or_pair or "").strip()
-            beta_query = str(beta or "").strip()
+            alpha_query, alpha_muts = self._split_inline_mutations(str(alpha_or_pair or ""))
+            beta_query, beta_muts = self._split_inline_mutations(str(beta or ""))
         else:
             raw = str(alpha_or_pair or "").strip()
             if not raw:
                 raise KeyError("Empty pair query")
             parsed = mhcgnomes.parse(raw, raise_on_error=False)
             if isinstance(parsed, mhcgnomes.Pair) and parsed.alpha is not None and parsed.beta is not None:
-                alpha_query = parsed.alpha.to_string()
-                beta_query = parsed.beta.to_string()
+                alpha_muts = tuple(getattr(parsed.alpha, "mutations", ()) or ())
+                beta_muts = tuple(getattr(parsed.beta, "mutations", ()) or ())
+                alpha_obj = parsed.alpha.copy(mutations=()) if alpha_muts and hasattr(parsed.alpha, "copy") else parsed.alpha
+                beta_obj = parsed.beta.copy(mutations=()) if beta_muts and hasattr(parsed.beta, "copy") else parsed.beta
+                alpha_query = alpha_obj.to_string()
+                beta_query = beta_obj.to_string()
             elif "/" in raw:
                 parts = [p.strip() for p in raw.split("/", 1)]
                 if len(parts) == 2 and parts[0] and parts[1]:
-                    alpha_query, beta_query = parts[0], parts[1]
+                    alpha_query, alpha_muts = self._split_inline_mutations(parts[0])
+                    beta_query, beta_muts = self._split_inline_mutations(parts[1])
             if alpha_query is None:
                 # Single-allele query: allow default DRA pairing for DRB beta chains only
-                entry = self.get(raw)
+                base_raw, single_muts = self._split_inline_mutations(raw)
+                entry = self.get(base_raw)
                 if entry is None:
                     raise KeyError(f"Class II allele {raw!r} not found in catalog")
                 if entry.mhc_class != "II" or entry.chain != "beta":
@@ -1078,7 +1140,7 @@ class AlleleCatalog:
                 dra = self._find_default_dra_alpha(entry)
                 if dra is None:
                     raise KeyError(f"No canonical DRA alpha entry found for {entry.species_prefix!r} to pair with {raw!r}")
-                return dra, entry
+                return dra, (entry.with_mutations(single_muts) if single_muts else entry)
 
         alpha_entry = self.get(alpha_query)
         if alpha_entry is None:
@@ -1091,6 +1153,10 @@ class AlleleCatalog:
             raise ValueError(f"Expected Class II alpha chain for {alpha_query!r}, got class={alpha_entry.mhc_class!r}, chain={alpha_entry.chain!r}")
         if beta_entry.mhc_class != "II" or beta_entry.chain != "beta":
             raise ValueError(f"Expected Class II beta chain for {beta_query!r}, got class={beta_entry.mhc_class!r}, chain={beta_entry.chain!r}")
+        if alpha_muts:
+            alpha_entry = alpha_entry.with_mutations(alpha_muts)
+        if beta_muts:
+            beta_entry = beta_entry.with_mutations(beta_muts)
         return alpha_entry, beta_entry
 
     def align_pan_class(
@@ -1118,10 +1184,14 @@ class AlleleCatalog:
             alpha_entry, beta_entry = self.resolve_pair(raw, allow_default_dra=allow_default_dra)
             return align_groove_to_imgt(alpha_entry.groove1, beta_entry.groove2, mhc_class="II")
 
-        entry = self.get(raw)
+        base_raw, single_muts = self._split_inline_mutations(raw)
+        entry = self.get(base_raw)
         if entry is None:
             loc = f" in {self.path}" if self.path is not None else ""
             raise KeyError(f"Allele {raw!r} not found{loc}")
+
+        if single_muts:
+            entry = entry.with_mutations(single_muts)
 
         if entry.mhc_class == "I":
             return align_groove_to_imgt(entry.groove1, entry.groove2, mhc_class="I")
