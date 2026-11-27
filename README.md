@@ -23,7 +23,7 @@ pip install mhcseqs
 ```
 
 Requires Python 3.11 or later. Runtime dependencies are
-[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.84.0, pandas 3,
+[mhcgnomes](https://github.com/pirl-unc/mhcgnomes) >= 3.92.0, pandas 3,
 datacache, biotite, and argcomplete.
 
 ## Quick start
@@ -42,9 +42,10 @@ print("mature starts at", r.mature_start)
 print("groove1", r.groove1)
 print("architecture", r.domain_architecture)
 
-# Fast cached O(1) catalog index for batch lookup and filtering
+# Fast cached O(1) catalog index for batch lookup, filtering, and pan-class alignment
 catalog = mhcseqs.load_catalog()
 hits = catalog.lookup_many(["HLA-A*02:01", "FLA-E*003:01", "G3V1L5"])
+feats = catalog.pan_class_features("HLA-DRB1*01:01")  # auto-pairs with DRA*01:01
 ```
 
 ```
@@ -90,8 +91,9 @@ eval "$(register-python-argcomplete mhcseqs)"
 Full documentation: [pirl-unc.github.io/mhcseqs](https://pirl-unc.github.io/mhcseqs/).
 
 - [Command line](https://pirl-unc.github.io/mhcseqs/cli/): `build`, `lookup`, and the `data` subcommands
-- [Python API](https://pirl-unc.github.io/mhcseqs/python-api/): `AlleleRecord` fields, DataFrame loaders, allele and species utilities, module reference
+- [Python API](https://pirl-unc.github.io/mhcseqs/python-api/): `AlleleRecord` fields, `AlleleCatalog`, heterodimer & pan-class helpers, allele and species utilities, module reference
 - [Structural decomposition](https://pirl-unc.github.io/mhcseqs/parsing/): the domain grammar, how the alignment-free parser scores a decomposition, groove status codes, literature basis
+- [Pan-class IMGT alignment](https://pirl-unc.github.io/mhcseqs/pan-class-alignment/): unified 202-slot MHC-I / MHC-II IMGT coordinates, 46-slot NetMHCpan/NetMHCIIpan pocket union, insertion counts, and joint predictor design
 - [Datasets and columns](https://pirl-unc.github.io/mhcseqs/data/): what a build contains, column meanings, and the versioned `mhc-proteins` record layer
 
 ## Development

@@ -339,3 +339,126 @@ def test_cli_data_install_and_path_catalog(capsys, tmp_path, monkeypatch):
     payload = json.loads(capsys.readouterr().out)
     assert payload["dataset"] == "catalog"
     assert payload["sequences"] == str(seq_csv)
+
+
+def test_catalog_resolve_heterodimer_and_pan_class_features():
+    """Issue #167: AlleleCatalog resolves Class II heterodimers (incl. DRA default) and exports pan-class features."""
+    from mhcseqs.imgt import (
+        HLA_A0201_GALPHA1,
+        HLA_A0201_GALPHA2,
+        HLA_DRA0101_GALPHA,
+        HLA_DRB1_0101_GBETA,
+        IMGT_PAN_CLASS_GROOVE_SLOTS,
+        IMGT_PAN_CLASS_POCKET_SLOTS,
+    )
+
+    rows = [
+        {
+            "two_field_allele": "HomoSapiens-A*02:01",
+            "representative_allele": "HomoSapiens-A*02:01:01:01",
+            "gene": "A",
+            "mhc_class": "I",
+            "chain": "alpha",
+            "species": "Homo sapiens",
+            "species_category": "human",
+            "species_prefix": "HomoSapiens",
+            "source": "imgt",
+            "source_id": "HLA00005",
+            "sequence": _A0201_SEQ,
+            "groove1": HLA_A0201_GALPHA1,
+            "groove2": HLA_A0201_GALPHA2,
+            "groove_seq": HLA_A0201_GALPHA1 + HLA_A0201_GALPHA2,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+        {
+            "two_field_allele": "HomoSapiens-DRA*01:01",
+            "representative_allele": "HomoSapiens-DRA*01:01:01:01",
+            "gene": "DRA",
+            "mhc_class": "II",
+            "chain": "alpha",
+            "species": "Homo sapiens",
+            "species_category": "human",
+            "species_prefix": "HomoSapiens",
+            "source": "imgt",
+            "source_id": "HLA00662",
+            "sequence": HLA_DRA0101_GALPHA,
+            "groove1": HLA_DRA0101_GALPHA,
+            "groove2": "",
+            "groove_seq": HLA_DRA0101_GALPHA,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+        {
+            "two_field_allele": "HomoSapiens-DRB1*01:01",
+            "representative_allele": "HomoSapiens-DRB1*01:01:01",
+            "gene": "DRB1",
+            "mhc_class": "II",
+            "chain": "beta",
+            "species": "Homo sapiens",
+            "species_category": "human",
+            "species_prefix": "HomoSapiens",
+            "source": "imgt",
+            "source_id": "HLA00664",
+            "sequence": HLA_DRB1_0101_GBETA,
+            "groove1": "",
+            "groove2": HLA_DRB1_0101_GBETA,
+            "groove_seq": HLA_DRB1_0101_GBETA,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+        {
+            "two_field_allele": "HomoSapiens-DQB1*06:02",
+            "representative_allele": "HomoSapiens-DQB1*06:02:01",
+            "gene": "DQB1",
+            "mhc_class": "II",
+            "chain": "beta",
+            "species": "Homo sapiens",
+            "species_category": "human",
+            "species_prefix": "HomoSapiens",
+            "source": "imgt",
+            "source_id": "HLA00646",
+            "sequence": HLA_DRB1_0101_GBETA,
+            "groove1": "",
+            "groove2": HLA_DRB1_0101_GBETA,
+            "groove_seq": HLA_DRB1_0101_GBETA,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+    ]
+    catalog = AlleleCatalog.from_rows(rows)
+
+    # Explicit (alpha, beta), slash-pair string, and default DRA pairing for DRB1
+    a1, b1 = catalog.resolve_heterodimer("HLA-DRA*01:01", "HLA-DRB1*01:01")
+    a2, b2 = catalog.resolve_heterodimer("HLA-DRA*01:01/DRB1*01:01")
+    a3, b3 = catalog.resolve_heterodimer("HLA-DRB1*01:01")
+    assert (a1.two_field_allele, b1.two_field_allele) == ("HomoSapiens-DRA*01:01", "HomoSapiens-DRB1*01:01")
+    assert (a2.two_field_allele, b2.two_field_allele) == (a1.two_field_allele, b1.two_field_allele)
+    assert (a3.two_field_allele, b3.two_field_allele) == (a1.two_field_allele, b1.two_field_allele)
+
+    # Non-DRB polymorphic beta chain must NOT auto-pair with DRA
+    with pytest.raises(ValueError, match="explicit alpha chain"):
+        catalog.resolve_heterodimer("HLA-DQB1*06:02")
+    with pytest.raises(ValueError, match="explicit alpha chain"):
+        catalog.resolve_heterodimer("HLA-DRB1*01:01", allow_default_dra=False)
+    # Wrong chain order raises ValueError
+    with pytest.raises(ValueError, match="Expected Class II alpha"):
+        catalog.resolve_heterodimer("HLA-DRB1*01:01", "HLA-DRA*01:01")
+
+    # Unified pan-class features for Class I and Class II
+    f1 = catalog.pan_class_features("HLA-A*02:01")
+    f2 = catalog.pan_class_features("HLA-DRB1*01:01")
+    f2_pair = catalog.pan_class_features("HLA-DRA*01:01/DRB1*01:01")
+    assert f1["mhc_class"] == "I"
+    assert f2["mhc_class"] == "II"
+    assert f2["seq"] == f2_pair["seq"]
+    assert f2["pocket_seq"] == f2_pair["pocket_seq"]
+    assert len(f1["seq"]) == len(IMGT_PAN_CLASS_GROOVE_SLOTS) == 202
+    assert len(f2["seq"]) == len(IMGT_PAN_CLASS_GROOVE_SLOTS) == 202
+    assert len(f1["pocket_seq"]) == len(IMGT_PAN_CLASS_POCKET_SLOTS) == 46
+    assert len(f2["pocket_seq"]) == len(IMGT_PAN_CLASS_POCKET_SLOTS) == 46
+
+    # CatalogEntry.align_imgt() convenience method
+    entry_a = catalog.get("HLA-A*02:01")
+    assert entry_a is not None
+    assert entry_a.align_imgt().pan_class_fixed_seq == f1["seq"]

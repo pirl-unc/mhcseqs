@@ -46,9 +46,17 @@ import mhcseqs
 catalog = mhcseqs.load_catalog()
 
 # O(1) lookup supporting canonical names, aliases, genus bridging, AccessionedAllele, and source_id
-entry = catalog.get("FLA-E*003:01")      # CatalogEntry (pre-parsed groove1/groove2, no recompute)
+entry = catalog.get("FLA-E*003:01")  # CatalogEntry (pre-parsed groove1/groove2, no recompute)
 hits = catalog.lookup_many(["HLA-A*02:01", "FLA-E*003:01", "G3V1L5"])
 c1_complete = catalog.filter(mhc_class="I", functional_only=True, complete_only=True)
+
+# Class II heterodimer resolution & unified 202-slot / 46-slot pan-class IMGT features
+alpha_entry, beta_entry = catalog.resolve_heterodimer("HLA-DQA1*01:02/DQB1*06:02")
+dr_alpha, dr_beta = catalog.resolve_heterodimer("HLA-DRB1*01:01")  # pairs with HomoSapiens-DRA*01:01
+c1_feats = catalog.pan_class_features("HLA-A*02:01")
+c2_feats = catalog.pan_class_features("HLA-DQA1*01:02", "HLA-DQB1*06:02")
+# c1_feats["seq"] / c2_feats["seq"] -> 202-char pan-class IMGT grid
+# c1_feats["pocket_seq"] / c2_feats["pocket_seq"] -> 46-char NetMHCpan ∪ NetMHCIIpan pocket union
 
 # As a DataFrame or list of dicts
 df = mhcseqs.load_sequences_dataframe()
@@ -121,8 +129,8 @@ IMGT G-DOMAIN numbering and multi-clade structural profile Class I, Class II, an
 - `align_groove_to_imgt(record_or_groove1, groove2=None, *, mhc_class=None)` — align a Class I or Class II `AlleleRecord`, row dict, or `(groove1, groove2)` pair against the shipped per-domain multi-clade PSSM + loop gap-penalty profiles (`G-ALPHA1`/`G-ALPHA2` for Class I, `G-ALPHA`/`G-BETA` for Class II), returning a `GrooveAlignment` with all granularities from one exact alignment:
   - variable-length lossless `residues` (`AlignedResidue` tokens, including N/C-terminal overhangs) and `a3m_seq` (uppercase `A-Z` canonical match including observed `'X'`, lowercase `a-z` internal insertion or N/C-terminal overhang, `'-'` for any unoccupied match column). Each domain records internal deletions in `deletions` and terminal truncations in `n_term_missing` and `c_term_missing`.
   - class-specific fixed-index `fixed_seq` with zero dead columns: 198 slots over `IMGT_CLASS_I_GROOVE_SLOTS` for Class I, or 185 slots over `IMGT_CLASS_II_GROOVE_SLOTS` for Class II (22-token `FIXED_FRAME_ALPHABET` separating `'-'` structural gap from `'X'` missing/truncated, plus `overflow_insertions`)
-  - shared 3D-homologous pan-class frame `pan_class_fixed_seq` (202 slots over `IMGT_PAN_CLASS_GROOVE_SLOTS` = 100 `HALF1` + 102 `HALF2`), mapping Class I (`G-ALPHA1`/`G-ALPHA2`) and Class II (`G-ALPHA`/`G-BETA`) into one unified 3D coordinate system where `'-'` vs `'X'` naturally encodes class-defining structural differences (open ends, Class II α loops, Class II β `61B` / `40–41`)
-  - compact pocket + hotspot extraction via `extract_positions(...)`, `extract_imgt_slots(...)`, and `extract_pan_class_slots(...)`
+  - shared 3D-homologous pan-class frame `pan_class_fixed_seq` (202 slots over `IMGT_PAN_CLASS_GROOVE_SLOTS` = 100 `HALF1` + 102 `HALF2`), mapping Class I (`G-ALPHA1`/`G-ALPHA2`) and Class II (`G-ALPHA`/`G-BETA`) into one unified 3D coordinate system where `'-'` vs `'X'` naturally encodes class-defining structural differences (open ends, Class II α loops, Class II β `61B` / `40–41`), plus `pan_class_insertion_counts` (202-tuple) and `pan_class_overflow_insertions`
+  - compact pocket + hotspot extraction via `extract_positions(...)`, `extract_imgt_slots(...)`, `extract_pan_class_slots(...)`, `extract_pan_class_pocket_seq()` (46-slot exact union `IMGT_PAN_CLASS_POCKET_SLOTS` of `IMGT_PAN_CLASS_NETMHCPAN_SLOTS` and `IMGT_PAN_CLASS_NETMHCIIPAN_SLOTS`), and `to_pan_class_features()` — see [Pan-class IMGT alignment](pan-class-alignment.md)
 - `align_domain_to_imgt(seq, domain="G-ALPHA1")` — align a single groove half (`G-ALPHA1`, `G-ALPHA2`, `G-ALPHA`, or `G-BETA`) to IMGT coordinates (`DomainAlignment`)
 - `map_groove_positions(groove1, groove2, *, mhc_class="I")` / `map_class_ii_groove_positions(alpha_groove, beta_groove)` — align groove strings onto canonical IMGT coordinates
 - `mature_to_imgt(mature_pos, mhc_class="I", chain="")` / `imgt_to_mature(domain, imgt_pos)` — canonical fixed-reference coordinate converters
