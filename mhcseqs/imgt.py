@@ -112,7 +112,7 @@ def structural_element(imgt_pos: str) -> str:
 # Some alleles may use insertion position 7A, but for HLA-A the mapping
 # is 1:1.  Domain covers the alpha-1 groove half.
 
-_GALPHA1_SIZE = 90  # residues in the G-ALPHA1 domain
+G_ALPHA1_SIZE = 90  # residues in the G-ALPHA1 domain
 
 
 # =============================================================================
@@ -130,10 +130,10 @@ _GALPHA1_SIZE = 90  # residues in the G-ALPHA1 domain
 
 #: IMGT G-ALPHA2 positions that are gaps (no corresponding mature residue)
 #: in HLA class I molecules.
-GALPHA2_GAP_POSITIONS = frozenset({"40", "41"})
+G_ALPHA2_GAP_POSITIONS = frozenset({"40", "41"})
 
 
-def _build_galpha2_maps() -> tuple[dict[str, int], dict[int, str]]:
+def _build_g_alpha2_maps() -> tuple[dict[str, int], dict[int, str]]:
     """Build bidirectional IMGT<->mature maps for Class I G-ALPHA2."""
     fwd: dict[str, int] = {}
 
@@ -165,21 +165,21 @@ def _build_galpha2_maps() -> tuple[dict[str, int], dict[int, str]]:
     return fwd, rev
 
 
-_GALPHA2_FWD, _GALPHA2_REV = _build_galpha2_maps()
+G_ALPHA2_IMGT_TO_MATURE, G_ALPHA2_MATURE_TO_IMGT = _build_g_alpha2_maps()
 
 #: Total residues mapped in G-ALPHA2 (for HLA-A*02:01): 92
-_GALPHA2_SIZE = len(_GALPHA2_FWD)
+G_ALPHA2_SIZE = len(G_ALPHA2_IMGT_TO_MATURE)
 
 #: Ordered IMGT positions for G-ALPHA1 (1 through 90).
-GALPHA1_POSITIONS: tuple[str, ...] = tuple(str(i) for i in range(1, _GALPHA1_SIZE + 1))
+G_ALPHA1_POSITIONS: tuple[str, ...] = tuple(str(i) for i in range(1, G_ALPHA1_SIZE + 1))
 
 #: Ordered IMGT positions for G-ALPHA2 (occupied only, excludes gaps).
-GALPHA2_POSITIONS: tuple[str, ...] = tuple(k for k, v in sorted(_GALPHA2_FWD.items(), key=lambda x: x[1]))
+G_ALPHA2_POSITIONS: tuple[str, ...] = tuple(k for k, v in sorted(G_ALPHA2_IMGT_TO_MATURE.items(), key=lambda x: x[1]))
 
 #: Canonical HLA-A*02:01 reference sequences (UniProt P01892) for IMGT G-DOMAIN
 #: alignment: G-ALPHA1 (mature 1-90, 90 aa) and G-ALPHA2 (mature 91-182, 92 aa).
-HLA_A0201_GALPHA1 = "GSHSMRYFFTSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAPWIEQEGPEYWDGETRKVKAHSQTHRVDLGTLRGYYNQSEA"
-HLA_A0201_GALPHA2 = "GSHTVQRMYGCDVGSDWRFLRGYHQYAYDGKDYIALKEDLRSWTAADMAAQTTKHKWEAAHVAEQLRAYLEGTCVEWLRRYLENGKETLQRT"
+HLA_A0201_G_ALPHA1 = "GSHSMRYFFTSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAPWIEQEGPEYWDGETRKVKAHSQTHRVDLGTLRGYYNQSEA"
+HLA_A0201_G_ALPHA2 = "GSHTVQRMYGCDVGSDWRFLRGYHQYAYDGKDYIALKEDLRSWTAADMAAQTTKHKWEAAHVAEQLRAYLEGTCVEWLRRYLENGKETLQRT"
 
 # =============================================================================
 # Class II G-ALPHA [D1] (HLA-DRA*01:01) and G-BETA [D1] (HLA-DRB1*01:01) maps
@@ -190,10 +190,10 @@ HLA_A0201_GALPHA2 = "GSHTVQRMYGCDVGSDWRFLRGYHQYAYDGKDYIALKEDLRSWTAADMAAQTTKHKWEA
 # following Lefranc et al. (2005) Dev Comp Immunol 29:917-938.
 
 #: IMGT G-ALPHA positions that are structural gaps in canonical HLA-DRA*01:01.
-GALPHA_GAP_POSITIONS: frozenset[str] = frozenset({"16", "17", "18", "19", "40", "41", "57", "58", "59", "60"})
+G_ALPHA_GAP_POSITIONS: frozenset[str] = frozenset({"16", "17", "18", "19", "40", "41", "57", "58", "59", "60"})
 
 #: Ordered occupied IMGT positions for G-ALPHA (HLA-DRA*01:01 reference, 82 aa).
-GALPHA_POSITIONS: tuple[str, ...] = (
+G_ALPHA_POSITIONS: tuple[str, ...] = (
     ("1.2", "1.1")
     + tuple(str(i) for i in range(1, 16))
     + tuple(str(i) for i in range(20, 40))
@@ -202,15 +202,15 @@ GALPHA_POSITIONS: tuple[str, ...] = (
 )
 
 #: Canonical HLA-DRA*01:01 reference sequence (UniProt P01903 mature 1-82, 82 aa).
-HLA_DRA0101_GALPHA = "IKEEHVIIQAEFYLNPDQSGEFMFDFDGDEIFHVDMAKKETVWRLEEFGRFASFEAQGALANIAVDKANLEIMTKRSNYTPI"
-_GALPHA_SIZE = len(GALPHA_POSITIONS)  # 82
-_GALPHA_MATURE_POSITIONS: tuple[int, ...] = tuple(range(1, _GALPHA_SIZE + 1))
+HLA_DRA0101_G_ALPHA = "IKEEHVIIQAEFYLNPDQSGEFMFDFDGDEIFHVDMAKKETVWRLEEFGRFASFEAQGALANIAVDKANLEIMTKRSNYTPI"
+G_ALPHA_SIZE = len(G_ALPHA_POSITIONS)  # 82
+G_ALPHA_MATURE_POSITIONS: tuple[int, ...] = tuple(range(1, G_ALPHA_SIZE + 1))
 
 #: IMGT G-BETA positions that are structural gaps in canonical HLA-DRB1*01:01.
-GBETA_GAP_POSITIONS: frozenset[str] = frozenset({"40", "41"})
+G_BETA_GAP_POSITIONS: frozenset[str] = frozenset({"40", "41"})
 
 #: Ordered occupied IMGT positions for G-BETA (HLA-DRB1*01:01 reference, 89 aa, mature 5-93).
-GBETA_POSITIONS: tuple[str, ...] = (
+G_BETA_POSITIONS: tuple[str, ...] = (
     tuple(str(i) for i in range(1, 40))
     + tuple(str(i) for i in range(42, 62))
     + ("61A", "61B")
@@ -220,9 +220,9 @@ GBETA_POSITIONS: tuple[str, ...] = (
 )
 
 #: Canonical HLA-DRB1*01:01 reference sequence (UniProt P04229 mature 5-93, 89 aa).
-HLA_DRB1_0101_GBETA = "PRFLWQLKFECHFFNGTERVRLLERCIYNQEESVRFDSDVGEYRAVTELGRPDAEYWNSQKDLLEQRRAAVDTYCRHNYGVGESFTVQR"
-_GBETA_SIZE = len(GBETA_POSITIONS)  # 89
-_GBETA_MATURE_POSITIONS: tuple[int, ...] = tuple(range(5, 5 + _GBETA_SIZE))  # mature 5..93
+HLA_DRB1_0101_G_BETA = "PRFLWQLKFECHFFNGTERVRLLERCIYNQEESVRFDSDVGEYRAVTELGRPDAEYWNSQKDLLEQRRAAVDTYCRHNYGVGESFTVQR"
+G_BETA_SIZE = len(G_BETA_POSITIONS)  # 89
+G_BETA_MATURE_POSITIONS: tuple[int, ...] = tuple(range(5, 5 + G_BETA_SIZE))  # mature 5..93
 
 
 # =============================================================================
@@ -247,11 +247,11 @@ def mature_to_imgt_class_i(mature_pos: int) -> tuple[str, str]:
     if mature_pos < 1:
         raise ValueError(f"mature_pos must be >= 1, got {mature_pos}")
 
-    if mature_pos <= _GALPHA1_SIZE:
+    if mature_pos <= G_ALPHA1_SIZE:
         return ("G-ALPHA1", str(mature_pos))
 
-    if mature_pos in _GALPHA2_REV:
-        return ("G-ALPHA2", _GALPHA2_REV[mature_pos])
+    if mature_pos in G_ALPHA2_MATURE_TO_IMGT:
+        return ("G-ALPHA2", G_ALPHA2_MATURE_TO_IMGT[mature_pos])
 
     # Beyond G-ALPHA2: C-LIKE domain (alpha-3 Ig-fold)
     if mature_pos > 182:
@@ -278,12 +278,12 @@ def imgt_to_mature_class_i(domain: str, imgt_pos: str) -> Optional[int]:
             pos = int(imgt_pos)
         except ValueError:
             return None
-        return pos if 1 <= pos <= _GALPHA1_SIZE else None
+        return pos if 1 <= pos <= G_ALPHA1_SIZE else None
 
     if domain == "G-ALPHA2":
-        if imgt_pos in GALPHA2_GAP_POSITIONS:
+        if imgt_pos in G_ALPHA2_GAP_POSITIONS:
             return None
-        return _GALPHA2_FWD.get(imgt_pos)
+        return G_ALPHA2_IMGT_TO_MATURE.get(imgt_pos)
 
     if domain == "C-LIKE":
         try:
@@ -382,13 +382,13 @@ _BLOSUM62: dict[str, dict[str, int]] = {
 }
 _BLOSUM62_UNKNOWN = _BLOSUM62["X"]
 
-_GALPHA2_REF_C1_IDX = 10  # mature 101 = IMGT G-ALPHA2 11
-_GALPHA2_REF_C2_IDX = 73  # mature 164 = IMGT G-ALPHA2 74
-_GALPHA2_CYS_ANCHOR_BONUS = 6.0
+G_ALPHA2_REF_C1_IDX = 10  # mature 101 = IMGT G-ALPHA2 11
+G_ALPHA2_REF_C2_IDX = 73  # mature 164 = IMGT G-ALPHA2 74
+G_ALPHA2_CYS_ANCHOR_BONUS = 6.0
 
-_GBETA_REF_C1_IDX = 10  # mature 15 = IMGT G-BETA 11
-_GBETA_REF_C2_IDX = 74  # mature 79 = IMGT G-BETA 74
-_GBETA_CYS_ANCHOR_BONUS = 6.0
+G_BETA_REF_C1_IDX = 10  # mature 15 = IMGT G-BETA 11
+G_BETA_REF_C2_IDX = 74  # mature 79 = IMGT G-BETA 74
+G_BETA_CYS_ANCHOR_BONUS = 6.0
 
 #: Shipped multi-clade Class I and Class II IMGT G-DOMAIN structural PSSM + loop gap profiles.
 IMGT_CLASS_I_PROFILE_PATH = Path(__file__).resolve().parent / "imgt_class_i_profile.json"
@@ -397,11 +397,31 @@ IMGT_CLASS_II_PROFILE_PATH = Path(__file__).resolve().parent / "imgt_class_ii_pr
 #: 22-token alphabet for fixed-index IMGT frame strings:
 #: 20 canonical amino acids + '-' (structural gap) + 'X' (missing/unknown).
 FIXED_FRAME_ALPHABET = "ARNDCQEGHILKMFPSTWYV-X"
-_CANONICAL_AA20 = frozenset("ARNDCQEGHILKMFPSTWYV")
+CANONICAL_AA20 = frozenset("ARNDCQEGHILKMFPSTWYV")
+
+
+@dataclass(frozen=True)
+class InsertionHotspot:
+    """Named structural loop or helix-hinge insertion hotspot in an IMGT fixed frame.
+
+    Each hotspot sits strictly between ``anchor_imgt_pos`` (left flank) and
+    ``right_flank_imgt_pos`` (right flank) in its target slot table, and ONLY
+    absorbs insertions with ``after_imgt_pos == anchor_imgt_pos`` — guaranteeing
+    monotonic left-to-right sequence ordering with zero residue transposition.
+    """
+
+    name: str
+    structural_element: str
+    anchor_imgt_pos: str
+    right_flank_imgt_pos: str
+    slots: tuple[str, ...]
+    fill_mode: str = "left"
+    lineage: str = ""
+
 
 #: Fixed-index IMGT G-ALPHA1 slot schema (96 slots):
 #: 90 canonical match columns + AB-turn slots (19A-19C) + N-helix hinge slots (54A-54C).
-IMGT_GALPHA1_SLOTS: tuple[str, ...] = (
+IMGT_G_ALPHA1_SLOTS: tuple[str, ...] = (
     tuple(str(i) for i in range(1, 20))
     + ("19A", "19B", "19C")
     + tuple(str(i) for i in range(20, 55))
@@ -412,7 +432,7 @@ IMGT_GALPHA1_SLOTS: tuple[str, ...] = (
 #: Fixed-index IMGT G-ALPHA2 slot schema (102 slots):
 #: 94 IMGT backbone positions (including CD-turn 40, 41 and helix 61A, 72A)
 #: + AB-turn slots (13A-13C) + CD-turn slots (40A-40C) + helix-kink slots (61B-61C).
-IMGT_GALPHA2_SLOTS: tuple[str, ...] = (
+IMGT_G_ALPHA2_SLOTS: tuple[str, ...] = (
     tuple(str(i) for i in range(1, 14))
     + ("13A", "13B", "13C")
     + tuple(str(i) for i in range(14, 40))
@@ -425,13 +445,13 @@ IMGT_GALPHA2_SLOTS: tuple[str, ...] = (
 )
 
 #: Combined Class I fixed-index IMGT groove frame (198 slots: 96 G-ALPHA1 + 102 G-ALPHA2).
-IMGT_CLASS_I_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("G-ALPHA1", s) for s in IMGT_GALPHA1_SLOTS) + tuple(
-    ("G-ALPHA2", s) for s in IMGT_GALPHA2_SLOTS
+IMGT_CLASS_I_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("G-ALPHA1", s) for s in IMGT_G_ALPHA1_SLOTS) + tuple(
+    ("G-ALPHA2", s) for s in IMGT_G_ALPHA2_SLOTS
 )
 
 #: Fixed-index IMGT G-ALPHA slot schema (87 slots, zero dead Class I-only columns):
 #: 82 canonical match columns + A-strand 7A (DQA1) + CD-turn 40-41 + N-helix hinge 54A-54B.
-IMGT_GALPHA_SLOTS: tuple[str, ...] = (
+IMGT_G_ALPHA_SLOTS: tuple[str, ...] = (
     ("1.2", "1.1")
     + tuple(str(i) for i in range(1, 8))
     + ("7A",)
@@ -446,7 +466,7 @@ IMGT_GALPHA_SLOTS: tuple[str, ...] = (
 
 #: Fixed-index IMGT G-BETA slot schema (98 slots, zero dead columns):
 #: 89 canonical match columns + AB-turn 13A-13C + CD-turn 40/40A-40C/41 + helix-kink 61C.
-IMGT_GBETA_SLOTS: tuple[str, ...] = (
+IMGT_G_BETA_SLOTS: tuple[str, ...] = (
     tuple(str(i) for i in range(1, 14))
     + ("13A", "13B", "13C")
     + tuple(str(i) for i in range(14, 40))
@@ -459,12 +479,12 @@ IMGT_GBETA_SLOTS: tuple[str, ...] = (
 )
 
 #: Combined Class II fixed-index IMGT groove frame (185 slots: 87 G-ALPHA + 98 G-BETA).
-IMGT_CLASS_II_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("G-ALPHA", s) for s in IMGT_GALPHA_SLOTS) + tuple(
-    ("G-BETA", s) for s in IMGT_GBETA_SLOTS
+IMGT_CLASS_II_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("G-ALPHA", s) for s in IMGT_G_ALPHA_SLOTS) + tuple(
+    ("G-BETA", s) for s in IMGT_G_BETA_SLOTS
 )
 
 #: Shared 3D-homologous Pan-Class Half 1 slot schema (100 slots, shared by G-ALPHA1 and G-ALPHA).
-IMGT_PAN_HALF1_SLOTS: tuple[str, ...] = (
+IMGT_PAN_CLASS_HALF1_SLOTS: tuple[str, ...] = (
     ("1.2", "1.1")
     + tuple(str(i) for i in range(1, 8))
     + ("7A",)
@@ -477,11 +497,11 @@ IMGT_PAN_HALF1_SLOTS: tuple[str, ...] = (
 )
 
 #: Shared 3D-homologous Pan-Class Half 2 slot schema (102 slots, shared by G-ALPHA2 and G-BETA).
-IMGT_PAN_HALF2_SLOTS: tuple[str, ...] = IMGT_GALPHA2_SLOTS
+IMGT_PAN_CLASS_HALF2_SLOTS: tuple[str, ...] = IMGT_G_ALPHA2_SLOTS
 
 #: Unified Pan-Class fixed-index IMGT groove frame (202 slots: 100 HALF1 + 102 HALF2).
-IMGT_PAN_CLASS_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("HALF1", s) for s in IMGT_PAN_HALF1_SLOTS) + tuple(
-    ("HALF2", s) for s in IMGT_PAN_HALF2_SLOTS
+IMGT_PAN_CLASS_GROOVE_SLOTS: tuple[tuple[str, str], ...] = tuple(("HALF1", s) for s in IMGT_PAN_CLASS_HALF1_SLOTS) + tuple(
+    ("HALF2", s) for s in IMGT_PAN_CLASS_HALF2_SLOTS
 )
 
 #: 34 Class I NetMHCpan-4.1 peptide-contacting positions expressed in 3D-homologous
@@ -572,31 +592,133 @@ IMGT_PAN_CLASS_POCKET_SLOTS: tuple[tuple[str, str], ...] = tuple(
     slot for slot in IMGT_PAN_CLASS_GROOVE_SLOTS if slot in (set(IMGT_PAN_CLASS_NETMHCPAN_SLOTS) | set(IMGT_PAN_CLASS_NETMHCIIPAN_SLOTS))
 )
 
-# Hotspot bucket definitions: (anchor_imgt_positions, target_slots, flanking_backbone_pair, fill_mode)
-# Each hotspot tuple sits strictly between its flanking backbone pair (left_flank, right_flank)
-# and ONLY absorbs insertions anchored at left_flank so fixed_seq / pan_class_fixed_seq never
-# transpose residues across canonical columns (100% monotonic subsequence invariant).
-# Sequential insertion slots use "left" fill uniformly across Class I and Class II;
-# the 5-slot CD-turn ("40", "40A", "40B", "40C", "41") uses symmetric "cd_turn" fill
-# because 40 and 41 are canonical flanking positions.
-_GALPHA1_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
-    (frozenset({"19"}), ("19A", "19B", "19C"), ("19", "20"), "left"),
-    (frozenset({"54"}), ("54A", "54B", "54C"), ("54", "55"), "left"),
+#: Class-specific IMGT G-DOMAIN insertion hotspot schemas.
+#: Each :class:`InsertionHotspot` sits strictly between ``anchor_imgt_pos`` and
+#: ``right_flank_imgt_pos`` and ONLY absorbs insertions with
+#: ``after_imgt_pos == anchor_imgt_pos`` so fixed frames never transpose residues
+#: across canonical columns.
+G_ALPHA1_INSERTION_HOTSPOTS: tuple[InsertionHotspot, ...] = (
+    InsertionHotspot(
+        name="ab_turn",
+        structural_element="AB-TURN",
+        anchor_imgt_pos="19",
+        right_flank_imgt_pos="20",
+        slots=("19A", "19B", "19C"),
+        fill_mode="left",
+        lineage="Class I G-ALPHA1 AB-turn loop insertions across teleosts, sharks, birds, and non-classical mammals (Lefranc et al. 2005)",
+    ),
+    InsertionHotspot(
+        name="n_helix_hinge",
+        structural_element="HELIX",
+        anchor_imgt_pos="54",
+        right_flank_imgt_pos="55",
+        slots=("54A", "54B", "54C"),
+        fill_mode="left",
+        lineage=(
+            "3_10-to-alpha1 helix hinge insertions after IMGT 54 in marsupial Class I "
+            "(Trvu-UB*01:01 VGE), bony fish, and reptiles (Lefranc et al. 2005)"
+        ),
+    ),
 )
-_GALPHA2_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
-    (frozenset({"13"}), ("13A", "13B", "13C"), ("13", "14"), "left"),
-    (frozenset({"39"}), ("40", "40A", "40B", "40C", "41"), ("39", "42"), "cd_turn"),
-    (frozenset({"61A"}), ("61B", "61C"), ("61A", "62"), "left"),
+
+G_ALPHA2_INSERTION_HOTSPOTS: tuple[InsertionHotspot, ...] = (
+    InsertionHotspot(
+        name="ab_turn",
+        structural_element="AB-TURN",
+        anchor_imgt_pos="13",
+        right_flank_imgt_pos="14",
+        slots=("13A", "13B", "13C"),
+        fill_mode="left",
+        lineage="Class I G-ALPHA2 AB-turn loop insertions downstream of conserved Cys11 across ray-finned fish, sharks, amphibians, and reptiles",
+    ),
+    InsertionHotspot(
+        name="cd_turn",
+        structural_element="CD-TURN",
+        anchor_imgt_pos="39",
+        right_flank_imgt_pos="42",
+        slots=("40", "40A", "40B", "40C", "41"),
+        fill_mode="cd_turn",
+        lineage=(
+            "Class I G-ALPHA2 CD-turn insertions filling canonical IMGT 40/41 before central 40A-40C in non-mammalian vertebrates "
+            "(gapped in human HLA, Lefranc et al. 2005)"
+        ),
+    ),
+    InsertionHotspot(
+        name="helix_kink",
+        structural_element="HELIX",
+        anchor_imgt_pos="61A",
+        right_flank_imgt_pos="62",
+        slots=("61B", "61C"),
+        fill_mode="left",
+        lineage=(
+            "Class I G-ALPHA2 alpha2-helix kink insertions downstream of IMGT 61A in non-mammalian vertebrates (homologous to Class II G-BETA 61B)"
+        ),
+    ),
 )
-_GALPHA_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
-    (frozenset({"7"}), ("7A",), ("7", "8"), "left"),
-    (frozenset({"39"}), ("40", "41"), ("39", "42"), "left"),
-    (frozenset({"54"}), ("54A", "54B"), ("54", "55"), "left"),
+
+G_ALPHA_INSERTION_HOTSPOTS: tuple[InsertionHotspot, ...] = (
+    InsertionHotspot(
+        name="a_strand_bulge",
+        structural_element="A-STRAND",
+        anchor_imgt_pos="7",
+        right_flank_imgt_pos="8",
+        slots=("7A",),
+        fill_mode="left",
+        lineage="Class II G-ALPHA A-strand 1-aa bulge in HLA-DQA1, H2-Aa, RT1-Ba, and teleost DAA (PDB 1JK8/1S9V, Lefranc et al. 2005)",
+    ),
+    InsertionHotspot(
+        name="cd_turn",
+        structural_element="CD-TURN",
+        anchor_imgt_pos="39",
+        right_flank_imgt_pos="42",
+        slots=("40", "41"),
+        fill_mode="left",
+        lineage=(
+            "Class II G-ALPHA CD-turn insertions occupying IMGT 40-41 in teleost/amphibian DAA (structurally gapped in human DRA/DQA/DPA, PDB 1DLH)"
+        ),
+    ),
+    InsertionHotspot(
+        name="n_helix_hinge",
+        structural_element="HELIX",
+        anchor_imgt_pos="54",
+        right_flank_imgt_pos="55",
+        slots=("54A", "54B"),
+        fill_mode="left",
+        lineage="Class II G-ALPHA N-helix hinge insertions in HLA-DQA/DOA/DMA and teleost DAA (Lefranc et al. 2005)",
+    ),
 )
-_GBETA_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
-    (frozenset({"13"}), ("13A", "13B", "13C"), ("13", "14"), "left"),
-    (frozenset({"39"}), ("40", "40A", "40B", "40C", "41"), ("39", "42"), "cd_turn"),
-    (frozenset({"61B"}), ("61C",), ("61B", "62"), "left"),
+
+G_BETA_INSERTION_HOTSPOTS: tuple[InsertionHotspot, ...] = (
+    InsertionHotspot(
+        name="ab_turn",
+        structural_element="AB-TURN",
+        anchor_imgt_pos="13",
+        right_flank_imgt_pos="14",
+        slots=("13A", "13B", "13C"),
+        fill_mode="left",
+        lineage="Class II G-BETA AB-turn loop insertions downstream of conserved Cys11 across ray-finned fish, sharks, amphibians, and reptiles",
+    ),
+    InsertionHotspot(
+        name="cd_turn",
+        structural_element="CD-TURN",
+        anchor_imgt_pos="39",
+        right_flank_imgt_pos="42",
+        slots=("40", "40A", "40B", "40C", "41"),
+        fill_mode="cd_turn",
+        lineage=(
+            "Class II G-BETA CD-turn insertions filling canonical IMGT 40/41 before central 40A-40C in non-mammalian vertebrates "
+            "(gapped in human HLA, Lefranc et al. 2005)"
+        ),
+    ),
+    InsertionHotspot(
+        name="helix_kink",
+        structural_element="HELIX",
+        anchor_imgt_pos="61B",
+        right_flank_imgt_pos="62",
+        slots=("61C",),
+        fill_mode="left",
+        lineage=("Class II G-BETA beta1-helix kink insertions downstream of canonical IMGT 61B in non-mammalian DAB/DBB and rare HLA-DRB variants"),
+    ),
 )
 
 
@@ -643,7 +765,7 @@ def load_class_ii_profile() -> dict[str, Any]:
 
 def _fill_hotspot_slots(seq: str, slots: tuple[str, ...], mode: str) -> tuple[dict[str, str], bool]:
     """Fill a fixed hotspot slot tuple with *seq*, returning (slot_map, overflowed)."""
-    cleaned = "".join(ch if ch in _CANONICAL_AA20 else "X" for ch in seq)
+    cleaned = "".join(ch if ch in CANONICAL_AA20 else "X" for ch in seq)
     k = len(slots)
     n = len(cleaned)
     out = {s: "-" for s in slots}
@@ -734,7 +856,7 @@ class GrooveDeletion:
 
 @dataclass(frozen=True)
 class DomainAlignment:
-    """Alignment of one Class I groove domain (G-ALPHA1 or G-ALPHA2) to IMGT coordinates."""
+    """Alignment of one MHC groove domain (G-ALPHA1, G-ALPHA2, G-ALPHA, or G-BETA) to IMGT coordinates."""
 
     domain: str
     query_seq: str
@@ -892,12 +1014,12 @@ class GrooveAlignment:
         c1 = (
             self.alpha1.pan_class_insertion_counts
             if (self.alpha1 is not None and self.alpha1.pan_class_insertion_counts)
-            else (0,) * len(IMGT_PAN_HALF1_SLOTS)
+            else (0,) * len(IMGT_PAN_CLASS_HALF1_SLOTS)
         )
         c2 = (
             self.alpha2.pan_class_insertion_counts
             if (self.alpha2 is not None and self.alpha2.pan_class_insertion_counts)
-            else (0,) * len(IMGT_PAN_HALF2_SLOTS)
+            else (0,) * len(IMGT_PAN_CLASS_HALF2_SLOTS)
         )
         return c1 + c2
 
@@ -942,8 +1064,8 @@ class GrooveAlignment:
         deletions from terminal truncations. An absent domain is all gaps.
         """
         is_c2 = self.resolved_mhc_class == "II"
-        len1 = _GALPHA_SIZE if is_c2 else _GALPHA1_SIZE
-        len2 = _GBETA_SIZE if is_c2 else _GALPHA2_SIZE
+        len1 = G_ALPHA_SIZE if is_c2 else G_ALPHA1_SIZE
+        len2 = G_BETA_SIZE if is_c2 else G_ALPHA2_SIZE
         s1 = self.alpha1.a3m_seq if self.alpha1 is not None else ("-" * len1)
         s2 = self.alpha2.a3m_seq if self.alpha2 is not None else ("-" * len2)
         return s1 + s2
@@ -957,8 +1079,8 @@ class GrooveAlignment:
     def fixed_seq(self) -> str:
         """Class-specific fixed-index IMGT string (198 chars for Class I, 185 for Class II)."""
         is_c2 = self.resolved_mhc_class == "II"
-        n1 = len(IMGT_GALPHA_SLOTS) if is_c2 else len(IMGT_GALPHA1_SLOTS)
-        n2 = len(IMGT_GBETA_SLOTS) if is_c2 else len(IMGT_GALPHA2_SLOTS)
+        n1 = len(IMGT_G_ALPHA_SLOTS) if is_c2 else len(IMGT_G_ALPHA1_SLOTS)
+        n2 = len(IMGT_G_BETA_SLOTS) if is_c2 else len(IMGT_G_ALPHA2_SLOTS)
         s1 = self.alpha1.fixed_seq if self.alpha1 is not None else ("X" * n1)
         s2 = self.alpha2.fixed_seq if self.alpha2 is not None else ("X" * n2)
         return s1 + s2
@@ -971,8 +1093,8 @@ class GrooveAlignment:
     @property
     def pan_class_fixed_seq(self) -> str:
         """Shared 3D-homologous pan-class IMGT string (202 chars, 22-token alphabet with '-' vs 'X')."""
-        s1 = self.alpha1.pan_class_fixed_seq if self.alpha1 is not None else ("X" * len(IMGT_PAN_HALF1_SLOTS))
-        s2 = self.alpha2.pan_class_fixed_seq if self.alpha2 is not None else ("X" * len(IMGT_PAN_HALF2_SLOTS))
+        s1 = self.alpha1.pan_class_fixed_seq if self.alpha1 is not None else ("X" * len(IMGT_PAN_CLASS_HALF1_SLOTS))
+        s2 = self.alpha2.pan_class_fixed_seq if self.alpha2 is not None else ("X" * len(IMGT_PAN_CLASS_HALF2_SLOTS))
         return s1 + s2
 
     @property
@@ -1009,7 +1131,7 @@ class GrooveAlignment:
             if self.alpha2 is not None and self.alpha1 is None:
                 return self.alpha2.mature_to_aa.get(mature_pos)
             return self.alpha1.mature_to_aa.get(mature_pos) if self.alpha1 is not None else None
-        if mature_pos <= _GALPHA1_SIZE:
+        if mature_pos <= G_ALPHA1_SIZE:
             return self.alpha1.mature_to_aa.get(mature_pos) if self.alpha1 is not None else None
         return self.alpha2.mature_to_aa.get(mature_pos) if self.alpha2 is not None else None
 
@@ -1233,22 +1355,22 @@ def _disulfide_cys_anchor_bonus(
     }
 
 
-def _galpha2_cys_anchor_bonus(qry: str) -> Optional[dict[tuple[int, int], float]]:
+def g_alpha2_cys_anchor_bonus(qry: str) -> Optional[dict[tuple[int, int], float]]:
     """Return a gentle alignment bonus for the conserved G-ALPHA2 Cys11–Cys74 pair."""
-    return _disulfide_cys_anchor_bonus(qry, _GALPHA2_REF_C1_IDX, _GALPHA2_REF_C2_IDX, _GALPHA2_CYS_ANCHOR_BONUS)
+    return _disulfide_cys_anchor_bonus(qry, G_ALPHA2_REF_C1_IDX, G_ALPHA2_REF_C2_IDX, G_ALPHA2_CYS_ANCHOR_BONUS)
 
 
-def _gbeta_cys_anchor_bonus(qry: str) -> Optional[dict[tuple[int, int], float]]:
+def g_beta_cys_anchor_bonus(qry: str) -> Optional[dict[tuple[int, int], float]]:
     """Return a gentle alignment bonus for the conserved G-BETA Cys11–Cys74 pair."""
-    return _disulfide_cys_anchor_bonus(qry, _GBETA_REF_C1_IDX, _GBETA_REF_C2_IDX, _GBETA_CYS_ANCHOR_BONUS)
+    return _disulfide_cys_anchor_bonus(qry, G_BETA_REF_C1_IDX, G_BETA_REF_C2_IDX, G_BETA_CYS_ANCHOR_BONUS)
 
 
 def _align_groove_domain(ref: str, qry: str, domain: str) -> tuple[float, str, str]:
     """Run exact semi-global alignment for one Class I or Class II groove domain."""
     if domain == "G-ALPHA2":
-        anchor_bonus = _galpha2_cys_anchor_bonus(qry)
+        anchor_bonus = g_alpha2_cys_anchor_bonus(qry)
     elif domain == "G-BETA":
-        anchor_bonus = _gbeta_cys_anchor_bonus(qry)
+        anchor_bonus = g_beta_cys_anchor_bonus(qry)
     else:
         anchor_bonus = None
 
@@ -1510,17 +1632,17 @@ def _build_fixed_frame(
 ) -> tuple[str, tuple[str, ...], dict[str, str], tuple[GrooveInsertion, ...]]:
     """Project an aligned domain onto its class-specific fixed-index IMGT frame with '-' vs 'X'."""
     if domain == "G-ALPHA1":
-        slots = IMGT_GALPHA1_SLOTS
-        hotspots = _GALPHA1_HOTSPOTS
+        slots = IMGT_G_ALPHA1_SLOTS
+        hotspots = G_ALPHA1_INSERTION_HOTSPOTS
     elif domain == "G-ALPHA2":
-        slots = IMGT_GALPHA2_SLOTS
-        hotspots = _GALPHA2_HOTSPOTS
+        slots = IMGT_G_ALPHA2_SLOTS
+        hotspots = G_ALPHA2_INSERTION_HOTSPOTS
     elif domain == "G-ALPHA":
-        slots = IMGT_GALPHA_SLOTS
-        hotspots = _GALPHA_HOTSPOTS
+        slots = IMGT_G_ALPHA_SLOTS
+        hotspots = G_ALPHA_INSERTION_HOTSPOTS
     elif domain == "G-BETA":
-        slots = IMGT_GBETA_SLOTS
-        hotspots = _GBETA_HOTSPOTS
+        slots = IMGT_G_BETA_SLOTS
+        hotspots = G_BETA_INSERTION_HOTSPOTS
     else:
         raise ValueError(f"Unsupported IMGT groove domain: {domain!r}")
 
@@ -1530,7 +1652,7 @@ def _build_fixed_frame(
             aa = imgt_to_aa[slot]
             if aa == "-":
                 slot_map[slot] = "-"
-            elif aa in _CANONICAL_AA20:
+            elif aa in CANONICAL_AA20:
                 slot_map[slot] = aa
             else:
                 slot_map[slot] = "X"
@@ -1545,8 +1667,8 @@ def _build_fixed_frame(
 
     for ins in insertions:
         matched_idx: Optional[int] = None
-        for idx, (anchors, _target_slots, _flanks, _mode) in enumerate(hotspots):
-            if ins.after_imgt_pos in anchors:
+        for idx, hotspot in enumerate(hotspots):
+            if ins.after_imgt_pos == hotspot.anchor_imgt_pos:
                 matched_idx = idx
                 break
         if matched_idx is None:
@@ -1555,15 +1677,15 @@ def _build_fixed_frame(
             hotspot_seqs[matched_idx].append(ins.sequence)
             hotspot_sources[matched_idx].append(ins)
 
-    for idx, (_anchors, target_slots, (left_flank, right_flank), mode) in enumerate(hotspots):
+    for idx, hotspot in enumerate(hotspots):
         combined = "".join(hotspot_seqs[idx])
-        flanks_observed = left_flank in imgt_to_aa and right_flank in imgt_to_aa
+        flanks_observed = hotspot.anchor_imgt_pos in imgt_to_aa and hotspot.right_flank_imgt_pos in imgt_to_aa
         if not combined:
             fill_ch = "-" if flanks_observed else "X"
-            for s in target_slots:
+            for s in hotspot.slots:
                 slot_map[s] = fill_ch
         else:
-            filled, did_overflow = _fill_hotspot_slots(combined, target_slots, mode)
+            filled, did_overflow = _fill_hotspot_slots(combined, hotspot.slots, hotspot.fill_mode)
             slot_map.update(filled)
             if did_overflow:
                 overflow.extend(hotspot_sources[idx])
@@ -1572,9 +1694,9 @@ def _build_fixed_frame(
     return fixed_seq, slots, slot_map, tuple(overflow)
 
 
-# Flanking canonical backbone positions used to distinguish structural gaps ('-')
-# from missing/truncated ends ('X') for pan-class slots absent from a class's native frame.
-_PAN_CLASS_EXTRA_SLOT_FLANKS: dict[str, dict[str, tuple[str, ...]]] = {
+#: Flanking canonical backbone positions used to distinguish structural gaps ('-')
+#: from missing/truncated ends ('X') for pan-class slots absent from a domain's native frame.
+PAN_CLASS_EXTRA_SLOT_FLANKS: dict[str, dict[str, tuple[str, ...]]] = {
     "G-ALPHA1": {
         "1.2": ("1",),
         "1.1": ("1",),
@@ -1606,28 +1728,147 @@ _PAN_CLASS_EXTRA_SLOT_FLANKS: dict[str, dict[str, tuple[str, ...]]] = {
 }
 
 
-# Pan-class hotspot buckets used when projecting directly onto the 202-slot
-# shared pan-class IMGT frame. Each bucket is strictly anchored at its exact
-# monotonic left-flanking IMGT column (preventing residue transposition across
-# canonical columns) and uses uniform "left" fill across Class I and Class II
-# (with symmetric "cd_turn" fill on HALF2 40..41).
-_PAN_HALF1_HOTSPOTS: dict[str, tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...]] = {
+#: Pan-class Half 1 (G-ALPHA1 / G-ALPHA) insertion hotspot schemas for the 202-slot
+#: shared pan-class IMGT frame. Every hotspot is strictly anchored at its exact
+#: monotonic left-flanking IMGT column and uses uniform "left" fill across Class I and Class II.
+PAN_CLASS_HALF1_INSERTION_HOTSPOTS: dict[str, tuple[InsertionHotspot, ...]] = {
     "G-ALPHA1": (
-        (frozenset({"7"}), ("7A",), ("7", "8"), "left"),
-        (frozenset({"19"}), ("19A", "19B", "19C"), ("19", "20"), "left"),
-        (frozenset({"54"}), ("54A", "54B", "54C"), ("54", "55"), "left"),
+        InsertionHotspot(
+            name="a_strand_bulge",
+            structural_element="A-STRAND",
+            anchor_imgt_pos="7",
+            right_flank_imgt_pos="8",
+            slots=("7A",),
+            fill_mode="left",
+            lineage="Non-mammalian Class I A-strand 1-aa bulge at IMGT 7A (shared pan-class slot with Class II G-ALPHA DQA1/H2-Aa)",
+        ),
+        *G_ALPHA1_INSERTION_HOTSPOTS,
     ),
     "G-ALPHA": (
-        (frozenset({"7"}), ("7A",), ("7", "8"), "left"),
-        (frozenset({"15"}), ("19A", "19B", "19C"), ("15", "20"), "left"),
-        (frozenset({"39"}), ("40", "41"), ("39", "42"), "left"),
-        (frozenset({"54"}), ("54A", "54B", "54C"), ("54", "55"), "left"),
+        G_ALPHA_INSERTION_HOTSPOTS[0],  # 7A (a_strand_bulge)
+        InsertionHotspot(
+            name="ab_turn",
+            structural_element="AB-TURN",
+            anchor_imgt_pos="15",
+            right_flank_imgt_pos="20",
+            slots=("19A", "19B", "19C"),
+            fill_mode="left",
+            lineage="Class II G-ALPHA AB-turn insertions between IMGT 15 and 20 across the 16-19 structural deletion relative to Class I",
+        ),
+        G_ALPHA_INSERTION_HOTSPOTS[1],  # 40-41 (cd_turn)
+        InsertionHotspot(
+            name="n_helix_hinge",
+            structural_element="HELIX",
+            anchor_imgt_pos="54",
+            right_flank_imgt_pos="55",
+            slots=("54A", "54B", "54C"),
+            fill_mode="left",
+            lineage=(
+                "Class II G-ALPHA N-helix hinge insertions (up to 3 aa in teleost DAA, plus HLA-DQA/DOA/DMA) sharing pan-class 54A-54C with Class I"
+            ),
+        ),
     ),
 }
-_PAN_HALF2_HOTSPOTS: dict[str, tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...]] = {
-    "G-ALPHA2": _GALPHA2_HOTSPOTS,
-    "G-BETA": _GBETA_HOTSPOTS,
+
+#: Pan-class Half 2 (G-ALPHA2 / G-BETA) insertion hotspot schemas for the 202-slot frame.
+PAN_CLASS_HALF2_INSERTION_HOTSPOTS: dict[str, tuple[InsertionHotspot, ...]] = {
+    "G-ALPHA2": G_ALPHA2_INSERTION_HOTSPOTS,
+    "G-BETA": G_BETA_INSERTION_HOTSPOTS,
 }
+
+
+def validate_imgt_frame_schemas() -> None:
+    """Validate structural integrity of all native and pan-class IMGT frame & hotspot schemas.
+
+    Raises :class:`ValueError` if any hotspot slot is missing or non-contiguous,
+    sits out of monotonic order relative to its anchor/flank columns, omits a
+    native hotspot from its pan-class table, uses an invalid fill mode, or lacks
+    documented biological lineage.
+    """
+    canonical_positions_by_domain: dict[str, frozenset[str]] = {
+        "G-ALPHA1": frozenset(G_ALPHA1_POSITIONS),
+        "G-ALPHA2": frozenset(G_ALPHA2_POSITIONS),
+        "G-ALPHA": frozenset(G_ALPHA_POSITIONS),
+        "G-BETA": frozenset(G_BETA_POSITIONS),
+    }
+    native_tables: dict[str, tuple[tuple[str, ...], tuple[InsertionHotspot, ...]]] = {
+        "G-ALPHA1": (IMGT_G_ALPHA1_SLOTS, G_ALPHA1_INSERTION_HOTSPOTS),
+        "G-ALPHA2": (IMGT_G_ALPHA2_SLOTS, G_ALPHA2_INSERTION_HOTSPOTS),
+        "G-ALPHA": (IMGT_G_ALPHA_SLOTS, G_ALPHA_INSERTION_HOTSPOTS),
+        "G-BETA": (IMGT_G_BETA_SLOTS, G_BETA_INSERTION_HOTSPOTS),
+    }
+    pan_tables: dict[str, tuple[tuple[str, ...], tuple[InsertionHotspot, ...]]] = {
+        "G-ALPHA1": (IMGT_PAN_CLASS_HALF1_SLOTS, PAN_CLASS_HALF1_INSERTION_HOTSPOTS["G-ALPHA1"]),
+        "G-ALPHA": (IMGT_PAN_CLASS_HALF1_SLOTS, PAN_CLASS_HALF1_INSERTION_HOTSPOTS["G-ALPHA"]),
+        "G-ALPHA2": (IMGT_PAN_CLASS_HALF2_SLOTS, PAN_CLASS_HALF2_INSERTION_HOTSPOTS["G-ALPHA2"]),
+        "G-BETA": (IMGT_PAN_CLASS_HALF2_SLOTS, PAN_CLASS_HALF2_INSERTION_HOTSPOTS["G-BETA"]),
+    }
+
+    def _check_table(label: str, domain: str, slots: tuple[str, ...], hotspots: tuple[InsertionHotspot, ...]) -> None:
+        if len(slots) != len(set(slots)):
+            raise ValueError(f"{label} ({domain}): duplicate slot names in slot table")
+        pos_index = {slot: idx for idx, slot in enumerate(slots)}
+        canonical = canonical_positions_by_domain[domain]
+        seen_anchors: set[str] = set()
+        seen_hotspot_slots: set[str] = set()
+        for hs in hotspots:
+            if not hs.name or not hs.lineage:
+                raise ValueError(f"{label} ({domain}): hotspot {hs!r} must have non-empty name and lineage")
+            if hs.fill_mode not in ("left", "cd_turn"):
+                raise ValueError(f"{label} ({domain}): invalid fill_mode {hs.fill_mode!r} on {hs.name!r}")
+            if hs.fill_mode == "cd_turn" and len(hs.slots) != 5:
+                raise ValueError(f"{label} ({domain}): cd_turn fill requires 5 slots on {hs.name!r}")
+            if hs.anchor_imgt_pos in seen_anchors:
+                raise ValueError(f"{label} ({domain}): duplicate anchor {hs.anchor_imgt_pos!r}")
+            seen_anchors.add(hs.anchor_imgt_pos)
+            if hs.anchor_imgt_pos not in canonical or hs.right_flank_imgt_pos not in canonical:
+                raise ValueError(f"{label} ({domain}): hotspot {hs.name!r} flanks must be canonical {domain} columns")
+            if hs.anchor_imgt_pos not in pos_index or hs.right_flank_imgt_pos not in pos_index:
+                raise ValueError(f"{label} ({domain}): hotspot {hs.name!r} flanks missing from slot table")
+            anchor_idx = pos_index[hs.anchor_imgt_pos]
+            right_idx = pos_index[hs.right_flank_imgt_pos]
+            slot_indices: list[int] = []
+            for s in hs.slots:
+                if s not in pos_index:
+                    raise ValueError(f"{label} ({domain}): hotspot slot {s!r} missing from slot table")
+                if s in seen_hotspot_slots:
+                    raise ValueError(f"{label} ({domain}): hotspot slot {s!r} assigned twice")
+                seen_hotspot_slots.add(s)
+                slot_indices.append(pos_index[s])
+            if slot_indices != list(range(slot_indices[0], slot_indices[0] + len(slot_indices))):
+                raise ValueError(f"{label} ({domain}): hotspot {hs.name!r} slots {hs.slots} are not contiguous")
+            if not (anchor_idx < slot_indices[0] and slot_indices[-1] < right_idx):
+                raise ValueError(
+                    f"{label} ({domain}): hotspot {hs.name!r} slots {hs.slots} "
+                    f"not strictly between {hs.anchor_imgt_pos} and {hs.right_flank_imgt_pos}"
+                )
+            # No canonical match column may sit between anchor_imgt_pos and slots[0] or between slots[-1] and right_flank_imgt_pos
+            for between_idx in list(range(anchor_idx + 1, slot_indices[0])) + list(range(slot_indices[-1] + 1, right_idx)):
+                if slots[between_idx] in canonical:
+                    raise ValueError(
+                        f"{label} ({domain}): canonical column {slots[between_idx]!r} trapped inside hotspot {hs.name!r} "
+                        f"({hs.anchor_imgt_pos}..{hs.right_flank_imgt_pos}), which would scramble residue order"
+                    )
+
+    for dom, (slots, hotspots) in native_tables.items():
+        _check_table("native", dom, slots, hotspots)
+    for dom, (slots, hotspots) in pan_tables.items():
+        _check_table("pan_class", dom, slots, hotspots)
+        native_anchors = {hs.anchor_imgt_pos for hs in native_tables[dom][1]}
+        pan_anchors = {hs.anchor_imgt_pos for hs in hotspots}
+        missing_in_pan = native_anchors - pan_anchors
+        if missing_in_pan:
+            raise ValueError(f"pan_class ({dom}): omits native hotspot anchors {sorted(missing_in_pan)} (would double-count overflow)")
+        pan_slot_set = set(slots)
+        for extra_slot, flanks in PAN_CLASS_EXTRA_SLOT_FLANKS[dom].items():
+            if extra_slot not in pan_slot_set:
+                raise ValueError(f"PAN_CLASS_EXTRA_SLOT_FLANKS[{dom!r}] references unknown slot {extra_slot!r}")
+            for flank in flanks:
+                if flank not in canonical_positions_by_domain[dom]:
+                    raise ValueError(f"PAN_CLASS_EXTRA_SLOT_FLANKS[{dom!r}][{extra_slot!r}] references non-canonical flank {flank!r}")
+
+
+validate_imgt_frame_schemas()
 
 
 def _build_pan_class_frame(
@@ -1639,14 +1880,14 @@ def _build_pan_class_frame(
     """Project a Class I or Class II domain alignment onto the shared 3D pan-class IMGT frame.
 
     Buckets internal insertions directly into pan-class hotspot slots (including
-    ``7A``, ``19A-19C``, and ``54A-54C`` on ``HALF1``) and returns both any
-    remaining ``pan_class_overflow_insertions`` and a per-slot
+    ``7A``, ``19A-19C``, ``40-41``, and ``54A-54C`` on ``HALF1``) and returns both
+    any remaining ``pan_class_overflow_insertions`` and a per-slot
     ``pan_class_insertion_counts`` tuple giving the number of unrepresented
     inserted residues immediately following each pan-class slot.
     """
     is_half1 = domain in ("G-ALPHA1", "G-ALPHA")
-    slots = IMGT_PAN_HALF1_SLOTS if is_half1 else IMGT_PAN_HALF2_SLOTS
-    flanks_map = _PAN_CLASS_EXTRA_SLOT_FLANKS[domain]
+    slots = IMGT_PAN_CLASS_HALF1_SLOTS if is_half1 else IMGT_PAN_CLASS_HALF2_SLOTS
+    flanks_map = PAN_CLASS_EXTRA_SLOT_FLANKS[domain]
     pan_map: dict[str, str] = {}
     for slot in slots:
         if slot in fixed_slot_to_aa:
@@ -1658,7 +1899,7 @@ def _build_pan_class_frame(
             else:
                 pan_map[slot] = "X"
 
-    hotspots = _PAN_HALF1_HOTSPOTS[domain] if is_half1 else _PAN_HALF2_HOTSPOTS[domain]
+    hotspots = PAN_CLASS_HALF1_INSERTION_HOTSPOTS[domain] if is_half1 else PAN_CLASS_HALF2_INSERTION_HOTSPOTS[domain]
     hotspot_seqs: list[list[str]] = [[] for _ in hotspots]
     hotspot_sources: list[list[GrooveInsertion]] = [[] for _ in hotspots]
     overflow: list[GrooveInsertion] = []
@@ -1666,8 +1907,8 @@ def _build_pan_class_frame(
 
     for ins in insertions:
         matched_idx: Optional[int] = None
-        for idx, (anchors, _target_slots, _flanks, _mode) in enumerate(hotspots):
-            if ins.after_imgt_pos in anchors:
+        for idx, hotspot in enumerate(hotspots):
+            if ins.after_imgt_pos == hotspot.anchor_imgt_pos:
                 matched_idx = idx
                 break
         if matched_idx is None:
@@ -1678,20 +1919,20 @@ def _build_pan_class_frame(
             hotspot_seqs[matched_idx].append(ins.sequence)
             hotspot_sources[matched_idx].append(ins)
 
-    for idx, (_anchors, target_slots, (left_flank, right_flank), mode) in enumerate(hotspots):
+    for idx, hotspot in enumerate(hotspots):
         combined = "".join(hotspot_seqs[idx])
-        flanks_observed = left_flank in imgt_to_aa and right_flank in imgt_to_aa
+        flanks_observed = hotspot.anchor_imgt_pos in imgt_to_aa and hotspot.right_flank_imgt_pos in imgt_to_aa
         if not combined:
             fill_ch = "-" if flanks_observed else "X"
-            for s in target_slots:
+            for s in hotspot.slots:
                 pan_map[s] = fill_ch
         else:
-            filled, did_overflow = _fill_hotspot_slots(combined, target_slots, mode)
+            filled, did_overflow = _fill_hotspot_slots(combined, hotspot.slots, hotspot.fill_mode)
             pan_map.update(filled)
             if did_overflow:
                 overflow.extend(hotspot_sources[idx])
-                extra_len = len(combined) - len(target_slots)
-                anchor_slot = target_slots[-1]
+                extra_len = len(combined) - len(hotspot.slots)
+                anchor_slot = hotspot.slots[-1]
                 extra_counts[anchor_slot] = extra_counts.get(anchor_slot, 0) + extra_len
 
     pan_seq = "".join(pan_map[s] for s in slots)
@@ -1702,13 +1943,13 @@ def _build_pan_class_frame(
 def _domain_reference_spec(norm_domain: str) -> tuple[str, tuple[str, ...], tuple[int, ...]]:
     """Return ``(ref_seq, imgt_positions, mature_positions)`` for a normalized groove domain."""
     if norm_domain == "G-ALPHA1":
-        return HLA_A0201_GALPHA1, GALPHA1_POSITIONS, tuple(range(1, _GALPHA1_SIZE + 1))
+        return HLA_A0201_G_ALPHA1, G_ALPHA1_POSITIONS, tuple(range(1, G_ALPHA1_SIZE + 1))
     if norm_domain == "G-ALPHA2":
-        return HLA_A0201_GALPHA2, GALPHA2_POSITIONS, tuple(_GALPHA2_FWD[pos] for pos in GALPHA2_POSITIONS)
+        return HLA_A0201_G_ALPHA2, G_ALPHA2_POSITIONS, tuple(G_ALPHA2_IMGT_TO_MATURE[pos] for pos in G_ALPHA2_POSITIONS)
     if norm_domain == "G-ALPHA":
-        return HLA_DRA0101_GALPHA, GALPHA_POSITIONS, _GALPHA_MATURE_POSITIONS
+        return HLA_DRA0101_G_ALPHA, G_ALPHA_POSITIONS, G_ALPHA_MATURE_POSITIONS
     if norm_domain == "G-BETA":
-        return HLA_DRB1_0101_GBETA, GBETA_POSITIONS, _GBETA_MATURE_POSITIONS
+        return HLA_DRB1_0101_G_BETA, G_BETA_POSITIONS, G_BETA_MATURE_POSITIONS
     raise ValueError(f"Unsupported IMGT groove domain: {norm_domain!r}")
 
 
@@ -2124,3 +2365,23 @@ def align_groove_to_imgt(
         "align_groove_to_imgt expects an AlleleRecord, mapping with groove1/groove2 keys, or (groove1, groove2) strings; "
         f"got {type(record_or_groove1).__name__}"
     )
+
+
+# Backwards-compatible aliases for earlier compact spellings (prefer the spaced G_ALPHA / G_BETA / PAN_CLASS names above).
+GALPHA1_POSITIONS = G_ALPHA1_POSITIONS
+GALPHA2_POSITIONS = G_ALPHA2_POSITIONS
+GALPHA2_GAP_POSITIONS = G_ALPHA2_GAP_POSITIONS
+GALPHA_POSITIONS = G_ALPHA_POSITIONS
+GALPHA_GAP_POSITIONS = G_ALPHA_GAP_POSITIONS
+GBETA_POSITIONS = G_BETA_POSITIONS
+GBETA_GAP_POSITIONS = G_BETA_GAP_POSITIONS
+HLA_A0201_GALPHA1 = HLA_A0201_G_ALPHA1
+HLA_A0201_GALPHA2 = HLA_A0201_G_ALPHA2
+HLA_DRA0101_GALPHA = HLA_DRA0101_G_ALPHA
+HLA_DRB1_0101_GBETA = HLA_DRB1_0101_G_BETA
+IMGT_GALPHA1_SLOTS = IMGT_G_ALPHA1_SLOTS
+IMGT_GALPHA2_SLOTS = IMGT_G_ALPHA2_SLOTS
+IMGT_GALPHA_SLOTS = IMGT_G_ALPHA_SLOTS
+IMGT_GBETA_SLOTS = IMGT_G_BETA_SLOTS
+IMGT_PAN_HALF1_SLOTS = IMGT_PAN_CLASS_HALF1_SLOTS
+IMGT_PAN_HALF2_SLOTS = IMGT_PAN_CLASS_HALF2_SLOTS

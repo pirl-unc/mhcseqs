@@ -561,20 +561,20 @@ def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
 def test_catalog_inline_mhcgnomes_mutations_for_alleles_and_pairs():
     """Issue #175: get, lookup, resolve_pair, and pan_class_features apply mhcgnomes inline mutations."""
     from mhcseqs.domain_parsing import decompose_domains
-    from mhcseqs.imgt import HLA_A0201_GALPHA1, HLA_A0201_GALPHA2, HLA_DRA0101_GALPHA, HLA_DRB1_0101_GBETA
+    from mhcseqs.imgt import HLA_A0201_G_ALPHA1, HLA_A0201_G_ALPHA2, HLA_DRA0101_G_ALPHA, HLA_DRB1_0101_G_BETA
 
     # Full-length DRB1*01:01 sequence (SP + mature GDTR... beta1 + beta2 + TM, UniProt P04229)
     drb1_full = (
         "MVCLKLPGGSCMTALTVTLMVLSSPLALA"
         + "GDTR"
-        + HLA_DRB1_0101_GBETA
+        + HLA_DRB1_0101_G_BETA
         + "RVQPKVTVYPSKTQPLQHHNLLVCSVSGFYPGSIEVRWFRNGQEEKAGVVSTGLIQNGDWTFQTLVMLETVPRSGEVYTCQVEHPSVTSPLTVEW"
         + "RARSESAQSKMLSGVGGFVLGLLFLGAGLFIYFRNQKGHSGLQPTGFLS"
     )
     dra_full = (
         "MAISGVPVLGFFIIAVLMSAQESWA"
         + "IKEEH"
-        + HLA_DRA0101_GALPHA
+        + HLA_DRA0101_G_ALPHA
         + "SPVTVLTNSPVELREPNVLICFIDKFTPPVVNVTWLRNGKPVTTGVSETVFLPREDHLFRKFHYLPFLPSTEDVYDCRVEHWGLDEPLLKHWEF"
         + "DAPSPLPETTENVVCALGLTVGLVGIIIGTIFIIKGLRKSNAAERRGPL"
     )
@@ -593,9 +593,9 @@ def test_catalog_inline_mhcgnomes_mutations_for_alleles_and_pairs():
             "source": "imgt",
             "source_id": "HLA00005",
             "sequence": _A0201_SEQ,
-            "groove1": HLA_A0201_GALPHA1,
-            "groove2": HLA_A0201_GALPHA2,
-            "groove_seq": HLA_A0201_GALPHA1 + HLA_A0201_GALPHA2,
+            "groove1": HLA_A0201_G_ALPHA1,
+            "groove2": HLA_A0201_G_ALPHA2,
+            "groove_seq": HLA_A0201_G_ALPHA1 + HLA_A0201_G_ALPHA2,
             "groove_status": "ok",
             "is_functional": "True",
         },
