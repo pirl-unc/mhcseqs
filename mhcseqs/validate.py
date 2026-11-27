@@ -47,7 +47,7 @@ MATURE_RANGE_CLASS_II_BETA = (70, 270)  # full ~237 aa, fragments shorter
 # Expected groove lengths
 GROOVE_RANGE_CLASS_I_H1 = (80, 100)  # alpha1 half, typical ~91 aa
 GROOVE_RANGE_CLASS_I_H2 = (80, 105)  # alpha2 half, typical ~93 aa
-GROOVE_RANGE_CLASS_II_ALPHA_H1 = (70, 95)  # alpha1 groove, typical ~84 aa
+GROOVE_RANGE_CLASS_II_ALPHA_H1 = (70, 98)  # alpha1 groove, typical ~84 aa (HLA-DMA is 97 aa)
 GROOVE_RANGE_CLASS_II_BETA_H2 = (80, 105)  # beta1 groove, typical ~94 aa
 
 # B2M expected properties (including signal peptide)

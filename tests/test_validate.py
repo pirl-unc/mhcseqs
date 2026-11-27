@@ -129,6 +129,19 @@ def test_check_groove_row_unusual_length():
     assert any("alpha1 half length" in w for w in warnings)
 
 
+def test_check_groove_row_accepts_human_dma_97aa_alpha_groove():
+    """Issue #166: canonical 97-aa HLA-DMA alpha1 groove should not trigger a length warning."""
+    row = {
+        "two_field_allele": "HomoSapiens-DMA*01:01",
+        "groove_status": "ok",
+        "mhc_class": "II",
+        "chain": "alpha",
+        "groove1": "A" * 97,
+        "groove2": "",
+    }
+    assert check_groove_row(row) == []
+
+
 def test_check_mature_sequence_valid():
     row = {
         "two_field_allele": "test",
