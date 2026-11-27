@@ -29,8 +29,9 @@ r.domain_architecture
 r.domain_spans
 r.species_category  # "human"
 
-# Apply mutations (IEDB-style, e.g. "K66A")
+# Apply mutations (explicit IEDB-style list or inline mhcgnomes mutant syntax)
 m = mhcseqs.lookup("HLA-A*02:01", mutations=["K66A", "D77S"])
+m2 = mhcseqs.lookup("HLA-A*02:01 K66A mutant")
 ```
 
 `r.allele` and `r.full_allele` carry the full-binomial species prefix that
@@ -53,6 +54,7 @@ c1_complete = catalog.filter(mhc_class="I", functional_only=True, complete_only=
 # Class II Pair resolution & unified 202-slot / 46-slot pan-class IMGT features
 alpha_entry, beta_entry = catalog.resolve_pair("HLA-DQA1*01:02/DQB1*06:02")
 dr_alpha, dr_beta = catalog.resolve_pair("HLA-DRB1*01:01")  # pairs with HomoSapiens-DRA*01:01
+mut_a, mut_b = catalog.resolve_pair("HLA-DRA*01:01/DRB1*01:01 C30S mutant")
 c1_feats = catalog.pan_class_features("HLA-A*02:01")
 c2_feats = catalog.pan_class_features("HLA-DQA1*01:02", "HLA-DQB1*06:02")
 # c1_feats["seq"] / c2_feats["seq"] -> 202-char pan-class IMGT grid

@@ -545,3 +545,118 @@ def test_catalog_ux_h2_heterodimer_bf2_padding_repr_and_pair_hint():
         hit = cat.get(q)
         assert hit is not None, f"Expected hit for {q}"
         assert hit.two_field_allele == "GallusGallus-BF2*021:01"
+
+
+def test_catalog_inline_mhcgnomes_mutations_for_alleles_and_pairs():
+    """Issue #175: get, lookup, resolve_pair, and pan_class_features apply mhcgnomes inline mutations."""
+    from mhcseqs.domain_parsing import decompose_domains
+    from mhcseqs.imgt import HLA_A0201_GALPHA1, HLA_A0201_GALPHA2, HLA_DRA0101_GALPHA, HLA_DRB1_0101_GBETA
+
+    # Full-length DRB1*01:01 sequence (SP + mature GDTR... beta1 + beta2 + TM, UniProt P04229)
+    drb1_full = (
+        "MVCLKLPGGSCMTALTVTLMVLSSPLALA"
+        + "GDTR"
+        + HLA_DRB1_0101_GBETA
+        + "RVQPKVTVYPSKTQPLQHHNLLVCSVSGFYPGSIEVRWFRNGQEEKAGVVSTGLIQNGDWTFQTLVMLETVPRSGEVYTCQVEHPSVTSPLTVEW"
+        + "RARSESAQSKMLSGVGGFVLGLLFLGAGLFIYFRNQKGHSGLQPTGFLS"
+    )
+    dra_full = (
+        "MAISGVPVLGFFIIAVLMSAQESWA"
+        + "IKEEH"
+        + HLA_DRA0101_GALPHA
+        + "SPVTVLTNSPVELREPNVLICFIDKFTPPVVNVTWLRNGKPVTTGVSETVFLPREDHLFRKFHYLPFLPSTEDVYDCRVEHWGLDEPLLKHWEF"
+        + "DAPSPLPETTENVVCALGLTVGLVGIIIGTIFIIKGLRKSNAAERRGPL"
+    )
+    dra_rec = decompose_domains(dra_full, mhc_class="II", chain="alpha", allele="HomoSapiens-DRA*01:01")
+    drb1_rec = decompose_domains(drb1_full, mhc_class="II", chain="beta", allele="HomoSapiens-DRB1*01:01")
+    rows = [
+        {
+            "two_field_allele": "HomoSapiens-A*02:01",
+            "representative_allele": "HomoSapiens-A*02:01:01:01",
+            "gene": "A",
+            "mhc_class": "I",
+            "chain": "alpha",
+            "species": "Homo sapiens",
+            "species_category": "human",
+            "species_prefix": "HomoSapiens",
+            "source": "imgt",
+            "source_id": "HLA00005",
+            "sequence": _A0201_SEQ,
+            "groove1": HLA_A0201_GALPHA1,
+            "groove2": HLA_A0201_GALPHA2,
+            "groove_seq": HLA_A0201_GALPHA1 + HLA_A0201_GALPHA2,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+        {
+            "two_field_allele": "HomoSapiens-DRA*01:01",
+            "representative_allele": "HomoSapiens-DRA*01:01:01:01",
+            "gene": "DRA",
+            "mhc_class": "II",
+            "chain": "alpha",
+            "species": "Homo sapiens",
+            "species_category": "human",
+            "species_prefix": "HomoSapiens",
+            "source": "imgt",
+            "source_id": "HLA00662",
+            "sequence": dra_full,
+            "mature_start": str(dra_rec.mature_start),
+            "groove1": dra_rec.groove1,
+            "groove2": "",
+            "groove_seq": dra_rec.groove_seq,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+        {
+            "two_field_allele": "HomoSapiens-DRB1*01:01",
+            "representative_allele": "HomoSapiens-DRB1*01:01:01:01",
+            "gene": "DRB1",
+            "mhc_class": "II",
+            "chain": "beta",
+            "species": "Homo sapiens",
+            "species_category": "human",
+            "species_prefix": "HomoSapiens",
+            "source": "imgt",
+            "source_id": "HLA00664",
+            "sequence": drb1_full,
+            "mature_start": str(drb1_rec.mature_start),
+            "groove1": "",
+            "groove2": drb1_rec.groove2,
+            "groove_seq": drb1_rec.groove_seq,
+            "groove_status": "ok",
+            "is_functional": "True",
+        },
+    ]
+    cat = AlleleCatalog.from_rows(rows)
+
+    # Class I inline mutant via get, lookup, and pan_class_features
+    entry_mut = cat.get("HLA-A*02:01 K66A mutant")
+    assert entry_mut is not None and entry_mut.groove1[65] == "A"
+    rec_mut = cat.lookup("HLA-A*02:01 K66A mutant")
+    assert rec_mut.groove1[65] == "A"
+    f_wt_i = cat.pan_class_features("HLA-A*02:01")
+    f_mut_i = cat.pan_class_features("HLA-A*02:01 K66A mutant")
+    assert f_wt_i["seq"] != f_mut_i["seq"]
+
+    # Class II Pair inline mutant (885 quantitative BA rows in presto!)
+    a_mut, b_mut = cat.resolve_pair("HLA-DRA*01:01/DRB1*01:01 C30S mutant")
+    assert a_mut.groove1 == dra_rec.groove1
+    assert drb1_rec.groove2[29] == "C"
+    assert b_mut.groove2[29] == "S"
+
+    # Single DRB1 inline mutant via get and resolve_pair (auto-pairs with DRA*01:01)
+    drb1_mut = cat.get("HLA-DRB1*01:01 C30S mutant")
+    assert drb1_mut is not None and drb1_mut.groove2 == b_mut.groove2
+    a_mut2, b_mut2 = cat.resolve_pair("HLA-DRB1*01:01 C30S mutant")
+    assert b_mut2.groove2 == b_mut.groove2
+
+    # Pan-class features reflect the exact C30S substitution
+    f_wt_ii = cat.pan_class_features("HLA-DRA*01:01/DRB1*01:01")
+    f_mut_ii = cat.pan_class_features("HLA-DRA*01:01/DRB1*01:01 C30S mutant")
+    assert f_wt_ii["seq"] != f_mut_ii["seq"]
+    diffs = [(i, a, b) for i, (a, b) in enumerate(zip(f_wt_ii["seq"], f_mut_ii["seq"])) if a != b]
+    assert len(diffs) == 1 and diffs[0][1:] == ("C", "S")
+
+    # Wrong wild-type residue raises ValueError instead of silently corrupting
+    with pytest.raises(ValueError):
+        cat.resolve_pair("HLA-DRA*01:01/DRB1*01:01 A30S mutant")
