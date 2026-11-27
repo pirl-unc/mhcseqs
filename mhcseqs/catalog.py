@@ -694,15 +694,20 @@ class AlleleCatalog:
                 entry.representative_allele,
                 entry.source_id,
             ]
-            # Bridge pre-v2.18.0 CSV rows that used legacy gene-less
-            # "<Species>*<db>:<acc> [class I|II]" formatting so lookups
-            # normalized by mhcgnomes >= 3.92.0 ("<Species>-<db>:<acc>") still
-            # hit cached older CSVs in O(1) time.
+            # Bridge gene-less AccessionedAllele formats across mhcgnomes versions:
+            # - mhcgnomes >= 3.95.0: "<Species>-classI*<db>:<acc>" -> "<Species>-<db>:<acc>"
+            # - legacy pre-v2.18.0:  "<Species>*<db>:<acc> [class I|II]" -> "<Species>-<db>:<acc>"
             tfa = entry.two_field_allele
             if "*" in tfa and ":" in tfa:
                 left, right = tfa.split("*", 1)
-                if left and "-" not in left and ":" in right:
-                    raw_tokens.append(f"{left}-{right.split()[0]}")
+                if left and ":" in right:
+                    db_acc = right.split()[0]
+                    if "-" not in left:
+                        raw_tokens.append(f"{left}-{db_acc}")
+                    else:
+                        sp_part, maybe_cls = left.rsplit("-", 1)
+                        if sp_part and maybe_cls.casefold() in ("classi", "classii"):
+                            raw_tokens.append(f"{sp_part}-{db_acc}")
             # Index mhcgnomes-canonicalized aliases for curated short-prefix mouse H2 / rat RT1
             # rows (e.g. "H2-Ab1*b" -> "h2-ab*b", "H2-Eb1*k" -> "h2-eb*k") so Class II heterodimer
             # queries like "H2-IAb" and "H2-IEk" resolve in O(1) time.

@@ -148,6 +148,13 @@ def _cached_query_candidates(token: str) -> frozenset[str]:
         for obj in (parsed, restricted):
             candidates.add(canonical_allele_name(obj).casefold())
             candidates.add(str(obj.to_string()).casefold())
+            # Bridge mhcgnomes >= 3.95.0 class-qualified gene-less AccessionedAllele
+            # ("Species-classI*uniprot:ACC") <-> class-agnostic ("Species-uniprot:ACC")
+            # so queries with or without class match both older and newer catalogs.
+            if isinstance(obj, mhcgnomes.AccessionedAllele) and obj.gene is None and obj.mhc_class is not None:
+                unqualified = obj.copy(mhc_class=None)
+                candidates.add(canonical_allele_name(unqualified).casefold())
+                candidates.add(str(unqualified.to_string()).casefold())
 
         # Bridge genus-level prefixes (e.g. FLA -> Felis sp., BoLA -> Bos sp.)
         # and member species (e.g. Felis catus, Bos taurus) using mhcgnomes'
@@ -176,8 +183,7 @@ def _cached_query_candidates(token: str) -> frozenset[str]:
                 for obj in (parsed, restricted):
                     body = str(obj.to_string(include_species=False))
                     if body:
-                        sep = "*" if isinstance(obj, mhcgnomes.AccessionedAllele) and obj.gene is None else "-"
-                        candidates.add(f"{rel_prefix}{sep}{body}".casefold())
+                        candidates.add(f"{rel_prefix}-{body}".casefold())
 
         # Bridge 2-digit <-> 3-digit zero-padded numeric first allele fields
         # (e.g. literature "BF2*21:01" / "Gaga-BF2*21:01" <-> IPD-MHC "GallusGallus-BF2*021:01").
