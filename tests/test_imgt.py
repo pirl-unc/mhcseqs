@@ -546,17 +546,26 @@ def test_fixed_frame_schema_and_hla_a0201_gap_vs_missing():
     assert not aln.has_overflow_insertions
 
 
-def test_fixed_frame_ptal_and_trvu_populate_54abc_without_shifting_backbone():
+def test_fixed_frame_ptal_and_trvu_preserve_backbone_and_order():
     ptal = map_groove_positions(_PTAL_N0101_G1, _PTAL_N0101_G2)
     trvu = map_groove_positions(_TRVU_UB0101_G1, _TRVU_UB0101_G2)
     hla = map_groove_positions(HLA_A0201_GALPHA1, HLA_A0201_GALPHA2)
 
     assert len(ptal.fixed_seq) == len(trvu.fixed_seq) == len(hla.fixed_seq) == 198
-    assert ptal.extract_imgt_slots([("G-ALPHA1", "54A"), ("G-ALPHA1", "54B"), ("G-ALPHA1", "54C")]) == "MDL"
+    # Trvu-UB*01:01 alpha1 inserts VGE right after IMGT 54 -> populates 54A-54C without overflow;
+    # alpha2 inserts 'S' after IMGT 62 -> stays in overflow + insertion_counts['62']=1 instead of scrambling before 62='R'.
     assert trvu.extract_imgt_slots([("G-ALPHA1", "54A"), ("G-ALPHA1", "54B"), ("G-ALPHA1", "54C")]) == "VGE"
+    assert trvu.alpha1 is not None and not trvu.alpha1.has_overflow_insertions
+    assert trvu.alpha2 is not None and trvu.alpha2.has_overflow_insertions
+    idx_h2_62 = IMGT_PAN_CLASS_GROOVE_SLOTS.index(("HALF2", "62"))
+    assert trvu.pan_class_insertion_counts[idx_h2_62] == 1
+    # Ptal-N*01:01 inserts MDL after W51 (before V52/E53/Q54): stays in overflow + insertion_counts['51']=3
+    # rather than teleporting MDL past VEQ into 54A-54C (issue #177 monotonic order invariant).
+    assert ptal.extract_imgt_slots([("G-ALPHA1", "54A"), ("G-ALPHA1", "54B"), ("G-ALPHA1", "54C")]) == "---"
+    assert ptal.has_overflow_insertions
+    idx_51 = IMGT_PAN_CLASS_GROOVE_SLOTS.index(("HALF1", "51"))
+    assert ptal.pan_class_insertion_counts[idx_51] == 3
     assert hla.extract_imgt_slots([("G-ALPHA1", "54A"), ("G-ALPHA1", "54B"), ("G-ALPHA1", "54C")]) == "---"
-    assert not ptal.has_overflow_insertions
-    assert not trvu.has_overflow_insertions
 
     # Downstream canonical indices in fixed_seq stay perfectly homologous across all three species
     idx_y59 = IMGT_CLASS_I_GROOVE_SLOTS.index(("G-ALPHA1", "59"))
@@ -763,14 +772,24 @@ def test_fixed_frame_tracks_overflow_insertions_losslessly():
     assert "mdlvk" in aln.alpha1.a3m_seq
 
 
-def test_center_out_insertion_slot_filling():
-    # 2-aa insertion in AB-turn (Mafa-F*02:01) fills flanking 19A & 19C with center gap 19B='-'
+def test_left_aligned_insertion_slot_filling_and_no_transposition():
+    # Issue #177: Mafa-F*02:01 inserts 'RY' after IMGT 20 (P20), NOT after 19.
+    # It must NOT teleport 'RY' before P20 into 19A-19C; instead 19A-19C stay '---'
+    # and pan_class_insertion_counts records +2 at HALF1:20.
     mafa = map_groove_positions(_MAFA_F0201_G1, _MAFA_F0201_G2)
     ab_slots = mafa.extract_imgt_slots([("G-ALPHA1", "19A"), ("G-ALPHA1", "19B"), ("G-ALPHA1", "19C")])
-    assert ab_slots[1] == "-"
-    assert ab_slots[0] != "-" and ab_slots[2] != "-"
+    assert ab_slots == "---"
+    idx_20 = IMGT_PAN_CLASS_GROOVE_SLOTS.index(("HALF1", "20"))
+    assert mafa.pan_class_insertion_counts[idx_20] == 2
     assert len(mafa.alpha1.residues) == 91
     assert "".join(r.aa for r in mafa.alpha1.residues) == _MAFA_F0201_G1
+
+    # Direct 1-aa and 2-aa insertions right after IMGT 54 fill left-aligned (54A, 54B)
+    # identically for Class I G-ALPHA1 and Class II G-ALPHA.
+    c1_ins1 = align_domain_to_imgt(HLA_A0201_GALPHA1[:54] + "K" + HLA_A0201_GALPHA1[54:], "G-ALPHA1")
+    c2_ins1 = align_domain_to_imgt(HLA_DRA0101_GALPHA[:50] + "K" + HLA_DRA0101_GALPHA[50:], "G-ALPHA")
+    assert (c1_ins1.pan_class_slot_to_aa["54A"], c1_ins1.pan_class_slot_to_aa["54B"], c1_ins1.pan_class_slot_to_aa["54C"]) == ("K", "-", "-")
+    assert (c2_ins1.pan_class_slot_to_aa["54A"], c2_ins1.pan_class_slot_to_aa["54B"], c2_ins1.pan_class_slot_to_aa["54C"]) == ("K", "-", "-")
 
 
 # ---------------------------------------------------------------------------
@@ -961,8 +980,8 @@ def test_pan_class_frame_buckets_galpha_54c_and_tracks_insertion_counts():
     assert aln_a.pan_class_slot_to_aa["54C"] == "P"
     assert sum(aln_a.pan_class_insertion_counts) == 0
 
-    # Synthesize a +5 aa insertion after Class I W51 (3 fill 54A-54C, 2 overflow -> count 2 at 54C)
-    long_ins_g1 = HLA_A0201_GALPHA1[:51] + "MDLVK" + HLA_A0201_GALPHA1[51:]
+    # Synthesize a +5 aa insertion after Class I IMGT 54 (3 fill 54A-54C, 2 overflow -> count 2 at 54C)
+    long_ins_g1 = HLA_A0201_GALPHA1[:54] + "MDLVK" + HLA_A0201_GALPHA1[54:]
     aln_c1 = map_groove_positions(long_ins_g1, HLA_A0201_GALPHA2 + "D")
     feats = aln_c1.to_pan_class_features()
     assert feats["mhc_class"] == "I"
@@ -974,3 +993,69 @@ def test_pan_class_frame_buckets_galpha_54c_and_tracks_insertion_counts():
     assert feats["insertion_counts"][idx_54c] == 2
     assert sum(feats["insertion_counts"]) == 2
     assert feats["c_term_overhang_half2"] == "D"
+
+
+def test_pan_class_monotonic_subsequence_galpha_40_41_and_92a_regression():
+    """Issue #177: zero residue transposition, no G-ALPHA 40/41 double-counting, no spurious 92A 'X'."""
+
+    def _is_subseq(sub: str, full: str) -> bool:
+        it = iter(full)
+        return all(ch in it for ch in sub)
+
+    # 1. Chicken BF2*21:01 (55.1='T', 89-aa alpha1): NT must stay in order and HALF1:92A must be '-' (not 'X')
+    bf2_g1 = "ELHTLRYIRTAMTDPGPGLPWFVDVGYVDGELFMHYNSTARRAVPRTEWIAANTDQQYWDRETQIVQGSEQINRENLDILRRRYNQTG"
+    bf2_g2 = "GSHTVQWMSGCDILEDGTIRGYHQAAYDGRDFVAFDKGTMTLTAAVPEAVPTKRKWEEGGYAEGLKQYLEETCVEWLRRYVEYGKAELGRRE"
+    bf2 = map_groove_positions(bf2_g1, bf2_g2)
+    assert bf2.alpha1 is not None and bf2.alpha2 is not None
+    assert _is_subseq(bf2.alpha1.fixed_seq.replace("-", "").replace("X", ""), bf2_g1)
+    assert _is_subseq(bf2.alpha1.pan_class_fixed_seq.replace("-", "").replace("X", ""), bf2_g1)
+    assert _is_subseq(bf2.alpha2.pan_class_fixed_seq.replace("-", "").replace("X", ""), bf2_g2)
+    assert bf2.alpha1.pan_class_slot_to_aa["90"] == "X"
+    assert bf2.alpha1.pan_class_slot_to_aa["92A"] == "-"
+    # Off-boundary 55.1='T' stays in insertion_counts['55'] rather than jumping ahead of 55='N'
+    idx_55 = IMGT_PAN_CLASS_GROOVE_SLOTS.index(("HALF1", "55"))
+    assert bf2.pan_class_insertion_counts[idx_55] == 1
+
+    # 2. G-ALPHA 39.1 insertion populates pan-class slot 40 with ZERO double-counted overflow
+    a0 = align_domain_to_imgt(HLA_DRA0101_GALPHA, "G-ALPHA")
+    idx39 = [r.query_index for r in a0.residues if r.imgt_pos == "39"][0]
+    galpha_ins39 = HLA_DRA0101_GALPHA[: idx39 + 1] + "Q" + HLA_DRA0101_GALPHA[idx39 + 1 :]
+    a39 = align_domain_to_imgt(galpha_ins39, "G-ALPHA")
+    assert _is_subseq(a39.pan_class_fixed_seq.replace("-", "").replace("X", ""), galpha_ins39)
+    if any(ins.after_imgt_pos == "39" for ins in a39.insertions):
+        assert a39.pan_class_slot_to_aa["40"] == "Q"
+        assert not a39.has_pan_class_overflow_insertions
+        assert sum(a39.pan_class_insertion_counts) == 0
+
+    # 3. Direct unit check on _build_pan_class_frame for G-ALPHA 39.1 -> slot 40 without overflow
+    from mhcseqs.imgt import GrooveInsertion, _build_fixed_frame, _build_pan_class_frame
+
+    ins39 = (
+        GrooveInsertion(
+            domain="G-ALPHA",
+            after_mature_pos=35,
+            after_imgt_pos="39",
+            sequence="Q",
+            query_start=35,
+            imgt_codes=("39.1",),
+            structural_element="CD-TURN",
+        ),
+    )
+    _, _, fixed_map, fixed_ov = _build_fixed_frame("G-ALPHA", a0.imgt_to_aa, ins39)
+    _, _, pan_map, pan_ov, pan_counts = _build_pan_class_frame("G-ALPHA", fixed_map, a0.imgt_to_aa, ins39)
+    assert fixed_map["40"] == "Q" and not fixed_ov
+    assert pan_map["40"] == "Q" and not pan_ov and sum(pan_counts) == 0
+
+    # 4. Monotonic subsequence check across Ptal-N, Trvu-UB, Mafa-F, and human Class II
+    for g1, g2, cls in [
+        (_PTAL_N0101_G1, _PTAL_N0101_G2, "I"),
+        (_TRVU_UB0101_G1, _TRVU_UB0101_G2, "I"),
+        (_MAFA_F0201_G1, _MAFA_F0201_G2, "I"),
+        (_HLA_DQA1_0101_GROOVE, _HLA_DQB1_0201_GROOVE, "II"),
+        (_HLA_DPA1_0103_GROOVE, _HLA_DPB1_0101_GROOVE, "II"),
+    ]:
+        aln = align_groove_to_imgt(g1, g2, mhc_class=cls)
+        assert _is_subseq(aln.alpha1.fixed_seq.replace("-", "").replace("X", ""), g1)
+        assert _is_subseq(aln.alpha1.pan_class_fixed_seq.replace("-", "").replace("X", ""), g1)
+        assert _is_subseq(aln.alpha2.fixed_seq.replace("-", "").replace("X", ""), g2)
+        assert _is_subseq(aln.alpha2.pan_class_fixed_seq.replace("-", "").replace("X", ""), g2)

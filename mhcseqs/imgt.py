@@ -573,26 +573,30 @@ IMGT_PAN_CLASS_POCKET_SLOTS: tuple[tuple[str, str], ...] = tuple(
 )
 
 # Hotspot bucket definitions: (anchor_imgt_positions, target_slots, flanking_backbone_pair, fill_mode)
-# fill_mode: "center_out" (1->mid, 2->flanks, 3->all) or "cd_turn" (1->40, 2->40+41, 3->40+40B+41, ...)
-# or "left" (1->61B, 2->61B+61C)
+# Each hotspot tuple sits strictly between its flanking backbone pair (left_flank, right_flank)
+# and ONLY absorbs insertions anchored at left_flank so fixed_seq / pan_class_fixed_seq never
+# transpose residues across canonical columns (100% monotonic subsequence invariant).
+# Sequential insertion slots use "left" fill uniformly across Class I and Class II;
+# the 5-slot CD-turn ("40", "40A", "40B", "40C", "41") uses symmetric "cd_turn" fill
+# because 40 and 41 are canonical flanking positions.
 _GALPHA1_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
-    (frozenset(str(i) for i in range(14, 22)), ("19A", "19B", "19C"), ("19", "20"), "center_out"),
-    (frozenset(str(i) for i in range(50, 59)), ("54A", "54B", "54C"), ("54", "55"), "center_out"),
+    (frozenset({"19"}), ("19A", "19B", "19C"), ("19", "20"), "left"),
+    (frozenset({"54"}), ("54A", "54B", "54C"), ("54", "55"), "left"),
 )
 _GALPHA2_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
-    (frozenset(str(i) for i in range(11, 21)), ("13A", "13B", "13C"), ("13", "14"), "center_out"),
-    (frozenset({"37", "38", "39", "42", "43", "44"}), ("40", "40A", "40B", "40C", "41"), ("39", "42"), "cd_turn"),
-    (frozenset({"58", "59", "60", "61", "61A", "62", "63", "64", "65", "66"}), ("61B", "61C"), ("61A", "62"), "left"),
+    (frozenset({"13"}), ("13A", "13B", "13C"), ("13", "14"), "left"),
+    (frozenset({"39"}), ("40", "40A", "40B", "40C", "41"), ("39", "42"), "cd_turn"),
+    (frozenset({"61A"}), ("61B", "61C"), ("61A", "62"), "left"),
 )
 _GALPHA_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
-    (frozenset({"5", "6", "7", "8", "9", "10", "11"}), ("7A",), ("7", "8"), "left"),
-    (frozenset({"37", "38", "39", "42", "43"}), ("40", "41"), ("39", "42"), "left"),
-    (frozenset({"50", "51", "52", "53", "54", "55", "56"}), ("54A", "54B"), ("54", "55"), "left"),
+    (frozenset({"7"}), ("7A",), ("7", "8"), "left"),
+    (frozenset({"39"}), ("40", "41"), ("39", "42"), "left"),
+    (frozenset({"54"}), ("54A", "54B"), ("54", "55"), "left"),
 )
 _GBETA_HOTSPOTS: tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...] = (
-    (frozenset(str(i) for i in range(11, 22)), ("13A", "13B", "13C"), ("13", "14"), "center_out"),
-    (frozenset({"37", "38", "39", "42", "43", "44"}), ("40", "40A", "40B", "40C", "41"), ("39", "42"), "cd_turn"),
-    (frozenset({"58", "59", "60", "61", "61A", "61B", "62", "63", "64", "65"}), ("61C",), ("61B", "62"), "left"),
+    (frozenset({"13"}), ("13A", "13B", "13C"), ("13", "14"), "left"),
+    (frozenset({"39"}), ("40", "40A", "40B", "40C", "41"), ("39", "42"), "cd_turn"),
+    (frozenset({"61B"}), ("61C",), ("61B", "62"), "left"),
 )
 
 
@@ -1575,7 +1579,7 @@ _PAN_CLASS_EXTRA_SLOT_FLANKS: dict[str, dict[str, tuple[str, ...]]] = {
         "1.2": ("1",),
         "1.1": ("1",),
         "7A": ("7", "8"),
-        "92A": ("90",),
+        "92A": ("88",),
     },
     "G-ALPHA": {
         "16": ("15", "20"),
@@ -1590,7 +1594,7 @@ _PAN_CLASS_EXTRA_SLOT_FLANKS: dict[str, dict[str, tuple[str, ...]]] = {
         "58": ("56", "61"),
         "59": ("56", "61"),
         "60": ("56", "61"),
-        "92A": ("90",),
+        "92A": ("88",),
     },
     "G-ALPHA2": {},
     "G-BETA": {
@@ -1603,21 +1607,21 @@ _PAN_CLASS_EXTRA_SLOT_FLANKS: dict[str, dict[str, tuple[str, ...]]] = {
 
 
 # Pan-class hotspot buckets used when projecting directly onto the 202-slot
-# shared pan-class IMGT frame. Unlike class-specific frames, HALF1 includes
-# 7A (A-strand), 19A-19C (AB-turn), and 54A-54C (N-helix hinge) for BOTH
-# Class I G-ALPHA1 and Class II G-ALPHA so 3-aa teleost G-ALPHA hinge
-# insertions (54A-54C) and G-ALPHA1 7A insertions populate their pan-class
-# slots directly instead of overflowing.
+# shared pan-class IMGT frame. Each bucket is strictly anchored at its exact
+# monotonic left-flanking IMGT column (preventing residue transposition across
+# canonical columns) and uses uniform "left" fill across Class I and Class II
+# (with symmetric "cd_turn" fill on HALF2 40..41).
 _PAN_HALF1_HOTSPOTS: dict[str, tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...]] = {
     "G-ALPHA1": (
-        (frozenset({"5", "6", "7", "8", "9", "10", "11"}), ("7A",), ("7", "8"), "left"),
-        (frozenset(str(i) for i in range(14, 22)), ("19A", "19B", "19C"), ("19", "20"), "center_out"),
-        (frozenset(str(i) for i in range(50, 59)), ("54A", "54B", "54C"), ("54", "55"), "center_out"),
+        (frozenset({"7"}), ("7A",), ("7", "8"), "left"),
+        (frozenset({"19"}), ("19A", "19B", "19C"), ("19", "20"), "left"),
+        (frozenset({"54"}), ("54A", "54B", "54C"), ("54", "55"), "left"),
     ),
     "G-ALPHA": (
-        (frozenset({"5", "6", "7", "8", "9", "10", "11"}), ("7A",), ("7", "8"), "left"),
-        (frozenset({"14", "15", "20", "21"}), ("19A", "19B", "19C"), ("15", "20"), "center_out"),
-        (frozenset({"50", "51", "52", "53", "54", "55", "56"}), ("54A", "54B", "54C"), ("54", "55"), "left"),
+        (frozenset({"7"}), ("7A",), ("7", "8"), "left"),
+        (frozenset({"15"}), ("19A", "19B", "19C"), ("15", "20"), "left"),
+        (frozenset({"39"}), ("40", "41"), ("39", "42"), "left"),
+        (frozenset({"54"}), ("54A", "54B", "54C"), ("54", "55"), "left"),
     ),
 }
 _PAN_HALF2_HOTSPOTS: dict[str, tuple[tuple[frozenset[str], tuple[str, ...], tuple[str, str], str], ...]] = {
