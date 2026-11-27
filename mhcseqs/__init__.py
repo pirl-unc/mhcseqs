@@ -579,37 +579,10 @@ def lookup(
     >>> m.groove1[65]                                # doctest: +SKIP
     'A'
     """
-    from dataclasses import replace
-
     query = allele.strip()
     p = _resolve("find_csv")(_resolve("FULL_SEQS_CSV"), search_dir=search_dir)
     catalog = _resolve("load_catalog")(p)
-    entry = catalog.get(query)
-    if entry is None:
-        raise KeyError(f"Allele {query!r} not found in {p}")
-
-    result = _resolve("decompose_domains")(
-        entry.sequence,
-        mhc_class=entry.mhc_class,
-        chain=entry.chain,
-        allele=entry.two_field_allele,
-        gene=entry.gene,
-        species=entry.species,
-        mutations=mutations,
-    )
-
-    final_seq = result.sequence if result.mutations and result.sequence else entry.sequence
-    return replace(
-        result,
-        full_allele=entry.representative_allele,
-        species=entry.species,
-        species_category=entry.species_category,
-        species_prefix=entry.species_prefix,
-        source=entry.source,
-        source_id=entry.source_id,
-        sequence=final_seq,
-        seq_len=len(final_seq),
-    )
+    return catalog.lookup(query, mutations=mutations)
 
 
 __all__ = [

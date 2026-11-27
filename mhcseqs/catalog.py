@@ -644,8 +644,8 @@ class AlleleCatalog:
     Supports exact canonical keys, case-insensitive short aliases (``HLA-A*02:01``,
     ``A0201``, ``H2-Kb``), genus/species bridging (``FLA-E*003:01`` <->
     ``FelisCatus-E*003:01``), ``AccessionedAllele`` identifiers
-    (``Saha-uniprot:G3V1L5``, plus legacy ``Saha*uniprot:G3V1L5 class I``), and
-    bare ``source_id`` database accessions (``G3V1L5``, ``P01898``).
+    (``Saha-DAB*uniprot:B3F369``), and bare ``source_id`` database accessions
+    (``B3F369``, ``P01898``).
     """
 
     def __init__(
@@ -681,6 +681,11 @@ class AlleleCatalog:
                 left, right = tfa.split("*", 1)
                 if left and "-" not in left and ":" in right:
                     raw_tokens.append(f"{left}-{right.split()[0]}")
+            # Index mhcgnomes-canonicalized aliases for curated short-prefix mouse H2 / rat RT1
+            # rows (e.g. "H2-Ab1*b" -> "h2-ab*b", "H2-Eb1*k" -> "h2-eb*k") so Class II heterodimer
+            # queries like "H2-IAb" and "H2-IEk" resolve in O(1) time.
+            if tfa.startswith(("H2-", "RT1-")):
+                raw_tokens.extend(build_query_candidates(tfa))
             if extra_lookup_tokens and idx in extra_lookup_tokens:
                 raw_tokens.extend(extra_lookup_tokens[idx])
             for token in raw_tokens:
@@ -701,6 +706,11 @@ class AlleleCatalog:
 
     def __len__(self) -> int:
         return len(self._entries)
+
+    def __repr__(self) -> str:
+        if self.path is not None:
+            return f"AlleleCatalog({len(self._entries):,} entries, path={str(self.path)!r})"
+        return f"AlleleCatalog({len(self._entries):,} entries)"
 
     def __iter__(self) -> Iterator[CatalogEntry]:
         return iter(self._entries)
@@ -887,10 +897,19 @@ class AlleleCatalog:
         mutations: str | Sequence[str] = (),
     ) -> AlleleRecord:
         """Look up *allele* and return a fully decomposed :class:`AlleleRecord`."""
-        entry = self.get(allele)
+        token = (allele or "").strip()
+        entry = self.get(token)
         if entry is None:
+            import mhcgnomes
+
+            parsed = mhcgnomes.parse(token, raise_on_error=False)
+            if isinstance(parsed, mhcgnomes.Pair):
+                raise KeyError(
+                    f"Allele {token!r} is a Class II heterodimer pair; "
+                    f"use catalog.resolve_heterodimer({token!r}) or catalog.pan_class_features({token!r})."
+                )
             loc = f" in {self.path}" if self.path is not None else ""
-            raise KeyError(f"Allele {allele.strip()!r} not found{loc}")
+            raise KeyError(f"Allele {token!r} not found{loc}")
         return entry.as_allele_record(mutations=mutations)
 
     def lookup_many(
