@@ -28,8 +28,10 @@ from mhcseqs.imgt import (
     load_class_ii_profile,
 )
 from mhcseqs.pipeline import (
+    CURATED_GENBANK_CSV,
     CURATED_UNIPROT_ALLELES_CSV,
     GENBANK_SAHA_CSV,
+    load_curated_genbank_references,
     load_curated_uniprot_allele_map,
     load_genbank_saha_references,
 )
@@ -44,6 +46,7 @@ RUNTIME_DATA_PATHS = (
     IMGT_CLASS_I_PROFILE_PATH,
     IMGT_CLASS_II_PROFILE_PATH,
     GENBANK_SAHA_CSV,
+    CURATED_GENBANK_CSV,
     CURATED_UNIPROT_ALLELES_CSV,
 )
 
@@ -89,6 +92,7 @@ def test_fail_soft_loaders_actually_loaded_something():
     assert load_sp_boundary_model().get("groups"), "SP boundary model did not load; scoring would degrade to 0.0"
     assert load_sp_sequence_cue_model(), "SP sequence-cue model did not load; cue scores would degrade to 0.0"
     assert load_genbank_saha_references(), "GenBank SahaI references did not load; devil alleles would be dropped"
+    assert load_curated_genbank_references(), "Curated GenBank references did not load; non-IPD SLA alleles would be dropped"
     assert load_curated_uniprot_allele_map(), "Curated UniProt allele map did not load; named non-IPD alleles would be dropped"
     profile = load_class_i_profile()
     assert profile.get("domains", {}).get("G-ALPHA1") and profile.get("domains", {}).get("G-ALPHA2"), "IMGT Class I profile did not load"

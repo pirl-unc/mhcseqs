@@ -55,6 +55,8 @@ CURATED_UNIPROT_ALLELES_CSV = Path(__file__).resolve().parent / "curated_uniprot
 # Tasmanian devil SahaI alleles from GenBank (Siddle/Cheng et al. 2010-2015),
 # including the DFT2-relevant alleles from Caldwell et al. 2018.
 GENBANK_SAHA_CSV = Path(__file__).resolve().parent / "genbank_saha_sequences.csv"
+# Curated primary-source GenBank/PDB MHC alleles missing from upstream IPD-MHC.
+CURATED_GENBANK_CSV = Path(__file__).resolve().parent / "curated_genbank_sequences.csv"
 
 # Curated source groups that provide a reliable broad taxonomy when the
 # species-name normalizer has no entry for the organism's genus.
@@ -727,6 +729,87 @@ def load_genbank_saha_references() -> List[dict]:
     return rows
 
 
+def load_curated_genbank_references() -> List[dict]:
+    """Load curated primary-source GenBank/PDB MHC alleles missing from IPD-MHC."""
+    if not CURATED_GENBANK_CSV.exists():
+        return []
+    rows = []
+    with open(CURATED_GENBANK_CSV, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            seq = sanitize_protein_sequence(row.get("sequence", ""))
+            if not seq or len(seq) < MIN_MHC_SEQUENCE_LEN:
+                continue
+            allele_raw = row["allele_name"].strip()
+            gene = row.get("gene", "").strip()
+            mhc_class = row.get("mhc_class", "").strip()
+            chain = row.get("chain", "").strip()
+            species = row.get("species", "").strip()
+            species_category = row.get("species_category", "").strip()
+            species_prefix = row.get("species_prefix", "").strip()
+            source = row.get("source", "genbank").strip() or "genbank"
+            accession = row.get("accession", "").strip()
+            is_fragment = row.get("is_fragment", "False") == "True"
+
+            parsed = parse_allele_name(allele_raw)
+            if parsed is not None:
+                allele_normalized = canonical_allele_name(parsed, allele_fields=2)
+                two_field = allele_normalized
+                gene_obj = getattr(parsed, "gene", None)
+                if gene_obj is not None and gene_obj.name:
+                    gene = str(gene_obj.name)
+                sp_obj = getattr(parsed, "species", None)
+                if sp_obj is not None:
+                    species_prefix = canonical_species_prefix(sp_obj) or species_prefix
+                    if sp_obj.name:
+                        species = sp_obj.name
+            else:
+                allele_normalized = allele_raw
+                two_field = allele_raw
+
+            features = analyze_sequence(seq)
+            groove = parse_domain_record(
+                seq,
+                mhc_class=mhc_class,
+                gene=gene,
+                allele=allele_normalized,
+                chain=chain,
+                species=species,
+                features=features,
+            )
+            mature_start = groove.mature_start if groove and groove.ok and groove.mature_start > 0 else 0
+            mature_start, has_sp, sp_seq = _signal_peptide_fields(
+                seq,
+                mature_start,
+                species_category,
+                mhc_class,
+                features=features,
+            )
+            rows.append(
+                {
+                    "allele_raw": allele_raw,
+                    "allele_normalized": allele_normalized,
+                    "two_field_allele": two_field,
+                    "gene": gene,
+                    "mhc_class": mhc_class,
+                    "chain": chain,
+                    "species": species,
+                    "species_category": species_category,
+                    "species_prefix": species_prefix,
+                    "source": source,
+                    "source_id": accession,
+                    "seq_len": str(len(seq)),
+                    "sequence": seq,
+                    "has_signal_peptide": str(has_sp),
+                    "signal_peptide_len": str(mature_start),
+                    "signal_peptide_seq": sp_seq,
+                    "is_null": "False",
+                    "is_questionable": str(is_fragment),
+                    "is_pseudogene": "False",
+                }
+            )
+    return rows
+
+
 def parse_diverse_gene_class(gene: str, *, species: str) -> Optional[dict]:
     """Resolve MHC class and chain for a diverse-bundle gene label.
 
@@ -1087,6 +1170,15 @@ def build_raw_index(
         elif records[key].get("source") == "genbank" and len(sr["sequence"]) > len(records[key]["sequence"]):
             records[key] = sr
             stats["replaced"] += 1
+
+    # Inject curated primary-source GenBank/PDB alleles missing from IPD-MHC.
+    curated_gb_rows = load_curated_genbank_references()
+    for gr in curated_gb_rows:
+        key = gr["allele_normalized"]
+        if key not in records:
+            records[key] = gr
+            stats["parsed"] += 1
+            stats["curated_genbank_references"] = stats.get("curated_genbank_references", 0) + 1
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     with open(out_csv, "w", newline="", encoding="utf-8") as f:
