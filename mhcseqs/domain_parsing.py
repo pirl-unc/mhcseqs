@@ -548,7 +548,7 @@ def decompose_class_ii_alpha(
             _build_class_ii_alpha1_salvage_result(seq=cleaned, allele=allele, gene=gene, features=features),
         )
 
-    if len(cleaned) <= grammar.fragment_max_len and _is_plausible_class_ii_fragment(cleaned, "alpha"):
+    if len(cleaned) <= grammar.fragment_max_len:
         _append_record_candidate(
             candidates,
             _class_ii_fragment_result(seq=cleaned, allele=allele, gene=gene, chain="alpha"),
@@ -566,7 +566,10 @@ def decompose_class_ii_alpha(
             flags=grammar.missing_no_anchor_flags,
         ),
     )
-    return _apply_requested_mutations(_select_best_record_candidate(candidates), mutations)
+    selected = _select_best_record_candidate(candidates)
+    if selected.status == "fragment_fallback" and not _is_plausible_class_ii_fragment(cleaned, "alpha"):
+        selected = _select_best_record_candidate([c for c in candidates if c.status != "fragment_fallback"])
+    return _apply_requested_mutations(selected, mutations)
 
 
 # ---------------------------------------------------------------------------
@@ -669,7 +672,7 @@ def decompose_class_ii_beta(
             ),
         )
 
-    if len(cleaned) <= grammar.fragment_max_len and _is_plausible_class_ii_fragment(cleaned, "beta"):
+    if len(cleaned) <= grammar.fragment_max_len:
         _append_record_candidate(
             candidates,
             _class_ii_fragment_result(seq=cleaned, allele=allele, gene=gene, chain="beta"),
@@ -691,7 +694,10 @@ def decompose_class_ii_beta(
             flags=missing_flags,
         ),
     )
-    return _apply_requested_mutations(_select_best_record_candidate(candidates), mutations)
+    selected = _select_best_record_candidate(candidates)
+    if selected.status == "fragment_fallback" and not _is_plausible_class_ii_fragment(cleaned, "beta"):
+        selected = _select_best_record_candidate([c for c in candidates if c.status != "fragment_fallback"])
+    return _apply_requested_mutations(selected, mutations)
 
 
 # ---------------------------------------------------------------------------
