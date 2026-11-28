@@ -827,3 +827,173 @@ def test_emit_full_row_preserves_truncated_class_i_leader_stub():
     assert row["mature_start"] == "12"
     assert row["groove1_len"] == "90"
     assert row["groove1"].startswith("GSHSMRYF")
+
+
+def test_try_assemble_overlap_single_domain_91aa():
+    """Issue #183: complementary Class I fragments overlapping by one full ~91-aa alpha2 exon assemble."""
+    from mhcseqs.pipeline import _classify_group
+
+    a1 = "GSHSMRYFYTSMSRPGRGQPRFIAVGYVDDTQFVRFDSDAASPRMEPRAPWIEQEGPEYWDGETRNMKAHSQTDRANLGTLRGYYNQSEA"
+    a2 = "GSHTIQMMYGCDVGSDGRLLRGYEQDAYDGKDYIALNEDLRSWTAADMAAQNTQRKWEAARVAEQLRAYLEGECVEWLRRYLENGKETLQR"  # 91 aa
+    a3 = "ADPPKTHVTHHPVSDHEATLRCWALGFYPAEITLTWQRDGEDQTQDTELVETRPAGDGTFQKWAAVVVPSGEEQRYTCHVQHEGLPEPLTLRW"
+    tail = "EPSSQPTIPIVGIIAGLVLFGAVITGAVVAAVMWRRKSSDRKGGSYSQAASSDSAQGSDVSLTA"
+    members = [
+        {
+            "allele_normalized": "EquusCaballus-1*010:01",
+            "two_field_allele": "EquusCaballus-1*010:01",
+            "sequence": a2 + a3 + tail,
+            "mhc_class": "I",
+            "gene": "1",
+            "chain": "alpha",
+            "species": "Equus caballus",
+            "signal_peptide_len": "0",
+        },
+        {
+            "allele_normalized": "EquusCaballus-1*010:01:01",
+            "two_field_allele": "EquusCaballus-1*010:01",
+            "sequence": a1 + a2,
+            "mhc_class": "I",
+            "gene": "1",
+            "chain": "alpha",
+            "species": "Equus caballus",
+            "signal_peptide_len": "0",
+        },
+    ]
+    rep, assembled, policy, _details = _classify_group("EquusCaballus-1*010:01", members)
+    assert policy == "assembled_overlap"
+    assert rep is not None
+    assert assembled == a1 + a2 + a3 + tail
+
+
+def test_classify_group_discards_missing_groove_member():
+    """Issue #183: out-of-frame missing_groove deposits do not block valid groove-bearing alleles."""
+    from mhcseqs.pipeline import _classify_group
+
+    valid_beta = (
+        "RGSRMAALIVMLMALSPPLAWARKIQPHFLEYTKKECRFSNGTERVRFLDRYFHNGEETLRFDSDVGEFRAV"
+        "TELGRPDAEYWNSQKDFLEQRRAAVDTYCRHNYGVGESFTVQRRVEPKVTVYPAKTQPLQHHNLLVCSVNGF"
+        "YPGSIEVRWFRNG"
+    )
+    out_of_frame = "HISWSILRKSVVSPTGRSGCGSWTDTSIMEKRPCASTAIGASTERWPSWGGRTPSTGTARRTGRPGPSWCGWTGTATWWRVSVCSG"
+    members = [
+        {
+            "allele_normalized": "OvisAries-DRB1*01:03",
+            "two_field_allele": "OvisAries-DRB1*01:03",
+            "sequence": valid_beta,
+            "mhc_class": "II",
+            "gene": "DRB1",
+            "chain": "beta",
+            "species": "Ovis aries",
+            "signal_peptide_len": "22",
+        },
+        {
+            "allele_normalized": "OvisAries-DRB1*01:03:02",
+            "two_field_allele": "OvisAries-DRB1*01:03",
+            "sequence": out_of_frame,
+            "mhc_class": "II",
+            "gene": "DRB1",
+            "chain": "beta",
+            "species": "Ovis aries",
+            "signal_peptide_len": "0",
+        },
+    ]
+    rep, assembled, policy, _details = _classify_group("OvisAries-DRB1*01:03", members)
+    assert policy == "groove_equivalent"
+    assert assembled is None
+    assert rep is not None
+    assert rep["allele_normalized"] == "OvisAries-DRB1*01:03"
+
+
+def test_classify_group_imgt_canonical_core_equivalence_vs_true_conflict():
+    """Issue #183: N-overhang indels and trailing-X overhangs resolve via IMGT core; coding diffs stay conflict."""
+    from mhcseqs.pipeline import _classify_group
+
+    sp = "MMVLQVSAAPRTVALTALLMVLLTSVVQG"
+    dpb_core = "NYLFQGRQECYAFNGTQRFLERYIYNREEFVRFDSDVGEFRAVTELGRPDEEYWNSQKDILEEERAVPDRMCRHNYELGGPMTLQRRV"
+    dpb_rest = (
+        "QPRVNVSPSKKGPLQHHNLLVCHVTDFYPGSIQVRWFLNGQEETAGVVSTNLIRNGDWTFQILVMLEMTPQQGDVYTCQVEHTSLDSPVTVEWKAQSDSARSKTLTGAGGFVLGLIICGVGIFMHRRSKKVQRGSA"
+    )
+    # Overhang difference upstream of IMGT G-BETA pos 1 (RATPAE vs RATPE) -> groove_equivalent
+    m1 = sp + "RATPAE" + dpb_core + dpb_rest
+    m2 = sp + "RATPE" + dpb_core + dpb_rest
+    members_equiv = [
+        {
+            "allele_normalized": "PanTroglodytes-DPB1*01:13:01",
+            "two_field_allele": "PanTroglodytes-DPB1*01:13",
+            "sequence": m1,
+            "mhc_class": "II",
+            "gene": "DPB1",
+            "chain": "beta",
+            "species": "Pan troglodytes",
+            "signal_peptide_len": "29",
+        },
+        {
+            "allele_normalized": "PanTroglodytes-DPB1*01:13:02",
+            "two_field_allele": "PanTroglodytes-DPB1*01:13",
+            "sequence": m2,
+            "mhc_class": "II",
+            "gene": "DPB1",
+            "chain": "beta",
+            "species": "Pan troglodytes",
+            "signal_peptide_len": "29",
+        },
+    ]
+    rep, _, policy, _ = _classify_group("PanTroglodytes-DPB1*01:13", members_equiv)
+    assert policy == "groove_equivalent"
+    assert rep is not None
+
+    # Genuine substitution inside canonical IMGT G-BETA core -> stays conflict
+    m_diff = sp + "RATPAE" + dpb_core[:25] + ("W" if dpb_core[25] != "W" else "A") + dpb_core[26:] + dpb_rest
+    members_conflict = [
+        members_equiv[0],
+        dict(members_equiv[1], sequence=m_diff),
+    ]
+    rep_c, _, policy_c, _ = _classify_group("PanTroglodytes-DPB1*01:13", members_conflict)
+    assert rep_c is None
+    assert policy_c.startswith("conflict")
+
+
+def test_emit_full_row_protects_class_ii_beta_mature_start_from_sp_reset(monkeypatch):
+    """Issue #184: emit_full_row preserves valid Class II beta mature_start when SP refinement resets to 0."""
+    from mhcseqs.domain_parsing import decompose_domains
+    from mhcseqs.pipeline import emit_full_row
+
+    sp = "MVCLKLPGGSCMTALTVTLMVLSSPLALA"
+    b1 = "GDTRPRFLWQLKFECHFFNGTERVRLLERCIYNQEESVRFDSDVGEYRAVTELGRPDAEYWNSQKDLLEQRRAAVDTYCRHNYGVGESFTVQRR"
+    b2 = "VEPKVTVYPSKTQPLQHHNLLVCSVSGFYPGSIEVRWFRNGQEEKAGVVSTGLIQNGDWTFQTLVMLETVPRSGEVYTCQVEHPSVTSPLTVEW"
+    seq = sp + b1 + b2
+    groove = decompose_domains(seq, mhc_class="II", chain="beta", allele="HomoSapiens-DRB1*01:01")
+    assert groove.ok
+    assert groove.mature_start == 29
+    assert 88 <= groove.groove2_len <= 96
+
+    # Simulate refine_signal_peptide() failing has_plausible_sp_core() and returning 0
+    monkeypatch.setattr("mhcseqs.pipeline.refine_signal_peptide", lambda *a, **kw: 0)
+    rep = {
+        "allele_normalized": "HomoSapiens-DRB1*01:01",
+        "gene": "DRB1",
+        "mhc_class": "II",
+        "chain": "beta",
+        "species": "Homo sapiens",
+        "species_category": "human",
+        "species_prefix": "HomoSapiens",
+        "source": "imgt",
+        "source_id": "HLA00001",
+        "is_null": "False",
+        "is_questionable": "False",
+        "is_pseudogene": "False",
+    }
+    row = emit_full_row("HomoSapiens-DRB1*01:01", rep, "unique", seq, groove)
+    assert int(row["mature_start"]) == 29
+    assert int(row["groove2_len"]) == groove.groove2_len
+
+
+def test_diverse_mhc_csv_issue_184_reclassification_and_removal():
+    """Issue #184: A0AA41SZB3 is Class II alpha and obsolete A0A8B7UNK5 is removed."""
+    from pathlib import Path
+
+    csv_path = Path(__file__).resolve().parent.parent / "mhcseqs" / "diverse_mhc_sequences.csv"
+    with open(csv_path, encoding="utf-8", newline="") as f:
+        by_acc = {r["uniprot_accession"]: r for r in csv.DictReader(f)}
+    assert "A0A8B7UNK5" not in by_acc
+    assert (by_acc["A0AA41SZB3"]["mhc_class"], by_acc["A0AA41SZB3"]["chain"]) == ("II", "alpha")

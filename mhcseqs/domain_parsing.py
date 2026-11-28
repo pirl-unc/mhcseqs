@@ -151,6 +151,7 @@ from .domain_types import (
     _flags_to_tuple,
     grammar_spec,
 )
+from .imgt import align_groove_to_imgt
 from .signal_peptide import (
     analyze_sequence,
     detect_h_region,
@@ -443,6 +444,24 @@ def trace_parse_class_i(
     return result, trace
 
 
+_CLASS_II_FRAGMENT_MIN_IMGT_SCORE = -25.0
+
+
+def _is_plausible_class_ii_fragment(seq: str, chain: str) -> bool:
+    """Return True if *seq* has plausible IMGT G-ALPHA/G-BETA alignment score.
+
+    Rejects out-of-frame translations and exon-3 Ig-domain-only fragments that
+    otherwise fall through to ``fragment_fallback`` without any groove fold.
+    """
+    if chain == "alpha":
+        aln = align_groove_to_imgt(seq, "", mhc_class="II")
+        dom = aln.alpha1
+    else:
+        aln = align_groove_to_imgt("", seq, mhc_class="II")
+        dom = aln.alpha2
+    return dom is not None and dom.score > _CLASS_II_FRAGMENT_MIN_IMGT_SCORE
+
+
 # ---------------------------------------------------------------------------
 # Class II alpha groove parser
 # ---------------------------------------------------------------------------
@@ -529,7 +548,7 @@ def decompose_class_ii_alpha(
             _build_class_ii_alpha1_salvage_result(seq=cleaned, allele=allele, gene=gene, features=features),
         )
 
-    if len(cleaned) <= grammar.fragment_max_len:
+    if len(cleaned) <= grammar.fragment_max_len and _is_plausible_class_ii_fragment(cleaned, "alpha"):
         _append_record_candidate(
             candidates,
             _class_ii_fragment_result(seq=cleaned, allele=allele, gene=gene, chain="alpha"),
@@ -650,7 +669,7 @@ def decompose_class_ii_beta(
             ),
         )
 
-    if len(cleaned) <= grammar.fragment_max_len:
+    if len(cleaned) <= grammar.fragment_max_len and _is_plausible_class_ii_fragment(cleaned, "beta"):
         _append_record_candidate(
             candidates,
             _class_ii_fragment_result(seq=cleaned, allele=allele, gene=gene, chain="beta"),
