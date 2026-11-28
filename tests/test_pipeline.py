@@ -211,7 +211,7 @@ def test_resolve_official_imgt_header_with_bare_hla_allele():
 
 def test_load_mouse_h2_references():
     rows = load_mouse_h2_references()
-    assert len(rows) == 41
+    assert len(rows) == 43
     genes = {r["gene"] for r in rows}
     assert {"K", "D", "L", "T23", "Aa", "Ab1", "Ea", "Eb1"} <= genes
 
@@ -219,10 +219,10 @@ def test_load_mouse_h2_references():
 def test_mouse_h2_class_i():
     rows = load_mouse_h2_references()
     class_i = [r for r in rows if r["mhc_class"] == "I"]
-    assert len(class_i) == 13
+    assert len(class_i) == 15
     assert all(r["chain"] == "alpha" for r in class_i)
     alleles = {r["allele_normalized"] for r in class_i}
-    assert {"H2-K*b", "H2-K*s", "H2-D*b", "H2-L*d", "H2-T23*a", "H2-T23*b"} <= alleles
+    assert {"H2-K*b", "H2-K*bm8", "H2-K*wm7", "H2-K*s", "H2-D*b", "H2-L*d", "H2-T23*a", "H2-T23*b"} <= alleles
 
 
 def test_mouse_h2_class_ii():
@@ -464,6 +464,7 @@ def test_build_raw_index_refines_signal_peptide_before_serializing(monkeypatch, 
     monkeypatch.setattr("mhcseqs.pipeline.load_rat_rt1_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_diverse_mhc_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_genbank_saha_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_curated_genbank_references", lambda: [])
 
     build_raw_index([(fasta_path, "synthetic")], out_csv)
 
@@ -643,6 +644,7 @@ def test_build_raw_index_filters_non_mhc_tap_genes_and_sanitizes_question_marks(
     monkeypatch.setattr("mhcseqs.pipeline.load_rat_rt1_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_diverse_mhc_references", lambda: [])
     monkeypatch.setattr("mhcseqs.pipeline.load_genbank_saha_references", lambda: [])
+    monkeypatch.setattr("mhcseqs.pipeline.load_curated_genbank_references", lambda: [])
 
     out_csv = tmp_path / "raw.csv"
     stats = build_raw_index([(fasta, "ipd_mhc")], out_csv)
@@ -997,3 +999,69 @@ def test_diverse_mhc_csv_issue_184_reclassification_and_removal():
         by_acc = {r["uniprot_accession"]: r for r in csv.DictReader(f)}
     assert "A0A8B7UNK5" not in by_acc
     assert (by_acc["A0AA41SZB3"]["mhc_class"], by_acc["A0AA41SZB3"]["chain"]) == ("II", "alpha")
+
+
+def test_issue_186_curated_sla_and_h2_alleles():
+    """Issue #186: 5 curated SLA/H2 Class I alleles load cleanly with canonical grooves and pseudosequences."""
+    from mhcseqs.domain_parsing import decompose_class_i
+    from mhcseqs.imgt import align_groove_to_imgt
+    from mhcseqs.pipeline import load_curated_genbank_references, load_mouse_h2_references
+
+    by_allele = {r["two_field_allele"]: r for r in load_mouse_h2_references() + load_curated_genbank_references()}
+    # NetMHCpan 34 mature positions (1-indexed)
+    pos34 = [
+        7,
+        9,
+        24,
+        45,
+        59,
+        62,
+        63,
+        66,
+        67,
+        69,
+        70,
+        73,
+        74,
+        76,
+        77,
+        80,
+        81,
+        84,
+        95,
+        97,
+        99,
+        114,
+        116,
+        118,
+        143,
+        147,
+        150,
+        152,
+        156,
+        158,
+        159,
+        163,
+        167,
+        171,
+    ]
+    expected_p34 = {
+        "SLA-3*02:02": "YYAEYREISDNTYVNNLYFNYHYYTWSWESYLSY",
+        "SLA-1*03:02": "YYIMYREISETNYGSNLYFNYHFYTWAEDNYTWY",
+        "SLA-2*01:06": "YSAMYRENVGSTDVNTLYISYSDYTWAVMSYLGY",
+        "H2-K*wm7": "YVEYYGQIAGNSSVDTAYIRRQVYTWAADAYAWY",
+        "H2-K*bm8": "YVSYYREKAGNSFVDTLYIVSQYYTWAELAYTWY",
+    }
+    for allele, exp_p34 in expected_p34.items():
+        assert allele in by_allele, f"{allele} missing from curated references"
+        row = by_allele[allele]
+        dp = decompose_class_i(row["sequence"], allele=allele, gene=row["gene"])
+        assert dp.status == "ok", f"{allele}: unexpected status {dp.status}"
+        assert dp.groove1_len == 90
+        assert dp.groove2_len == 93
+        aln = align_groove_to_imgt(dp.groove1, dp.groove2, mhc_class="I")
+        assert aln.alpha1 is not None and aln.alpha2 is not None
+        mature_map = {**aln.alpha1.mature_to_aa, **aln.alpha2.mature_to_aa}
+        p34 = "".join(mature_map.get(p, "X") for p in pos34)
+        assert p34 == exp_p34, f"{allele}: {p34} != {exp_p34}"
+        assert "X" not in p34
