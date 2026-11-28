@@ -37,6 +37,7 @@ from .domain_parsing import (
     is_class_ii_alpha_gene,
     refine_signal_peptide,
 )
+from .imgt import align_groove_to_imgt
 from .species import extract_latin_binomial, full_species_name_alias, get_latin_name, normalize_mhc_species
 
 # Minimum protein length to include (allows groove-bearing fragments)
@@ -1218,7 +1219,7 @@ def _try_assemble_overlap(
     unique_records: List[dict],
     group_key: str,
     *,
-    min_overlap: int = 100,
+    min_overlap: int = 80,
 ) -> Optional[Tuple[str, dict]]:
     """Try to assemble a full-length sequence from overlapping fragments.
 
@@ -1258,6 +1259,53 @@ def _try_assemble_overlap(
         return None
 
     return consensus, anchor
+
+
+def _has_parsed_groove(groove: Optional[AlleleRecord]) -> bool:
+    """Return True if *groove* carries at least one parsed groove segment."""
+    return groove is not None and groove.status != "missing_groove" and bool(groove.groove1 or groove.groove2)
+
+
+def _imgt_grooves_equivalent(
+    parsed_members: List[Tuple[dict, AlleleRecord]],
+) -> bool:
+    """Return True when all groove-bearing members share an identical canonical IMGT core.
+
+    Ignores N-terminal overhangs upstream of IMGT pos 1 (SP-boundary indels),
+    C-terminal overhangs downstream of the canonical domain (exon-edge partial
+    codon ``X`` stubs), and ambiguous ``X`` residues, while preserving any real
+    coding substitution inside canonical IMGT groove positions as a conflict.
+    """
+    if len(parsed_members) < 2:
+        return False
+
+    aligned = []
+    for _, groove in parsed_members:
+        aln = align_groove_to_imgt(groove.groove1, groove.groove2, mhc_class=groove.mhc_class)
+        domains = [d for d in (aln.alpha1, aln.alpha2) if d is not None]
+        if not domains:
+            return False
+        if any(d.score <= 0.0 or len(d.imgt_to_aa) < 40 for d in domains):
+            return False
+        aligned.append(aln)
+
+    anchor = aligned[0]
+    for other in aligned[1:]:
+        for d0, d1 in ((anchor.alpha1, other.alpha1), (anchor.alpha2, other.alpha2)):
+            if d1 is None:
+                continue
+            if d0 is None:
+                return False
+            shared = set(d0.imgt_to_aa) & set(d1.imgt_to_aa)
+            if len(shared) < 30:
+                return False
+            for pos in shared:
+                v0 = d0.imgt_to_aa[pos]
+                v1 = d1.imgt_to_aa[pos]
+                if v0 != v1 and v0 != "X" and v1 != "X":
+                    return False
+
+    return True
 
 
 def _groove_signature(row: dict) -> Optional[Tuple[str, str]]:
@@ -1350,32 +1398,57 @@ def _classify_group(
         assembled_seq, anchor = assembled
         return anchor, assembled_seq, "assembled_overlap", None
 
-    # 4. Groove equivalence: all unique sequences produce the same (or nested) groove?
-    signatures: Dict[Tuple[str, str], List[dict]] = {}
-    rec_sigs: List[Tuple[dict, Tuple[str, str]]] = []
-    all_have_sig = True
+    # 4. Groove equivalence: parse domains for unique members.
+    #    If a group mixes valid groove-bearing alleles with non-groove /
+    #    out-of-frame (`missing_groove`) deposits, discard the non-groove
+    #    members and resolve on the groove-bearing subset.
+    parsed_members: List[Tuple[dict, Optional[AlleleRecord]]] = []
     for rec in sorted_by_len:
-        sig = _groove_signature(rec)
-        if sig is None:
-            all_have_sig = False
-            break
-        signatures.setdefault(sig, []).append(rec)
-        rec_sigs.append((rec, sig))
+        groove = parse_domain_record(
+            rec["sequence"],
+            mhc_class=rec.get("mhc_class", ""),
+            gene=rec.get("gene", ""),
+            allele=rec.get("allele_normalized", ""),
+            chain=rec.get("chain", ""),
+            species=rec.get("species", ""),
+        )
+        parsed_members.append((rec, groove))
 
-    if all_have_sig and len(signatures) == 1:
-        # All produce the exact same groove — pick the longest
-        exemplar = sorted_by_len[0]
-        return exemplar, None, "groove_equivalent", None
+    with_groove = [(rec, g) for rec, g in parsed_members if _has_parsed_groove(g)]
+    if with_groove and len(with_groove) < len(parsed_members):
+        if len(with_groove) == 1:
+            return with_groove[0][0], None, "groove_equivalent", None
+        return _classify_group(group_key, [rec for rec, _ in with_groove])
 
-    if all_have_sig and rec_sigs:
+    ok_members: List[Tuple[dict, AlleleRecord]] = [(rec, g) for rec, g in parsed_members if g is not None and g.ok]
+    all_have_sig = len(ok_members) == len(parsed_members) and bool(ok_members)
+
+    if all_have_sig:
+        signatures: Dict[Tuple[str, str], List[dict]] = {}
+        rec_sigs: List[Tuple[dict, Tuple[str, str]]] = []
+        for rec, g in ok_members:
+            sig = (g.groove1.upper(), g.groove2.upper())
+            signatures.setdefault(sig, []).append(rec)
+            rec_sigs.append((rec, sig))
+
+        if len(signatures) == 1:
+            # All produce the exact same groove — pick the longest
+            return sorted_by_len[0], None, "groove_equivalent", None
+
         # Shorter exon fragments can trim 1-4 aa off a groove boundary while
         # full-length alleles differ only outside the groove (e.g., cytoplasmic tail).
         # If every member's groove halves nest identically inside the longest
         # member's groove halves, the group is groove-equivalent.
         anchor_g1, anchor_g2 = rec_sigs[0][1]
         if (anchor_g1 or anchor_g2) and all(((not g1) or (g1 in anchor_g1)) and ((not g2) or (g2 in anchor_g2)) for _, (g1, g2) in rec_sigs[1:]):
-            exemplar = sorted_by_len[0]
-            return exemplar, None, "groove_equivalent", None
+            return sorted_by_len[0], None, "groove_equivalent", None
+
+        # Canonical IMGT groove-core equivalence: members that differ only in
+        # N-terminal overhangs upstream of IMGT pos 1 or C-terminal partial-codon
+        # overhangs downstream of the canonical domain share the exact same
+        # binding groove.
+        if _imgt_grooves_equivalent(ok_members):
+            return sorted_by_len[0], None, "groove_equivalent", None
 
     # 5. Conflict — cannot resolve.  Collect details for the merge report.
     conflict_alleles = []
@@ -1535,21 +1608,35 @@ def emit_full_row(
         representative.get("species_category", ""),
         groove.mhc_class if groove else representative.get("mhc_class", ""),
     )
-    # Never let SP refinement reset a structural non-zero mature_start back to 0
-    # when doing so would glue an N-terminal UTR/leader extension onto the groove
-    # and bloat the N-terminal groove segment past the domain length grammar, or
-    # undo a validated non-Met truncated Class I signal-peptide stub.
-    if groove and groove.ok and raw_mature_start > 0 and mature_start == 0:
-        n_term_groove_len = groove.groove2_len if (groove.mhc_class == "II" and groove.chain == "beta") else groove.groove1_len
-        is_truncated_class_i_leader = (
-            groove.mhc_class == "I"
-            and not seq.upper().startswith("M")
-            and 5 <= raw_mature_start <= 18
-            and 84 <= groove.groove1_len <= 96
-            and groove.groove1_len + raw_mature_start > 98
-        )
-        if n_term_groove_len + raw_mature_start > 120 or is_truncated_class_i_leader:
-            mature_start = raw_mature_start
+    # Never let SP refinement push the N-terminal groove segment further outside
+    # its canonical domain length bounds than decompose_domains() already placed
+    # it (e.g. resetting a valid non-Met/vertebrate mature_start back to 0 and
+    # gluing the leader onto the groove, or shifting cleavage past the domain
+    # boundary). When decompose_domains() over-predicted an SP on a mature-only
+    # protein, raw_len is too short while refined_len=raw_len+raw_mature_start
+    # lands inside [lo, hi], so resetting to 0 is still allowed.
+    if groove and groove.ok and raw_mature_start > 0 and mature_start != raw_mature_start:
+        if groove.mhc_class == "I":
+            raw_len, lo, hi = groove.groove1_len, 80, 100
+        elif groove.mhc_class == "II" and groove.chain == "alpha":
+            raw_len, lo, hi = groove.groove1_len, 70, 98
+        elif groove.mhc_class == "II" and groove.chain == "beta":
+            raw_len, lo, hi = groove.groove2_len, 80, 105
+        else:
+            raw_len, lo, hi = 0, 0, 0
+
+        if raw_len > 0:
+            refined_len = raw_len + (raw_mature_start - mature_start)
+
+            def _dist_to_range(val: int, low: int, high: int) -> int:
+                if val < low:
+                    return low - val
+                if val > high:
+                    return val - high
+                return 0
+
+            if _dist_to_range(refined_len, lo, hi) > _dist_to_range(raw_len, lo, hi):
+                mature_start = raw_mature_start
     aligned_groove = _realign_domains_to_refined_start(groove, mature_start) if groove else None
     mature_seq = aligned_groove.mature_sequence if aligned_groove and aligned_groove.ok else (seq[mature_start:] if mature_start > 0 else seq)
 

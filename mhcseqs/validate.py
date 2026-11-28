@@ -52,7 +52,10 @@ GROOVE_RANGE_CLASS_II_BETA_H2 = (80, 105)  # beta1 groove, typical ~94 aa
 
 # B2M expected properties (including signal peptide)
 B2M_LENGTH_RANGE = (95, 130)  # mature ~99 aa (human), with signal ~119 aa; varies by species
-B2M_EXPECTED_CYS_COUNT = (2, 4)  # B2M has a disulfide bond (2 Cys minimum)
+B2M_EXPECTED_CYS_COUNT = (2, 6)  # 2 conserved mature Ig-fold Cys + up to 4 SP Cys (e.g. reptiles/fish)
+B2M_DISULFIDE_SEP_RANGE = (45, 65)  # canonical vertebrate B2M Ig-fold disulfide spacing (~55 aa)
+B2M_MAX_N_BEFORE_C1 = 55  # max residues before first disulfide Cys (SP + mature N-term)
+B2M_MAX_C_TAIL = 28  # max residues after second disulfide Cys (canonical post-Cys80 beta-strand)
 
 # Hydrophobic residues (for signal peptide check)
 HYDROPHOBIC = set("AILMFVW")
@@ -120,19 +123,29 @@ def check_b2m(row: dict) -> List[str]:
         warnings.append(f"B2M({allele}): empty sequence")
         return warnings
 
+    seq_upper = seq.upper()
+
     # Length check
     lo, hi = B2M_LENGTH_RANGE
-    if not (lo <= len(seq) <= hi):
-        warnings.append(f"B2M({allele}): unusual length {len(seq)} (expected {lo}-{hi})")
+    if not (lo <= len(seq_upper) <= hi):
+        warnings.append(f"B2M({allele}): unusual length {len(seq_upper)} (expected {lo}-{hi})")
 
-    # Cysteine count (B2M has one Ig-fold disulfide bond)
-    cys_count = seq.upper().count("C")
+    # Cysteine count & canonical Ig-fold disulfide geometry
+    cys_positions = [i for i, aa in enumerate(seq_upper) if aa == "C"]
+    cys_count = len(cys_positions)
     clo, chi = B2M_EXPECTED_CYS_COUNT
     if not (clo <= cys_count <= chi):
         warnings.append(f"B2M({allele}): unexpected Cys count {cys_count} (expected {clo}-{chi})")
-
-    # B2M should NOT start with M if it's a curated mature sequence
-    # (our B2M references include signal peptide, so M is expected)
+    elif len(seq_upper) >= lo:
+        sep_lo, sep_hi = B2M_DISULFIDE_SEP_RANGE
+        disulfide_pairs = [(c1, c2) for idx, c1 in enumerate(cys_positions) for c2 in cys_positions[idx + 1 :] if sep_lo <= (c2 - c1) <= sep_hi]
+        if not disulfide_pairs:
+            warnings.append(f"B2M({allele}): missing canonical Ig-fold disulfide Cys pair (expected separation {sep_lo}-{sep_hi} aa)")
+        elif not any(c1 <= B2M_MAX_N_BEFORE_C1 and (len(seq_upper) - 1 - c2) <= B2M_MAX_C_TAIL for c1, c2 in disulfide_pairs):
+            warnings.append(
+                f"B2M({allele}): Ig-fold disulfide position outside canonical B2M geometry "
+                f"(expected c1<={B2M_MAX_N_BEFORE_C1}, c_tail<={B2M_MAX_C_TAIL})"
+            )
 
     return warnings
 
@@ -150,10 +163,27 @@ def check_groove_row(row: dict) -> List[str]:
     if status in ("not_applicable", "too_short", ""):
         return []
 
-    if status == "ok":
+    is_non_functional_label = row.get("is_pseudogene") == "True" or row.get("is_null") == "True"
+
+    if status == "ok" and not is_non_functional_label:
+        seq = row.get("sequence", "").strip().upper()
+        mature_start = int(row.get("mature_start") or 0)
+        # Align with domain_scoring._refine_status(): leaderless N-truncated
+        # deposits (mature_start=0, no initiator Met) are explicitly admitted
+        # down to 50 aa on the N-terminal groove segment, and C-terminally
+        # truncated Class I alpha2 fragments (no Ig/tail) down to 70 aa.
+        is_leaderless_n_fragment = bool(seq) and mature_start == 0 and not seq.startswith("M")
+        is_c_truncated_fragment = (
+            bool(seq) and "ig_domain_len" in row and int(row.get("ig_domain_len") or 0) == 0 and int(row.get("tail_len") or 0) == 0
+        )
+
         if mhc_class == "I" and chain == "alpha":
             lo1, hi1 = GROOVE_RANGE_CLASS_I_H1
             lo2, hi2 = GROOVE_RANGE_CLASS_I_H2
+            if is_leaderless_n_fragment:
+                lo1 = 50
+            if is_c_truncated_fragment:
+                lo2 = 70
             if h1 and not (lo1 <= len(h1) <= hi1):
                 warnings.append(f"GROOVE({allele}): class I alpha1 half length {len(h1)} (expected {lo1}-{hi1})")
             if h2 and not (lo2 <= len(h2) <= hi2):
@@ -161,11 +191,15 @@ def check_groove_row(row: dict) -> List[str]:
 
         elif mhc_class == "II" and chain == "alpha":
             lo, hi = GROOVE_RANGE_CLASS_II_ALPHA_H1
+            if is_leaderless_n_fragment:
+                lo = 50
             if h1 and not (lo <= len(h1) <= hi):
                 warnings.append(f"GROOVE({allele}): class II alpha groove length {len(h1)} (expected {lo}-{hi})")
 
         elif mhc_class == "II" and chain == "beta":
             lo, hi = GROOVE_RANGE_CLASS_II_BETA_H2
+            if is_leaderless_n_fragment:
+                lo = 50
             if h2 and not (lo <= len(h2) <= hi):
                 warnings.append(f"GROOVE({allele}): class II beta groove length {len(h2)} (expected {lo}-{hi})")
 

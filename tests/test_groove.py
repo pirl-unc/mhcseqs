@@ -1304,3 +1304,26 @@ def test_curated_pdb_benchmark_alleles_and_sanitization():
     assert "B5G1N1" in b2m_accs
     assert "A0A8C3RQL5" in b2m_accs
     assert not ({"A0A165VGN5", "A0A166TQL1", "A0A291RBL3"} & b2m_accs)
+
+
+def test_class_ii_fragment_fallback_rejects_out_of_frame_and_ig_only():
+    """Issue #183: out-of-frame gibberish and exon-3 Ig-only fragments must not pass fragment_fallback."""
+    out_of_frame_beta = "HISWSILRKSVVSPTGRSGCGSWTDTSIMEKRPCASTAIGASTERWPSWGGRTPSTGTARRTGRPGPSWCGWTGTATWWRVSVCSG"
+    res_oof = decompose_class_ii_beta(out_of_frame_beta, allele="OvisAries-DRB1*01:03:02", gene="DRB1")
+    assert res_oof.status == "missing_groove"
+
+    ig_only_alpha = "VFTLKPLEFGKPNTLVCFVSNLFPPALTVTWEHHSAPVEGVGPTFVSATDDLSFQKFAYLTFVPSEDDLYDCRVEHWDLEKPLVRHWE"
+    res_ig = decompose_class_ii_alpha(ig_only_alpha, allele="SLA-DMA*04:01", gene="DMA")
+    assert res_ig.status == "missing_groove"
+
+
+def test_non_met_truncated_class_i_sp_stub_18aa_trimmed():
+    """Issue #184: non-Met truncated Class I SP stubs up to 22 aa trim cleanly instead of bloating alpha1."""
+    a1 = "GSHSMRYFYTSMSRPGRGEPRFIAVGYVDDTQFVQFDSDAASQRMEPRAPWIEQEGPEYWDRNTRNVKAHSQTDRAHLGTLRGYYNQSEA"
+    a2 = "GSHTIQMMYGCDLGPDGRLLRGYHQYAYDGKDYIALNEDLRSWTAADMAAQNTQRKWEAARVAEQLRAYLEGECVEWLRRYLENGKETLQR"
+    a3 = "ADPPKTHVTHHPVSDHEATLRCWALGFYPAEITLTWQRDGEDQTQDTELVETRPAGDGTFQKWAAVVVPSGEEQRYTCHVQHEGLPEPLTLRW"
+    seq = "RTLLLVLSGALALTQPRA" + a1 + a2 + a3  # 18-aa non-Met SP stub
+    res = decompose_class_i(seq, allele="MacacaNemestrina-A4*14:02", gene="A4")
+    assert res.ok
+    assert 16 <= res.mature_start <= 20
+    assert 86 <= res.groove1_len <= 94

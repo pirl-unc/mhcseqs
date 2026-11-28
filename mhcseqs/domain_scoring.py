@@ -204,7 +204,7 @@ class ParseScaffold:
                 # penalty so good Cys pair topology can still produce a
                 # viable parse.  This recovers horse Eqca, pig SLA, and
                 # similar IPD-MHC deposits.
-                if mature_start == 0 and self.seq[:1] != "M" and g1 < -3.0:
+                if mature_start == 0 and self.seq[:1] != "M" and alpha1_len < 88 and g1 < -3.0:
                     g1 = -3.0
                 groove += g1 + g2 + total
             else:

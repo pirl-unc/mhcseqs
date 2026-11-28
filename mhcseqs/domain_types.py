@@ -398,7 +398,7 @@ def _is_truncated_class_i_sp(
     """
     if seq[:1] == "M":
         return False
-    if not (5 <= mature_start <= 16):
+    if not (5 <= mature_start <= 22):
         return False
     if groove_boundary < 95:
         return False
@@ -409,7 +409,7 @@ def _is_truncated_class_i_sp(
         return False
     hydro_prefix = seq[: max(3, mature_start - 4)]
     hydro_frac = sum(1 for aa in hydro_prefix if aa in _SP_HYDROPHOBIC) / len(hydro_prefix)
-    return hydro_frac >= 0.60
+    return hydro_frac >= 0.50
 
 
 def _prefix_count(prefix: Sequence[int], start: int, end: int) -> int:

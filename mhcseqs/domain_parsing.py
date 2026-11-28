@@ -151,6 +151,7 @@ from .domain_types import (
     _flags_to_tuple,
     grammar_spec,
 )
+from .imgt import align_groove_to_imgt
 from .signal_peptide import (
     analyze_sequence,
     detect_h_region,
@@ -443,6 +444,24 @@ def trace_parse_class_i(
     return result, trace
 
 
+_CLASS_II_FRAGMENT_MIN_IMGT_SCORE = -25.0
+
+
+def _is_plausible_class_ii_fragment(seq: str, chain: str) -> bool:
+    """Return True if *seq* has plausible IMGT G-ALPHA/G-BETA alignment score.
+
+    Rejects out-of-frame translations and exon-3 Ig-domain-only fragments that
+    otherwise fall through to ``fragment_fallback`` without any groove fold.
+    """
+    if chain == "alpha":
+        aln = align_groove_to_imgt(seq, "", mhc_class="II")
+        dom = aln.alpha1
+    else:
+        aln = align_groove_to_imgt("", seq, mhc_class="II")
+        dom = aln.alpha2
+    return dom is not None and dom.score > _CLASS_II_FRAGMENT_MIN_IMGT_SCORE
+
+
 # ---------------------------------------------------------------------------
 # Class II alpha groove parser
 # ---------------------------------------------------------------------------
@@ -547,7 +566,10 @@ def decompose_class_ii_alpha(
             flags=grammar.missing_no_anchor_flags,
         ),
     )
-    return _apply_requested_mutations(_select_best_record_candidate(candidates), mutations)
+    selected = _select_best_record_candidate(candidates)
+    if selected.status == "fragment_fallback" and not _is_plausible_class_ii_fragment(cleaned, "alpha"):
+        selected = _select_best_record_candidate([c for c in candidates if c.status != "fragment_fallback"])
+    return _apply_requested_mutations(selected, mutations)
 
 
 # ---------------------------------------------------------------------------
@@ -672,7 +694,10 @@ def decompose_class_ii_beta(
             flags=missing_flags,
         ),
     )
-    return _apply_requested_mutations(_select_best_record_candidate(candidates), mutations)
+    selected = _select_best_record_candidate(candidates)
+    if selected.status == "fragment_fallback" and not _is_plausible_class_ii_fragment(cleaned, "beta"):
+        selected = _select_best_record_candidate([c for c in candidates if c.status != "fragment_fallback"])
+    return _apply_requested_mutations(selected, mutations)
 
 
 # ---------------------------------------------------------------------------

@@ -81,10 +81,45 @@ def test_check_signal_peptide_unusual_length():
 
 def test_check_b2m_valid():
     row = {
-        "sequence": "M" + "A" * 20 + "CC" + "A" * 77,  # 100 aa, 2 Cys
+        "sequence": "M" + "A" * 24 + "C" + "A" * 54 + "C" + "A" * 19,  # 100 aa, canonical 55-aa Ig-fold disulfide
         "allele_normalized": "B2M_human",
     }
     assert check_b2m(row) == []
+
+
+def test_check_b2m_accepts_five_cys_with_sp_cysteines():
+    """Issue #182: fish/reptile B2M with SP cysteines + canonical Ig-fold disulfide should pass."""
+    # Real Paralichthys olivaceus (Q8AYH8) 5-Cys precursor: 3 SP Cys + Cys43-Cys98 (sep 55)
+    row = {
+        "sequence": "MGLLICSLLLGLLCCSMAKDTPPKVEVYTREPEEFGKPNSFICHVSGFYPPQINITLLKDGKEIPNTQQTDLAFEANWYYYLTKHVSFTPKEDDEFICRVTHMGKSKDHFLMIGL",
+        "allele_normalized": "B2M_paralichthys_olivaceus",
+    }
+    assert check_b2m(row) == []
+
+
+def test_check_b2m_rejects_missing_or_shifted_disulfide():
+    """Issue #182: B2M without canonical Ig-fold disulfide or with C-terminal readthrough tail warns."""
+    no_ss = {
+        "sequence": "M" + "A" * 20 + "CC" + "A" * 77,
+        "allele_normalized": "B2M_bad_ss",
+    }
+    assert any("missing canonical Ig-fold disulfide" in w for w in check_b2m(no_ss))
+
+    c_tail_readthrough = {
+        "sequence": "M" + "A" * 24 + "C" + "A" * 54 + "C" + "A" * 38,  # 119 aa, c_tail=38 > 28
+        "allele_normalized": "B2M_bad_tail",
+    }
+    assert any("outside canonical B2M geometry" in w for w in check_b2m(c_tail_readthrough))
+
+
+def test_all_shipped_b2m_sequences_pass_check_b2m():
+    """Issue #182: every curated entry in b2m_sequences.csv passes check_b2m() with 0 warnings."""
+    from mhcseqs.pipeline import load_b2m_references
+
+    b2m_rows = load_b2m_references()
+    assert len(b2m_rows) >= 250
+    warnings = [w for r in b2m_rows for w in check_b2m(r)]
+    assert warnings == []
 
 
 def test_check_b2m_empty():
@@ -364,3 +399,65 @@ def test_validate_build_flags_unparseable_two_field_allele(tmp_path):
     assert not any("SLA-1*01:01" in w for w in warnings)
     assert not any("G3V1L5" in w for w in warnings)
     assert not any("B2M_human" in w for w in warnings)
+
+
+def test_check_groove_row_partial_fragments_and_pseudogenes():
+    """Issue #184: align check_groove_row bounds with domain_scoring partial-fragment & pseudogene contract."""
+    # Leaderless N-truncated Class I alpha1 (55 aa) is admitted down to 50 aa
+    n_trunc = {
+        "two_field_allele": "PanTroglodytes-B*15:01",
+        "groove_status": "ok",
+        "mhc_class": "I",
+        "chain": "alpha",
+        "sequence": "A" * 240,
+        "mature_start": "0",
+        "groove1": "A" * 55,
+        "groove2": "A" * 92,
+        "ig_domain_len": "93",
+        "tail_len": "0",
+    }
+    assert check_groove_row(n_trunc) == []
+
+    # C-terminally truncated Class I alpha2 (74 aa, no Ig/tail) is admitted down to 70 aa
+    c_trunc = {
+        "two_field_allele": "BoLA-1*001:01",
+        "groove_status": "ok",
+        "mhc_class": "I",
+        "chain": "alpha",
+        "sequence": "M" + "A" * 187,
+        "mature_start": "24",
+        "groove1": "A" * 90,
+        "groove2": "A" * 74,
+        "ig_domain_len": "0",
+        "tail_len": "0",
+    }
+    assert check_groove_row(c_trunc) == []
+
+    # Full-length Met-starting protein with short 74-aa alpha1 MUST still trigger a warning
+    met_short = {
+        "two_field_allele": "Test-A*01:01",
+        "groove_status": "ok",
+        "mhc_class": "I",
+        "chain": "alpha",
+        "sequence": "M" + "A" * 340,
+        "mature_start": "24",
+        "groove1": "A" * 74,
+        "groove2": "A" * 92,
+        "ig_domain_len": "93",
+        "tail_len": "58",
+    }
+    assert any("alpha1 half length 74" in w for w in check_groove_row(met_short))
+
+    # Non-functional pseudogene is exempt from functional groove-length warnings
+    pseudo = {
+        "two_field_allele": "CallithrixJacchus-B9*01:01Ps",
+        "groove_status": "ok",
+        "is_pseudogene": "True",
+        "mhc_class": "I",
+        "chain": "alpha",
+        "sequence": "D" + "A" * 300,
+        "mature_start": "0",
+        "groove1": "A" * 113,
+        "groove2": "A" * 93,
+    }
+    assert check_groove_row(pseudo) == []
